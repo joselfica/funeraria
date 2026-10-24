@@ -10,6 +10,7 @@ use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeceasedController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportController;
 
 // Página pública
 Route::inertia('/', 'welcome')->name('home');
@@ -117,6 +118,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
         Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
         Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
+
+        // ──────────────────────────────────────────────────────────
+        // MÓDULO DE REPORTES
+        // ──────────────────────────────────────────────────────────
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/services/pdf', [ReportController::class, 'servicesPdf'])->name('reports.services.pdf');
+        Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
+        Route::get('reports/payments/pdf', [ReportController::class, 'paymentsPdf'])->name('reports.payments.pdf');
+        Route::get('reports/payments/excel', [ReportController::class, 'paymentsExcel'])->name('reports.payments.excel');
+        Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
     });
 
 });
