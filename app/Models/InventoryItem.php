@@ -87,7 +87,8 @@ class InventoryItem extends Model
         return match ($this->category) {
             'ataud' => 'Ataúd',
             'urna' => 'Urna',
-            default => $this->category,
+            null => 'Sin categoría',
+            default => (string) $this->category,
         };
     }
 
@@ -96,7 +97,7 @@ class InventoryItem extends Model
      */
     public function getNeedsRestockAttribute(): bool
     {
-        return $this->stock <= $this->stock_minimum;
+        return ($this->stock ?? 0) <= ($this->stock_minimum ?? 0);
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeceasedController;
+use App\Http\Controllers\DashboardController;
 
 // Página pública
 Route::inertia('/', 'welcome')->name('home');
@@ -15,7 +16,7 @@ Route::inertia('/', 'welcome')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // ================================================
     // MÓDULO CLIENTES
