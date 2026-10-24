@@ -5,6 +5,7 @@ use App\Http\Controllers\EmployeeAbsenceController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\StaffController;
 use App\Http\Controllers\VehicleController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeceasedController;
@@ -109,6 +110,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('absences/{absence}/reject', [EmployeeAbsenceController::class, 'reject'])
             ->name('absences.reject');
+
+        // ──────────────────────────────────────────────────────────
+        // GESTIÓN DE PERSONAL
+        // ──────────────────────────────────────────────────────────
+        Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
+        Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
     });
 
 });

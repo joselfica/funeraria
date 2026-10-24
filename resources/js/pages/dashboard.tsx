@@ -2,7 +2,8 @@ import { Head, Link } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck, Package } from 'lucide-react';
 import {
     LineChart,
     Line,
@@ -51,18 +52,25 @@ interface FleetStatus {
     maintenance: number;
 }
 
+interface Alerts {
+    pending_services: number;
+    unpaid_services: number;
+    low_stock_items: number;
+}
+
 interface Props {
     kpis: Kpis;
     chart_data: ChartData[];
     low_stock: LowStockItem[];
     upcoming_services: UpcomingService[];
     fleet_status: FleetStatus;
+    alerts: Alerts;
 }
 
 // ──────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ──────────────────────────────────────────────────────────────
-export default function Dashboard({ kpis, chart_data, low_stock, upcoming_services, fleet_status }: Props) {
+export default function Dashboard({ kpis, chart_data, low_stock, upcoming_services, fleet_status, alerts }: Props) {
 
     const formatPrice = (value: number) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
@@ -127,6 +135,41 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* PANEL DE ACCIÓN RÁPIDA (Modo Renato) */}
+                {(alerts.pending_services > 0 || alerts.unpaid_services > 0 || alerts.low_stock_items > 0) && (
+                    <Card className="border-amber-500/50 bg-amber-500/5">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-lg">Acciones Pendientes</CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex gap-4 flex-wrap">
+                            {alerts.pending_services > 0 && (
+                                <Link href="/services?status=pending">
+                                    <Button variant="destructive" className="gap-2">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        {alerts.pending_services} Servicio(s) por Aprobar
+                                    </Button>
+                                </Link>
+                            )}
+                            {alerts.unpaid_services > 0 && (
+                                <Link href="/services">
+                                    <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                                        <DollarSign className="h-4 w-4" />
+                                        {alerts.unpaid_services} Servicio(s) con Deuda
+                                    </Button>
+                                </Link>
+                            )}
+                            {alerts.low_stock_items > 0 && (
+                                <Link href="/inventory">
+                                    <Button variant="outline" className="gap-2 border-amber-500 text-amber-500">
+                                        <Package className="h-4 w-4" />
+                                        {alerts.low_stock_items} Item(s) con Stock Bajo
+                                    </Button>
+                                </Link>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* GRÁFICO Y FLOTA */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

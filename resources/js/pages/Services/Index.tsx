@@ -22,6 +22,7 @@ interface Service {
     scheduled_at: string;
     ends_at: string | null;
     total_price: string;
+    total_paid: number;
     client: { id: number; name: string; rut: string };
     deceased: { id: number; full_name: string };
     service_type: { id: number; name: string };
@@ -170,19 +171,28 @@ export default function ServicesIndex({ services, filters }: Props) {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right space-x-2">
+                                            {/* Acción rápida: Cobrar si debe plata */}
+                                            {service.status === 'accepted' && parseFloat(service.total_price) > Number(service.total_paid) && (
+                                                <Link href={`/services/${service.id}`}>
+                                                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                                                        Cobrar
+                                                    </Button>
+                                                </Link>
+                                            )}
+
+                                            {/* Acción rápida: Aprobar si está pendiente */}
+                                            {service.status === 'pending' && (
+                                                <Link href={`/services/${service.id}`}>
+                                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                                        Aprobar
+                                                    </Button>
+                                                </Link>
+                                            )}
+
+                                            {/* Ver siempre disponible */}
                                             <Link href={`/services/${service.id}`}>
-                                                <Button variant="ghost" size="sm">Ver</Button>
+                                                <Button size="sm" variant="outline">Ver Todo</Button>
                                             </Link>
-                                            <Link href={`/services/${service.id}/edit`}>
-                                                <Button variant="ghost" size="sm">Editar</Button>
-                                            </Link>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(service)}
-                                            >
-                                                Eliminar
-                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))

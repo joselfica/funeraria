@@ -80,6 +80,19 @@ class DashboardController extends Controller
             'maintenance' => Vehicle::where('status', 'mantenimiento')->count(),
         ];
 
+        // 6. Alertas para el "Modo Renato"
+        $alerts = [
+            'pending_services' => Service::where('status', 'pending')->count(),
+            'unpaid_services' => Service::with('payments')
+                ->whereIn('status', ['accepted', 'in_progress'])
+                ->get()
+                ->filter(fn ($s) => $s->balance > 0)
+                ->count(),
+            'low_stock_items' => InventoryItem::active()
+                ->whereColumn('stock', '<=', 'stock_minimum')
+                ->count(),
+        ];
+
         return Inertia::render('dashboard', [
             'kpis' => [
                 'total_clients' => $totalClients,
@@ -91,6 +104,7 @@ class DashboardController extends Controller
             'low_stock' => $lowStockItems,
             'upcoming_services' => $upcomingServices,
             'fleet_status' => $fleetStatus,
+            'alerts' => $alerts,
         ]);
     }
 }

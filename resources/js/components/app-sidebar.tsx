@@ -1,5 +1,5 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { BookOpen, FileText, FolderGit2, LayoutGrid, Package, Users } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -16,14 +16,6 @@ import {
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
-
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -38,6 +30,44 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { pending_counts, auth } = usePage<{
+        pending_counts?: { services: number; low_stock: number };
+        auth?: { user?: { roles?: string[] } };
+    }>().props;
+
+    const roles = auth?.user?.roles ?? [];
+    const isAdminOrCoordinator = roles.includes('Administrador') || roles.includes('Coordinador');
+
+    const mainNavItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        {
+            title: 'Servicios',
+            href: '/services',
+            icon: FileText,
+            badge: pending_counts?.services ?? 0,
+        },
+        {
+            title: 'Inventario',
+            href: '/inventory',
+            icon: Package,
+            badge: pending_counts?.low_stock ?? 0,
+        },
+        // Solo Administrador y Coordinador ven "Personal"
+        ...(isAdminOrCoordinator
+            ? [
+                  {
+                      title: 'Personal',
+                      href: '/staff',
+                      icon: Users,
+                  },
+              ]
+            : []),
+    ];
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
