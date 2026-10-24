@@ -90,9 +90,16 @@ export default function ServicesIndex({ services, filters }: Props) {
                             Total: {services.total} servicios registrados
                         </p>
                     </div>
-                    <Link href="/services/create">
-                        <Button>Nuevo Servicio</Button>
-                    </Link>
+                    <div className="flex gap-2">
+                        <Link href="/services/wizard">
+                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                + Nuevo Expediente Completo
+                            </Button>
+                        </Link>
+                        <Link href="/services/create">
+                            <Button variant="outline">Nuevo Servicio (Solo)</Button>
+                        </Link>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSearch} className="mb-4 flex gap-2">

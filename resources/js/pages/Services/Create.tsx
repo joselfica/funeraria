@@ -265,7 +265,8 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
                                         type="number"
                                         step="0.01"
                                         value={data.base_price}
-                                        onChange={(e) => setData('base_price', e.target.value)}
+                                        readOnly
+                                        className="bg-muted cursor-not-allowed"
                                         required
                                     />
                                     {errors.base_price && (

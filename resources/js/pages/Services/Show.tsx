@@ -1,11 +1,20 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CheckCircle2 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface Client { id: number; name: string; rut: string; email: string | null; phone: string | null; }
 interface Deceased { id: number; full_name: string; rut: string | null; death_date: string; }
@@ -56,6 +65,21 @@ interface Payment {
     created_at: string;
 }
 
+interface Employee {
+    id: number;
+    name: string;
+    email: string;
+    roles: Array<{ name: string }>;
+}
+
+interface ServiceAssignment {
+    id: number;
+    role_in_service: string;
+    role_label: string;
+    notes: string | null;
+    user: { id: number; name: string; email: string };
+}
+
 interface Service {
     id: number;
     uuid: string;
@@ -81,6 +105,7 @@ interface Service {
     inventory_items: InventoryItem[];
     vehicles: Vehicle[];
     payments: Payment[];
+    assignments: ServiceAssignment[];
     total_paid: number;
     balance: number;
     is_fully_paid: boolean;
@@ -93,9 +118,15 @@ interface Props {
     service: Service;
     availableItems: InventoryItem[];
     availableVehicles: Vehicle[];
+    availableEmployees: Employee[];
+    financials: {
+        total_paid: number;
+        balance: number;
+        is_fully_paid: boolean;
+    };
 }
 
-export default function ServicesShow({ service, availableItems, availableVehicles }: Props) {
+export default function ServicesShow({ service, availableItems, availableVehicles, availableEmployees, financials }: Props) {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
@@ -106,6 +137,11 @@ export default function ServicesShow({ service, availableItems, availableVehicle
 
     const [selectedVehicle, setSelectedVehicle] = useState('');
     const [vehicleNotes, setVehicleNotes] = useState('');
+
+    // Estados para asignación de empleados
+    const [selectedEmployee, setSelectedEmployee] = useState('');
+    const [employeeRole, setEmployeeRole] = useState('coordinator');
+    const [employeeNotes, setEmployeeNotes] = useState('');
 
     // Estados para pagos
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -174,6 +210,29 @@ export default function ServicesShow({ service, availableItems, availableVehicle
         }
     };
 
+    const handleAssignEmployee = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedEmployee) return;
+
+        router.post(`/services/${service.id}/assign-employee`, {
+            user_id: selectedEmployee,
+            role_in_service: employeeRole,
+            notes: employeeNotes,
+        }, {
+            onSuccess: () => {
+                setSelectedEmployee('');
+                setEmployeeRole('coordinator');
+                setEmployeeNotes('');
+            },
+        });
+    };
+
+    const handleRemoveEmployee = (assignmentId: number, name: string) => {
+        if (confirm(`¿Quitar a ${name} del servicio?`)) {
+            router.delete(`/services/${service.id}/assignments/${assignmentId}`);
+        }
+    };
+
     const handleRegisterPayment = (e: React.FormEvent) => {
         e.preventDefault();
         if (!paymentAmount) return;
@@ -206,6 +265,26 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const formatPrice = (price: string) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseFloat(price));
 
+    /**
+     * Calcula el color de la barra de progreso según el porcentaje pagado.
+     * 0-24%: Rojo | 25-49%: Naranja | 50-89%: Amarillo | 90-99%: Verde claro | 100%: Esmeralda
+     */
+    const getPaymentColor = (percentage: number) => {
+        if (percentage >= 100) return 'bg-emerald-500';
+        if (percentage >= 90) return 'bg-green-400';
+        if (percentage >= 50) return 'bg-yellow-400';
+        if (percentage >= 25) return 'bg-orange-500';
+        return 'bg-red-500';
+    };
+
+    const getPaymentText = (percentage: number) => {
+        if (percentage >= 100) return 'text-emerald-500';
+        if (percentage >= 90) return 'text-green-400';
+        if (percentage >= 50) return 'text-yellow-400';
+        if (percentage >= 25) return 'text-orange-500';
+        return 'text-red-500';
+    };
+
     const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
         switch (status) {
             case 'accepted': return 'default';
@@ -237,6 +316,20 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                         <Link href={`/services/${service.id}/edit`}>
                             <Button variant="outline">Editar</Button>
                         </Link>
+
+                        {/* Botón de Contrato (siempre disponible) */}
+                        <a href={`/services/${service.id}/contract`} target="_blank" rel="noopener noreferrer">
+                            <Button variant="outline">Contrato PDF</Button>
+                        </a>
+
+                        {/* Botón de Paz y Salvo (solo si está pagado) */}
+                        {financials.is_fully_paid && (
+                            <a href={`/services/${service.id}/paz-y-salvo`} target="_blank" rel="noopener noreferrer">
+                                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                    Paz y Salvo PDF
+                                </Button>
+                            </a>
+                        )}
                     </div>
                 </div>
 
@@ -244,9 +337,16 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                 <Card className="mb-4">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>Estado del Servicio</CardTitle>
-                        <Badge variant={getStatusVariant(service.status)}>
-                            {service.status_label}
-                        </Badge>
+                        <div className="flex gap-2">
+                            <Badge variant={getStatusVariant(service.status)}>
+                                {service.status_label}
+                            </Badge>
+                            {financials.is_fully_paid && (
+                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> PAGADO 100%
+                                </Badge>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent className="text-sm space-y-2">
                         {service.approved_at && (
@@ -455,6 +555,86 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                     </CardContent>
                 </Card>
 
+                {/* PERSONAL ASIGNADO */}
+                <Card className="mb-4">
+                    <CardHeader>
+                        <CardTitle>Personal Asignado al Servicio</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* Lista de asignados */}
+                        {service.assignments && service.assignments.length > 0 ? (
+                            <div className="space-y-2">
+                                {service.assignments.map((assignment) => (
+                                    <div key={assignment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                        <div>
+                                            <p className="font-medium">{assignment.user.name}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {assignment.role_label} · {assignment.user.email}
+                                            </p>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => handleRemoveEmployee(assignment.id, assignment.user.name)}
+                                        >
+                                            Quitar
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No hay personal asignado a este servicio
+                            </p>
+                        )}
+
+                        {/* Formulario de asignación */}
+                        {canAssignResources && availableEmployees.length > 0 && (
+                            <form onSubmit={handleAssignEmployee} className="flex gap-2 items-end flex-wrap p-3 bg-muted/50 rounded-lg">
+                                <div className="flex-1 min-w-[200px]">
+                                    <Label className="text-xs">Empleado disponible</Label>
+                                    <select
+                                        value={selectedEmployee}
+                                        onChange={(e) => setSelectedEmployee(e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
+                                    >
+                                        <option value="">Seleccionar empleado...</option>
+                                        {availableEmployees.map((emp) => (
+                                            <option key={emp.id} value={emp.id}>
+                                                {emp.name} ({emp.roles.map(r => r.name).join(', ')})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="w-40">
+                                    <Label className="text-xs">Rol</Label>
+                                    <select
+                                        value={employeeRole}
+                                        onChange={(e) => setEmployeeRole(e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
+                                    >
+                                        <option value="coordinator">Coordinador</option>
+                                        <option value="assistant">Asistente</option>
+                                        <option value="driver">Conductor</option>
+                                    </select>
+                                </div>
+                                <Button type="submit" disabled={!selectedEmployee}>
+                                    Asignar
+                                </Button>
+                            </form>
+                        )}
+
+                        {canAssignResources && availableEmployees.length === 0 && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                                <p className="text-sm text-amber-800 dark:text-amber-200">
+                                    ⚠️ No hay empleados disponibles en la fecha del servicio.
+                                    Todos están de vacaciones, permiso o inactivos.
+                                </p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {/* Económico */}
                 <Card className="mb-4">
                     <CardHeader>
@@ -486,30 +666,165 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                 <Card className="mb-4">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>Pagos y Saldos</CardTitle>
-                        {!service.is_fully_paid && service.status === 'accepted' && (
-                            <Button size="sm" onClick={() => setShowPaymentModal(true)}>
-                                Registrar Pago
-                            </Button>
+                        {!financials.is_fully_paid && service.status === 'accepted' && (
+                            <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm">Registrar Pago</Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Registrar Pago</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handleRegisterPayment} className="space-y-4 pt-4">
+                                        <div>
+                                            <Label htmlFor="payment_amount">Monto *</Label>
+                                            <Input
+                                                id="payment_amount"
+                                                type="number"
+                                                min="1"
+                                                max={financials.balance}
+                                                value={paymentAmount}
+                                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                                required
+                                            />
+                                            <div className="flex justify-between items-center mt-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Saldo: {formatPrice(String(financials.balance || 0))}
+                                                </p>
+                                                <Button
+                                                    type="button"
+                                                    variant="link"
+                                                    size="sm"
+                                                    className="h-auto p-0 text-xs"
+                                                    onClick={() => setPaymentAmount(String(financials.balance))}
+                                                >
+                                                    Pagar saldo total
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="payment_method">Medio de pago *</Label>
+                                            <select
+                                                id="payment_method"
+                                                value={paymentMethod}
+                                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                            >
+                                                <option value="efectivo">Efectivo</option>
+                                                <option value="transferencia">Transferencia</option>
+                                                <option value="tarjeta_credito">Tarjeta de crédito</option>
+                                                <option value="tarjeta_debito">Tarjeta de débito</option>
+                                                <option value="cheque">Cheque</option>
+                                                <option value="convenio">Convenio / Cuota mortuoria</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="payment_date">Fecha *</Label>
+                                            <Input
+                                                id="payment_date"
+                                                type="date"
+                                                value={paymentDate}
+                                                onChange={(e) => setPaymentDate(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="payment_reference">Referencia</Label>
+                                            <Input
+                                                id="payment_reference"
+                                                value={paymentReference}
+                                                onChange={(e) => setPaymentReference(e.target.value)}
+                                                placeholder="N° transferencia, etc."
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="payment_notes">Notas</Label>
+                                            <textarea
+                                                id="payment_notes"
+                                                value={paymentNotes}
+                                                onChange={(e) => setPaymentNotes(e.target.value)}
+                                                rows={2}
+                                                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                            <Button type="button" variant="outline" onClick={() => setShowPaymentModal(false)}>
+                                                Cancelar
+                                            </Button>
+                                            <Button type="submit">Registrar Pago</Button>
+                                        </div>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
                         )}
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {/* Resumen */}
-                        <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
-                            <div>
-                                <p className="text-xs text-muted-foreground">Total</p>
-                                <p className="font-bold">{formatPrice(String(service.total_price))}</p>
+                        {/* Banner verde si está pagado al 100% */}
+                        {financials.is_fully_paid && (
+                            <div className="p-4 bg-emerald-500/10 border-2 border-emerald-500 rounded-lg flex items-center gap-3">
+                                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                                <div>
+                                    <p className="font-bold text-emerald-500">Servicio Pagado al 100%</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Este servicio no tiene deuda pendiente. Puede descargar el Paz y Salvo.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Pagado</p>
-                                <p className="font-bold text-emerald-500">{formatPrice(String(service.total_paid))}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Saldo</p>
-                                <p className={`font-bold ${service.balance > 0 ? 'text-destructive' : 'text-emerald-500'}`}>
-                                    {formatPrice(String(service.balance))}
-                                </p>
-                            </div>
-                        </div>
+                        )}
+
+                        {/* Resumen Visual con Barra de Progreso */}
+                        {(() => {
+                            const total = parseFloat(service.total_price) || 0;
+                            const paid = financials.total_paid || 0;
+                            const percentage = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
+
+                            return (
+                                <div className="space-y-4">
+                                    {/* Barra de progreso */}
+                                    <div>
+                                        <div className="flex justify-between text-sm mb-2">
+                                            <span className="font-medium">Progreso de pago</span>
+                                            <span className={`font-bold ${getPaymentText(percentage)}`}>
+                                                {percentage.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all duration-500 ease-out ${getPaymentColor(percentage)}`}
+                                                style={{ width: `${percentage}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-2">
+                                            {percentage >= 100
+                                                ? '✅ Servicio totalmente pagado'
+                                                : percentage >= 50
+                                                    ? '✅ Abono mínimo cumplido'
+                                                    : '⚠️ Falta abono mínimo (50%)'}
+                                        </p>
+                                    </div>
+
+                                    {/* Números */}
+                                    <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Total</p>
+                                            <p className="font-bold">{formatPrice(String(total))}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Pagado</p>
+                                            <p className={`font-bold ${getPaymentText(percentage)}`}>
+                                                {formatPrice(String(paid))}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Saldo</p>
+                                            <p className={`font-bold ${financials.balance > 0 ? 'text-destructive' : 'text-emerald-500'}`}>
+                                                {formatPrice(String(financials.balance || 0))}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         {/* Lista de pagos */}
                         {service.payments && service.payments.length > 0 ? (
@@ -523,7 +838,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <span className="font-bold">{formatPrice(p.amount)}</span>
+                                            <span className="font-bold">{formatPrice(String(p.amount || 0))}</span>
                                             <a
                                                 href={`/payments/${p.id}/pdf`}
                                                 target="_blank"
@@ -544,9 +859,9 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                 </Card>
 
                 {/* Modal rechazo */}
-                {showRejectModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4">
+                {showRejectModal && createPortal(
+                    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999]">
+                        <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border border-border">
                             <h3 className="text-lg font-bold mb-4">Rechazar Servicio</h3>
                             <Label htmlFor="rejection_reason">Motivo del rechazo *</Label>
                             <textarea
@@ -566,84 +881,8 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                 </Button>
                             </div>
                         </div>
-                    </div>
-                )}
-
-                {/* Modal de registro de pago */}
-                {showPaymentModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4">
-                            <h3 className="text-lg font-bold mb-4">Registrar Pago</h3>
-                            <form onSubmit={handleRegisterPayment} className="space-y-4">
-                                <div>
-                                    <Label htmlFor="payment_amount">Monto *</Label>
-                                    <Input
-                                        id="payment_amount"
-                                        type="number"
-                                        min="1"
-                                        max={service.balance}
-                                        value={paymentAmount}
-                                        onChange={(e) => setPaymentAmount(e.target.value)}
-                                        required
-                                    />
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Saldo pendiente: {formatPrice(String(service.balance))}
-                                    </p>
-                                </div>
-                                <div>
-                                    <Label htmlFor="payment_method">Medio de pago *</Label>
-                                    <select
-                                        id="payment_method"
-                                        value={paymentMethod}
-                                        onChange={(e) => setPaymentMethod(e.target.value)}
-                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                                    >
-                                        <option value="efectivo">Efectivo</option>
-                                        <option value="transferencia">Transferencia</option>
-                                        <option value="tarjeta_credito">Tarjeta de crédito</option>
-                                        <option value="tarjeta_debito">Tarjeta de débito</option>
-                                        <option value="cheque">Cheque</option>
-                                        <option value="convenio">Convenio / Cuota mortuoria</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <Label htmlFor="payment_date">Fecha *</Label>
-                                    <Input
-                                        id="payment_date"
-                                        type="date"
-                                        value={paymentDate}
-                                        onChange={(e) => setPaymentDate(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="payment_reference">Referencia</Label>
-                                    <Input
-                                        id="payment_reference"
-                                        value={paymentReference}
-                                        onChange={(e) => setPaymentReference(e.target.value)}
-                                        placeholder="N° transferencia, últimos 4 dígitos, etc."
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor="payment_notes">Notas</Label>
-                                    <textarea
-                                        id="payment_notes"
-                                        value={paymentNotes}
-                                        onChange={(e) => setPaymentNotes(e.target.value)}
-                                        rows={2}
-                                        className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                                    />
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                    <Button type="button" variant="outline" onClick={() => setShowPaymentModal(false)}>
-                                        Cancelar
-                                    </Button>
-                                    <Button type="submit">Registrar Pago</Button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </div>
         </AppLayout>

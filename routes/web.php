@@ -27,6 +27,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('clients', ClientController::class);
         Route::resource('inventory', InventoryController::class);
         Route::resource('vehicles', VehicleController::class);
+        // Wizard de Nuevo Expediente
+        // (va ANTES del resource de services para que 'services/wizard'
+        // no sea interpretado como 'services/{service}')
+        Route::get('services/wizard', function () {
+            return \Inertia\Inertia::render('Services/Wizard', [
+                'branches' => \App\Models\Branch::active()->get(['id', 'name']),
+                'serviceTypes' => \App\Models\ServiceType::active()->get(['id', 'name', 'base_price', 'duration_hours']),
+                'beneficiaryTypes' => collect(\App\Enums\BeneficiaryType::cases())->map(fn ($t) => [
+                    'value' => $t->value,
+                    'label' => $t->label(),
+                ]),
+                // NUEVO: Enviar ataúdes y urnas con stock
+                'availableItems' => \App\Models\InventoryItem::active()
+                    ->where('stock', '>', 0)
+                    ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
+            ]);
+        })->name('services.wizard');
+
+        Route::post('services/quick-store', [ServiceController::class, 'quickStore'])->name('services.quick-store');
+
         Route::resource('services', ServiceController::class);
 
         // Asignación de inventario y vehículos a servicios
@@ -38,6 +58,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('services.assign-vehicle');
         Route::delete('services/{service}/vehicles/{vehicle}', [ServiceController::class, 'removeVehicle'])
             ->name('services.remove-vehicle');
+
+        // ──────────────────────────────────────────────────────────
+        // ASIGNACIÓN DE EMPLEADOS A SERVICIOS
+        // ──────────────────────────────────────────────────────────
+
+        Route::post('services/{service}/assign-employee', [ServiceController::class, 'assignEmployee'])
+            ->name('services.assign-employee');
+
+        Route::delete('services/{service}/assignments/{assignment}', [ServiceController::class, 'removeEmployee'])
+            ->name('services.remove-employee');
+
         Route::resource('deceased', DeceasedController::class);
 
         // Rutas especiales de aprobación/rechazo
@@ -45,6 +76,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('services.approve');
         Route::post('services/{service}/reject', [ServiceController::class, 'reject'])
             ->name('services.reject');
+
+        // Documentos PDF del servicio
+        Route::get('services/{service}/contract', [ServiceController::class, 'downloadContract'])
+            ->name('services.contract');
+
+        Route::get('services/{service}/paz-y-salvo', [ServiceController::class, 'downloadPazYSalvo'])
+            ->name('services.paz-y-salvo');
 
         // ──────────────────────────────────────────────────────────
         // MÓDULO FINANCIERO — Pagos y comprobantes

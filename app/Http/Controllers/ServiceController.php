@@ -10,8 +10,10 @@ use App\Models\InventoryItem;
 use App\Models\Service;
 use App\Models\ServiceType;
 use App\Models\Vehicle;
+use App\Services\AvailabilityService;
 use App\Services\ServiceAssignmentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ServiceController extends Controller
@@ -207,32 +209,58 @@ class ServiceController extends Controller
             ]);
     }
 
-    public function show(Service $service)
-{
-    $service->load([
-        'client', 'deceased', 'serviceType',
-        'createdBy:id,name', 'approvedBy:id,name',
-        'inventoryItems', 'vehicles',
-        'payments',
-    ]);
+    public function show(Service $service, AvailabilityService $availability)
+    {
+        // Cargar relaciones existentes
+        $service->load([
+            'client', 'deceased', 'serviceType', 'branch',
+            'createdBy:id,name', 'approvedBy:id,name',
+            'inventoryItems', 'vehicles',
+            'payments',
+            'assignments.user:id,name,email',
+        ]);
 
-    $availableItems = InventoryItem::active()
-        ->where('stock', '>', 0)
-        ->orderBy('category')
-        ->orderBy('name')
-        ->get(['id', 'code', 'name', 'category', 'stock', 'price']);
+        // Items disponibles para asignar
+        $availableItems = InventoryItem::active()
+            ->where('stock', '>', 0)
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'category', 'stock', 'price']);
 
-    $availableVehicles = Vehicle::available()
-        ->orderBy('type')
-        ->orderBy('plate')
-        ->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
+        // Vehículos disponibles
+        $availableVehicles = Vehicle::available()
+            ->orderBy('type')
+            ->orderBy('plate')
+            ->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
 
-    return Inertia::render('Services/Show', [
-        'service' => $service,
-        'availableItems' => $availableItems,
-        'availableVehicles' => $availableVehicles,
-    ]);
-}
+        // ──────────────────────────────────────────────────────────
+        // NUEVO: Empleados disponibles en la fecha del servicio
+        // Solo se muestran los que NO tienen ausencia aprobada
+        // en el día programado del servicio
+        // ──────────────────────────────────────────────────────────
+        $serviceDate = \Carbon\Carbon::parse($service->scheduled_at);
+        $availableEmployees = $availability->getAvailableUsers($serviceDate)
+            ->load('roles')
+            ->filter(fn ($u) => $u->hasAnyRole(['Administrador', 'Coordinador', 'Conductor']));
+
+        // Calcular los saldos de forma explícita para enviarlos al frontend
+        $totalPaid = (float) $service->payments()->sum('amount');
+        $balance = (float) $service->total_price - $totalPaid;
+
+        return Inertia::render('Services/Show', [
+            'service' => $service,
+            'availableItems' => $availableItems,
+            'availableVehicles' => $availableVehicles,
+            'availableEmployees' => $availableEmployees->values(),
+
+            // Datos calculados de forma externa
+            'financials' => [
+                'total_paid' => $totalPaid,
+                'balance' => $balance,
+                'is_fully_paid' => $balance <= 0.01,
+            ],
+        ]);
+    }
 
     /**
      * Muestra el formulario de edición de un servicio existente.
@@ -492,5 +520,237 @@ class ServiceController extends Controller
             'type' => 'success',
             'message' => 'Vehículo removido del servicio.',
         ]);
+    }
+
+    /**
+     * Asigna un empleado al servicio.
+     *
+     * Valida que el empleado esté disponible (no de vacaciones).
+     * Usa el AvailabilityService para la validación.
+     *
+     * Endpoint: POST /services/{service}/assign-employee
+     */
+    public function assignEmployee(
+        Request $request,
+        Service $service,
+        AvailabilityService $availability
+    ) {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role_in_service' => 'required|in:coordinator,assistant,driver',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $user = \App\Models\User::findOrFail($validated['user_id']);
+
+        // Validar disponibilidad (lanza Exception si no está disponible)
+        try {
+            $availability->validateAssignment($user, $service);
+        } catch (\Exception $e) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        // Crear asignación
+        $service->assignments()->create([
+            'user_id' => $user->id,
+            'role_in_service' => $validated['role_in_service'],
+            'notes' => $validated['notes'] ?? null,
+            'assigned_by' => auth()->id(),
+            'assigned_at' => now(),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "{$user->name} asignado al servicio.",
+        ]);
+    }
+
+    /**
+     * Remueve un empleado del servicio.
+     *
+     * Endpoint: DELETE /services/{service}/assignments/{assignment}
+     */
+    public function removeEmployee(Service $service, \App\Models\ServiceAssignment $assignment)
+    {
+        // Verificar que la asignación pertenezca a este servicio
+        if ($assignment->service_id !== $service->id) {
+            abort(404);
+        }
+
+        $name = $assignment->user->name;
+        $assignment->delete();
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "{$name} removido del servicio.",
+        ]);
+    }
+
+    /**
+     * Crea un expediente completo en una sola transacción.
+     *
+     * Recibe datos de Cliente, Fallecido, Servicio, Item de Inventario y Pago.
+     * Si algo falla (ej: falta de stock), hace rollback de todo.
+     */
+    public function quickStore(Request $request, \App\Services\ServiceAssignmentService $assigner)
+    {
+        $validated = $request->validate([
+            // Cliente
+            'client_rut' => 'required|string|max:12|unique:clients,rut',
+            'client_name' => 'required|string|max:150',
+            'client_phone' => 'nullable|string|max:20',
+            'client_email' => 'nullable|email|max:150',
+            'client_address' => 'nullable|string|max:255',
+
+            // Fallecido
+            'deceased_full_name' => 'required|string|max:200',
+            'deceased_rut' => 'nullable|string|max:12|unique:deceased,rut',
+            'deceased_death_date' => 'required|date',
+            'deceased_death_certificate' => 'nullable|string|max:50',
+
+            // Servicio
+            'branch_id' => 'required|exists:branches,id',
+            'service_type_id' => 'required|exists:service_types,id',
+            'beneficiary_type' => 'required|string',
+            'scheduled_at' => 'required|date|after:now',
+            'duration_hours' => 'required|integer|min:1',
+            'base_price' => 'required|numeric|min:0',
+
+            // Inventario (opcional pero recomendado)
+            'inventory_item_id' => 'nullable|exists:inventory_items,id',
+
+            // Pago inicial (opcional)
+            'initial_payment_amount' => 'nullable|numeric|min:0',
+            'payment_method' => 'nullable|string',
+            'payment_reference' => 'nullable|string',
+        ]);
+
+        // Forzar tipos
+        $validated['duration_hours'] = (int) $validated['duration_hours'];
+        $validated['base_price'] = (float) $validated['base_price'];
+        $validated['branch_id'] = (int) $validated['branch_id'];
+        $validated['service_type_id'] = (int) $validated['service_type_id'];
+
+        try {
+            DB::beginTransaction();
+
+            // 1. Crear Cliente
+            $client = \App\Models\Client::create([
+                'rut' => $validated['client_rut'],
+                'name' => $validated['client_name'],
+                'phone' => $validated['client_phone'] ?? null,
+                'email' => $validated['client_email'] ?? null,
+                'address' => $validated['client_address'] ?? null,
+                'is_active' => true,
+            ]);
+
+            // 2. Crear Fallecido
+            $deceased = \App\Models\Deceased::create([
+                'full_name' => $validated['deceased_full_name'],
+                'rut' => $validated['deceased_rut'] ?? null,
+                'death_date' => $validated['deceased_death_date'],
+                'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
+                'current_location' => 'Funeraria Cristo Rey',
+            ]);
+
+            // 3. Crear Servicio (Estado inicial: accepted)
+            $beneficiaryType = \App\Enums\BeneficiaryType::from($validated['beneficiary_type']);
+
+            $service = \App\Models\Service::create([
+                'client_id' => $client->id,
+                'deceased_id' => $deceased->id,
+                'service_type_id' => $validated['service_type_id'],
+                'branch_id' => $validated['branch_id'],
+                'beneficiary_type' => $validated['beneficiary_type'],
+                'scheduled_at' => $validated['scheduled_at'],
+                'duration_hours' => $validated['duration_hours'],
+                'ends_at' => \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']),
+                'base_price' => $validated['base_price'],
+                'total_price' => $validated['base_price'],
+                'afp_amount' => $beneficiaryType->afpAmount(),
+                'family_amount' => $validated['base_price'] - $beneficiaryType->afpAmount(),
+                'status' => 'accepted', // Lo dejamos "aceptado" directamente para que puedan asignar y pagar
+                'created_by' => auth()->id(),
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+            ]);
+
+            // 4. Asignar Item de Inventario (si se seleccionó)
+            if (!empty($validated['inventory_item_id'])) {
+                // Usamos el servicio existente para descontar stock
+                $assigner->assignInventoryItem(
+                    $service,
+                    (int) $validated['inventory_item_id'],
+                    1,
+                    'Asignado automáticamente en la creación del expediente'
+                );
+            }
+
+            // 5. Registrar Pago Inicial (si lo hay)
+            if (!empty($validated['initial_payment_amount']) && $validated['initial_payment_amount'] > 0) {
+                $payment = \App\Models\Payment::create([
+                    'service_id' => $service->id,
+                    'amount' => $validated['initial_payment_amount'],
+                    'payment_method' => $validated['payment_method'] ?? 'efectivo',
+                    'reference' => $validated['payment_reference'] ?? null,
+                    'payment_date' => now(),
+                    'registered_by' => auth()->id(),
+                ]);
+
+                // Generar el PDF automáticamente
+                app(\App\Http\Controllers\PaymentController::class)->generateReceiptPdf($payment);
+            }
+
+            DB::commit();
+
+            return redirect()->route('services.show', $service->id)
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Expediente completo creado. Cliente, fallecido, servicio y pago registrados.',
+                ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Error al crear el expediente: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    /**
+     * Genera el PDF del Contrato de Servicio.
+     */
+    public function downloadContract(Service $service)
+    {
+        $service->load(['client', 'deceased', 'serviceType', 'branch']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.contract', [
+            'service' => $service,
+        ]);
+
+        return $pdf->download("contrato-{$service->code}.pdf");
+    }
+
+    /**
+     * Genera el PDF del Certificado de Paz y Salvo (solo si está pagado).
+     */
+    public function downloadPazYSalvo(Service $service)
+    {
+        // Verificar que esté totalmente pagado
+        if (! $service->is_fully_paid) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'El servicio aún tiene saldo pendiente. No se puede emitir el certificado.',
+            ]);
+        }
+
+        $service->load(['client', 'deceased', 'serviceType', 'branch', 'payments']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.reports.paz-y-salvo', [
+            'service' => $service,
+        ]);
+
+        return $pdf->download("paz-y-salvo-{$service->code}.pdf");
     }
 }

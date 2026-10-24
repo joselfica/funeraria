@@ -5,22 +5,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-/**
- * Formulario de solicitud de ausencia.
- *
- * El empleado elige tipo (vacaciones, permiso, licencia médica, etc.)
- * y un rango de fechas. La solicitud queda pendiente de aprobación
- * por parte del Administrador.
- */
+interface Props {
+    is_admin: boolean;
+    employees: Array<{ id: number; name: string; email: string }>;
+}
+
 interface FormData {
+    user_id: string;
     type: string;
     starts_at: string;
     ends_at: string;
     reason: string;
 }
 
-export default function AbsencesCreate() {
+export default function AbsencesCreate({ is_admin, employees }: Props) {
     const { data, setData, post, processing, errors } = useForm<FormData>({
+        user_id: '',
         type: 'vacation',
         starts_at: '',
         ends_at: '',
@@ -38,9 +38,13 @@ export default function AbsencesCreate() {
 
             <div className="p-6 max-w-2xl">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold">Solicitar Ausencia</h1>
+                    <h1 className="text-3xl font-bold">
+                        {is_admin ? 'Registrar Ausencia' : 'Solicitar Ausencia'}
+                    </h1>
                     <p className="text-muted-foreground mt-1">
-                        Completa el formulario. Tu solicitud será revisada por el Administrador.
+                        {is_admin 
+                            ? 'Como Administrador, la ausencia se aprobará automáticamente.'
+                            : 'Completa el formulario. Tu solicitud será revisada por el Administrador.'}
                     </p>
                 </div>
 
@@ -49,10 +53,40 @@ export default function AbsencesCreate() {
                         <CardHeader>
                             <CardTitle>Detalles de la Ausencia</CardTitle>
                             <CardDescription>
-                                Todas las ausencias requieren aprobación antes de aplicarse
+                                {is_admin 
+                                    ? 'Crea una ausencia en nombre de cualquier empleado'
+                                    : 'Todas las ausencias requieren aprobación antes de aplicarse'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            
+                            {/* SELECTOR DE EMPLEADO (Solo para Admin) */}
+                            {is_admin && (
+                                <div>
+                                    <Label htmlFor="user_id">Empleado *</Label>
+                                    <select
+                                        id="user_id"
+                                        value={data.user_id}
+                                        onChange={(e) => setData('user_id', e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                        required
+                                    >
+                                        <option value="">Seleccionar empleado...</option>
+                                        {employees.map((emp) => (
+                                            <option key={emp.id} value={emp.id}>
+                                                {emp.name} ({emp.email})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.user_id && (
+                                        <p className="text-sm text-destructive mt-1">{errors.user_id}</p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Como admin, la ausencia se aprueba automáticamente.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Tipo de ausencia */}
                             <div>
                                 <Label htmlFor="type">Tipo de ausencia *</Label>
@@ -132,7 +166,7 @@ export default function AbsencesCreate() {
                             <Button type="button" variant="outline">Cancelar</Button>
                         </Link>
                         <Button type="submit" disabled={processing}>
-                            {processing ? 'Enviando...' : 'Enviar Solicitud'}
+                            {processing ? 'Guardando...' : (is_admin ? 'Crear Ausencia' : 'Enviar Solicitud')}
                         </Button>
                     </div>
                 </form>

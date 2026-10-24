@@ -104,7 +104,7 @@ class PaymentController extends Controller
      *
      * @param Payment $payment Pago para el que generar comprobante
      */
-    private function generateReceiptPdf(Payment $payment): void
+    public function generateReceiptPdf(Payment $payment): void
     {
         // Cargar relaciones necesarias para el PDF
         $payment->load(['service.client', 'service.deceased', 'service.serviceType']);

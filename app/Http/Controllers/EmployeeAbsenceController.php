@@ -48,11 +48,24 @@ class EmployeeAbsenceController extends Controller
     }
 
     /**
-     * Formulario para solicitar nueva ausencia.
+     * Muestra el formulario de solicitud de ausencia.
+     *
+     * Si el usuario es Admin, le pasamos la lista de empleados
+     * para que pueda solicitar ausencias en nombre de otros.
      */
-    public function create()
+    public function create(Request $request)
     {
-        return Inertia::render('Absences/Create');
+        $isAdmin = $request->user()->hasRole('Administrador');
+
+        return Inertia::render('Absences/Create', [
+            'is_admin' => $isAdmin,
+            // Solo cargar empleados si es admin (para el selector)
+            'employees' => $isAdmin
+                ? \App\Models\User::where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email'])
+                : [],
+        ]);
     }
 
     /**
@@ -65,17 +78,44 @@ class EmployeeAbsenceController extends Controller
             'starts_at' => 'required|date|after_or_equal:today',
             'ends_at' => 'required|date|after_or_equal:starts_at',
             'reason' => 'nullable|string|max:500',
+            'user_id' => 'nullable|exists:users,id', // ← NUEVO
         ]);
 
-        $validated['user_id'] = auth()->id();
+        // Si es Admin y eligió un empleado, usar ese. Si no, usar el logueado.
+        $isAdmin = auth()->user()->hasRole('Administrador');
+        $validated['user_id'] = ($isAdmin && isset($validated['user_id']) && $validated['user_id'])
+            ? $validated['user_id']
+            : auth()->id();
+
         $validated['status'] = 'pending';
+
+        // Si es Admin creando la ausencia, la aprobamos directamente
+        if ($isAdmin) {
+            $validated['status'] = 'approved';
+            $validated['approved_by'] = auth()->id();
+            $validated['approved_at'] = now();
+
+            // Descontar días si es vacación
+            if ($validated['type'] === 'vacation') {
+                $absence = EmployeeAbsence::create($validated);
+                $absence->user->increment('vacation_days_used', $absence->business_days);
+
+                return redirect()->route('absences.index')
+                    ->with('toast', [
+                        'type' => 'success',
+                        'message' => 'Ausencia creada y aprobada automáticamente.',
+                    ]);
+            }
+        }
 
         EmployeeAbsence::create($validated);
 
         return redirect()->route('absences.index')
             ->with('toast', [
                 'type' => 'success',
-                'message' => 'Solicitud de ausencia enviada. Pendiente de aprobación.',
+                'message' => $isAdmin
+                    ? 'Ausencia creada y aprobada.'
+                    : 'Solicitud enviada. Pendiente de aprobación.',
             ]);
     }
 

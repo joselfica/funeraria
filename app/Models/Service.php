@@ -220,4 +220,15 @@ class Service extends Model
             ->withPivot(['role_in_service', 'notes', 'assigned_at'])
             ->withTimestamps();
     }
+
+    /**
+     * Relación: sucursal a la que pertenece el servicio.
+     *
+     * N:1 con la tabla `branches`. Actualmente hay 2 sucursales
+     * (calle Blanco 1 y 2).
+     */
+    public function branch()
+    {
+        return $this->belongsTo(\App\Models\Branch::class);
+    }
 }
