@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\EmployeeAbsenceController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ServiceController;
@@ -57,6 +58,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])
             ->name('payments.destroy');
+
+        // ──────────────────────────────────────────────────────────
+        // GESTIÓN DE AUSENCIAS (vacaciones, permisos, licencias)
+        // ──────────────────────────────────────────────────────────
+
+        Route::resource('absences', EmployeeAbsenceController::class)
+            ->except(['destroy', 'edit', 'update']);
+
+        Route::post('absences/{absence}/approve', [EmployeeAbsenceController::class, 'approve'])
+            ->name('absences.approve');
+
+        Route::post('absences/{absence}/reject', [EmployeeAbsenceController::class, 'reject'])
+            ->name('absences.reject');
     });
 
 });

@@ -28,12 +28,16 @@ interface Props {
     clients: Client[];
     deceased: Deceased[];
     serviceTypes: ServiceType[];
+    branches: Array<{ id: number; name: string; code: string }>;
+    beneficiaryTypes: Array<{ value: string; label: string }>;
 }
 
 interface FormData {
     client_id: string;
     deceased_id: string;
     service_type_id: string;
+    branch_id: string;
+    beneficiary_type: string;
     scheduled_at: string;
     duration_hours: string;
     base_price: string;
@@ -43,11 +47,13 @@ interface FormData {
     internal_notes: string;
 }
 
-export default function ServicesCreate({ clients, deceased, serviceTypes }: Props) {
+export default function ServicesCreate({ clients, deceased, serviceTypes, branches, beneficiaryTypes }: Props) {
     const { data, setData, post, processing, errors } = useForm<FormData>({
         client_id: '',
         deceased_id: '',
         service_type_id: '',
+        branch_id: '',
+        beneficiary_type: 'particular',
         scheduled_at: '',
         duration_hours: '24',
         base_price: '0',
@@ -147,6 +153,43 @@ export default function ServicesCreate({ clients, deceased, serviceTypes }: Prop
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Sucursal y tipo de beneficiario */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="branch_id">Sucursal *</Label>
+                            <select
+                                id="branch_id"
+                                value={data.branch_id}
+                                onChange={(e) => setData('branch_id', e.target.value)}
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                required
+                            >
+                                <option value="">Seleccionar sucursal...</option>
+                                {branches.map((b) => (
+                                    <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                                ))}
+                            </select>
+                            {errors.branch_id && <p className="text-sm text-destructive mt-1">{errors.branch_id}</p>}
+                        </div>
+
+                        <div>
+                            <Label htmlFor="beneficiary_type">Tipo de Beneficiario *</Label>
+                            <select
+                                id="beneficiary_type"
+                                value={data.beneficiary_type}
+                                onChange={(e) => setData('beneficiary_type', e.target.value)}
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                required
+                            >
+                                <option value="">Seleccionar tipo...</option>
+                                {beneficiaryTypes.map((t) => (
+                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
+                            </select>
+                            {errors.beneficiary_type && <p className="text-sm text-destructive mt-1">{errors.beneficiary_type}</p>}
+                        </div>
+                    </div>
 
                     {/* Tipo de servicio y programación */}
                     <Card>

@@ -17,6 +17,8 @@ class Service extends Model
         'base_price', 'additional_charges', 'discount', 'total_price',
         'created_by', 'approved_by', 'approved_at', 'approval_notes', 'rejection_reason',
         'client_notes', 'internal_notes',
+        'beneficiary_type', 'afp_amount', 'family_amount', 'municipal_amount',
+        'expected_payment_date',
     ];
 
     protected $casts = [
@@ -28,6 +30,10 @@ class Service extends Model
         'additional_charges' => 'decimal:2',
         'discount' => 'decimal:2',
         'total_price' => 'decimal:2',
+        'expected_payment_date' => 'date',
+        'afp_amount' => 'decimal:2',
+        'family_amount' => 'decimal:2',
+        'municipal_amount' => 'decimal:2',
     ];
 
     // 🔒 Ocultar notas internas (solo visibles para Admin)
@@ -117,6 +123,12 @@ class Service extends Model
         };
     }
 
+    public function getBeneficiaryLabelAttribute(): string
+    {
+        return \App\Enums\BeneficiaryType::tryFrom($this->beneficiary_type)?->label()
+            ?? $this->beneficiary_type;
+    }
+
     /**
      * Relación: pagos/abonos del servicio.
      */
@@ -188,6 +200,24 @@ class Service extends Model
     {
         return $this->belongsToMany(Vehicle::class, 'service_vehicle')
             ->withPivot(['departs_at', 'returns_at', 'notes', 'assigned_by', 'assigned_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Relación: empleados asignados al servicio.
+     */
+    public function assignments()
+    {
+        return $this->hasMany(ServiceAssignment::class);
+    }
+
+    /**
+     * Relación: usuarios asignados (a través de assignments).
+     */
+    public function assignedUsers()
+    {
+        return $this->belongsToMany(User::class, 'service_assignments')
+            ->withPivot(['role_in_service', 'notes', 'assigned_at'])
             ->withTimestamps();
     }
 }

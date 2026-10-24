@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BeneficiaryType;
+use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Deceased;
+use App\Models\InventoryItem;
 use App\Models\Service;
 use App\Models\ServiceType;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use App\Models\InventoryItem;
 use App\Models\Vehicle;
 use App\Services\ServiceAssignmentService;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ServiceController extends Controller
 {
@@ -36,51 +38,168 @@ class ServiceController extends Controller
         ]);
     }
 
+    /**
+     * Muestra el formulario de creación de un nuevo servicio funerario.
+     *
+     * Este método prepara todos los datos necesarios para el formulario React:
+     * - clients: listado de clientes activos (para el select)
+     * - deceased: listado de fallecidos registrados (para el select)
+     * - serviceTypes: tipos de servicio con precio base y duración
+     * - branches: sucursales de la funeraria (2 actualmente)
+     * - beneficiaryTypes: enum de tipos de beneficiario (AFP, municipal, etc.)
+     *
+     * ¿Por qué cargar todo esto desde el backend?
+     * - Evita múltiples requests desde el frontend
+     * - Los selects se populan con datos reales
+     * - El usuario puede elegir sin esperar más llamadas
+     *
+     * @return \Inertia\Response
+     */
     public function create()
     {
         return Inertia::render('Services/Create', [
-            'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
-            'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
-            'serviceTypes' => ServiceType::active()->orderBy('sort_order')->get(['id', 'name', 'base_price', 'duration_hours']),
+            // Clientes activos: solo los que no están eliminados
+            'clients' => Client::active()
+                ->orderBy('name')
+                ->get(['id', 'name', 'rut']),
+
+            // Fallecidos: todos, ordenados alfabéticamente
+            'deceased' => Deceased::orderBy('full_name')
+                ->get(['id', 'full_name', 'rut']),
+
+            // Tipos de servicio: con precio base y duración predefinida
+            'serviceTypes' => ServiceType::active()
+                ->orderBy('sort_order')
+                ->get(['id', 'name', 'base_price', 'duration_hours']),
+
+            // Sucursales: ahora son 2 (calle Blanco 1 y 2)
+            'branches' => Branch::active()
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
+
+            // Tipos de beneficiario: convertimos el enum de PHP a array
+            // para enviarlo al frontend
+            'beneficiaryTypes' => collect(BeneficiaryType::cases())->map(fn ($type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
+            ]),
         ]);
     }
 
+    /**
+     * Guarda un nuevo servicio funerario en la base de datos.
+     *
+     * Flujo del método:
+     * 1. Valida todos los campos del formulario
+     * 2. Castea tipos (strings a int/float) — los datos HTTP vienen como string
+     * 3. Calcula automáticamente:
+     *    - afp_amount: según el tipo de beneficiario
+     *    - family_amount: lo que paga la familia (total - AFP - municipal)
+     *    - total_price: suma de base + cargos - descuentos
+     *    - ends_at: fecha de término (scheduled_at + duration_hours)
+     * 4. Guarda el servicio con status "pending"
+     * 5. Redirige con mensaje de éxito
+     *
+     * IMPORTANTE: Los montos de AFP se aplican según el tipo de beneficiario:
+     * - AFP → $600.000 cubiertos por la AFP (el resto lo paga la familia)
+     * - AdultoMayor → $1.070.000 de asignación (sin AFP)
+     * - Municipal → se factura a la municipalidad (~3 meses de demora)
+     * - Particular → la familia paga el 100%
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function store(Request $request)
     {
+        // ──────────────────────────────────────────────────────────────
+        // PASO 1: Validar todos los campos
+        // ──────────────────────────────────────────────────────────────
         $validated = $request->validate([
+            // Relaciones obligatorias
             'client_id' => 'required|exists:clients,id',
             'deceased_id' => 'required|exists:deceased,id',
             'service_type_id' => 'required|exists:service_types,id',
+            'branch_id' => 'required|exists:branches,id',  // ← NUEVO
+
+            // Tipo de beneficiario (AFP, municipal, etc.)
+            'beneficiary_type' => 'required|string|in:afp,adulto_mayor,menor_sin_beneficio,municipal,particular',  // ← NUEVO
+
+            // Programación
             'scheduled_at' => 'required|date|after:now',
             'duration_hours' => 'required|integer|min:1',
+
+            // Montos
             'base_price' => 'required|numeric|min:0',
             'additional_charges' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+
+            // Monto municipal (solo si aplica)
+            'municipal_amount' => 'nullable|numeric|min:0',  // ← NUEVO
+
+            // Notas
             'client_notes' => 'nullable|string|max:1000',
             'internal_notes' => 'nullable|string|max:1000',
         ]);
 
-        // Forzar tipos correctos (porque vienen como strings del frontend)
+        // ──────────────────────────────────────────────────────────────
+        // PASO 2: Castear tipos (crítico para evitar errores con Carbon)
+        // Los datos del request HTTP siempre llegan como STRING.
+        // Carbon y las funciones de cálculo necesitan int/float.
+        // ──────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['base_price'] = (float) $validated['base_price'];
         $validated['additional_charges'] = (float) ($validated['additional_charges'] ?? 0);
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
+        $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        // Calcular total
+        // ──────────────────────────────────────────────────────────────
+        // PASO 3: Calcular montos según el tipo de beneficiario
+        // ──────────────────────────────────────────────────────────────
+
+        // Convertir el string a Enum para acceder a sus métodos
+        $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
+
+        // Monto cubierto por la AFP (solo aplica al tipo AFP)
+        $validated['afp_amount'] = $beneficiaryType->afpAmount();
+
+        // Total del servicio: base + cargos - descuento
         $validated['total_price'] =
             $validated['base_price']
             + $validated['additional_charges']
             - $validated['discount'];
 
-        // Calcular ends_at
+        // Monto que paga la familia = total - AFP - municipal
+        $validated['family_amount'] =
+            $validated['total_price']
+            - $validated['afp_amount']
+            - $validated['municipal_amount'];
+
+        // Si el tipo es Municipal, calcular fecha esperada de pago (+3 meses)
+        if ($beneficiaryType === BeneficiaryType::Municipal) {
+            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])
+                ->addMonths(3);
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // PASO 4: Calcular fecha de término del servicio
+        // ──────────────────────────────────────────────────────────────
         $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])
             ->addHours($validated['duration_hours']);
 
+        // ──────────────────────────────────────────────────────────────
+        // PASO 5: Auditoría — quién creó y estado inicial
+        // ──────────────────────────────────────────────────────────────
         $validated['created_by'] = auth()->id();
-        $validated['status'] = 'pending';
+        $validated['status'] = 'pending';  // Todo servicio empieza pendiente
 
+        // ──────────────────────────────────────────────────────────────
+        // PASO 6: Guardar en la base de datos
+        // ──────────────────────────────────────────────────────────────
         Service::create($validated);
 
+        // ──────────────────────────────────────────────────────────────
+        // PASO 7: Redirigir con mensaje de éxito
+        // ──────────────────────────────────────────────────────────────
         return redirect()->route('services.index')
             ->with('toast', [
                 'type' => 'success',
@@ -115,47 +234,115 @@ class ServiceController extends Controller
     ]);
 }
 
+    /**
+     * Muestra el formulario de edición de un servicio existente.
+     *
+     * Carga todos los catálogos necesarios (clientes, fallecidos, etc.)
+     * para que el usuario pueda cambiar cualquier campo del servicio.
+     *
+     * Además del servicio actual, pasa los mismos datos que create():
+     * - branches, beneficiaryTypes: nuevos catálogos de FASE 11.5
+     *
+     * @param Service $service Servicio a editar (route model binding)
+     * @return \Inertia\Response
+     */
     public function edit(Service $service)
     {
         return Inertia::render('Services/Edit', [
             'service' => $service,
-            'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
-            'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
-            'serviceTypes' => ServiceType::active()->orderBy('sort_order')->get(['id', 'name', 'base_price', 'duration_hours']),
+            'clients' => Client::active()
+                ->orderBy('name')
+                ->get(['id', 'name', 'rut']),
+            'deceased' => Deceased::orderBy('full_name')
+                ->get(['id', 'full_name', 'rut']),
+            'serviceTypes' => ServiceType::active()
+                ->orderBy('sort_order')
+                ->get(['id', 'name', 'base_price', 'duration_hours']),
+            'branches' => Branch::active()
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
+            'beneficiaryTypes' => collect(BeneficiaryType::cases())->map(fn ($type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
+            ]),
         ]);
     }
 
+    /**
+     * Actualiza un servicio existente.
+     *
+     * Recalcula automáticamente:
+     * - Montos (total, family_amount, afp_amount)
+     * - Fecha de término (ends_at)
+     *
+     * Si el tipo de beneficiario cambia (ej: AFP → Municipal),
+     * los montos se recalculan para reflejar la nueva realidad.
+     *
+     * @param Request $request
+     * @param Service $service
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function update(Request $request, Service $service)
     {
+        // ──────────────────────────────────────────────────────────────
+        // Validación (misma que store, pero sin 'after:now' para scheduled_at
+        // porque se permite editar servicios ya programados)
+        // ──────────────────────────────────────────────────────────────
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'deceased_id' => 'required|exists:deceased,id',
             'service_type_id' => 'required|exists:service_types,id',
+            'branch_id' => 'required|exists:branches,id',
+            'beneficiary_type' => 'required|string|in:afp,adulto_mayor,menor_sin_beneficio,municipal,particular',
             'scheduled_at' => 'required|date',
             'duration_hours' => 'required|integer|min:1',
             'base_price' => 'required|numeric|min:0',
             'additional_charges' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
+            'municipal_amount' => 'nullable|numeric|min:0',
             'client_notes' => 'nullable|string|max:1000',
             'internal_notes' => 'nullable|string|max:1000',
         ]);
 
-        // Forzar tipos correctos
+        // ──────────────────────────────────────────────────────────────
+        // Castear tipos
+        // ──────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['base_price'] = (float) $validated['base_price'];
         $validated['additional_charges'] = (float) ($validated['additional_charges'] ?? 0);
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
+        $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        // Calcular total
+        // ──────────────────────────────────────────────────────────────
+        // Recalcular montos según el tipo de beneficiario
+        // ──────────────────────────────────────────────────────────────
+        $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
+        $validated['afp_amount'] = $beneficiaryType->afpAmount();
         $validated['total_price'] =
             $validated['base_price']
             + $validated['additional_charges']
             - $validated['discount'];
+        $validated['family_amount'] =
+            $validated['total_price']
+            - $validated['afp_amount']
+            - $validated['municipal_amount'];
 
-        // Calcular ends_at
+        if ($beneficiaryType === BeneficiaryType::Municipal) {
+            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])
+                ->addMonths(3);
+        } else {
+            $validated['expected_payment_date'] = null;
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // Recalcular fecha de término
+        // ──────────────────────────────────────────────────────────────
         $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])
             ->addHours($validated['duration_hours']);
 
+        // ──────────────────────────────────────────────────────────────
+        // Guardar cambios
+        // ──────────────────────────────────────────────────────────────
         $service->update($validated);
 
         return redirect()->route('services.index')
