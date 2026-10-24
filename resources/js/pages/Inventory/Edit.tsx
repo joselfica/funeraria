@@ -1,0 +1,226 @@
+import { Head, Link, useForm } from '@inertiajs/react';
+import AppLayout from '@/layouts/app-layout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface FormData {
+    category: 'ataud' | 'urna';
+    code: string;
+    name: string;
+    description: string;
+    material: string;
+    dimensions: string;
+    price: string;
+    stock: string;
+    stock_minimum: string;
+    is_active: boolean;
+}
+
+interface Item {
+    id: number;
+    uuid: string;
+    category: 'ataud' | 'urna';
+    code: string;
+    name: string;
+    description: string | null;
+    material: string | null;
+    dimensions: string | null;
+    price: string;
+    stock: number;
+    stock_minimum: number;
+    is_active: boolean;
+}
+
+interface Props {
+    item: Item;
+}
+
+export default function InventoryEdit({ item }: Props) {
+    const { data, setData, put, processing, errors } = useForm<FormData>({
+        category: item.category,
+        code: item.code,
+        name: item.name,
+        description: item.description || '',
+        material: item.material || '',
+        dimensions: item.dimensions || '',
+        price: item.price,
+        stock: String(item.stock),
+        stock_minimum: String(item.stock_minimum),
+        is_active: item.is_active,
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        put(`/inventory/${item.id}`);
+    };
+
+    return (
+        <AppLayout>
+            <Head title="Editar Item" />
+
+            <div className="p-6 max-w-3xl">
+                <div className="mb-6">
+                    <h1 className="text-3xl font-bold">Editar Item</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Registrar ataúd o urna en el inventario
+                    </p>
+                </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Información del Item</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <Label htmlFor="category">Categoría *</Label>
+                                    <select
+                                        id="category"
+                                        value={data.category}
+                                        onChange={(e) => setData('category', e.target.value as 'ataud' | 'urna')}
+                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                                    >
+                                        <option value="ataud">Ataúd</option>
+                                        <option value="urna">Urna</option>
+                                    </select>
+                                    {errors.category && (
+                                        <p className="text-sm text-destructive mt-1">{errors.category}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="code">Código (SKU) *</Label>
+                                    <Input
+                                        id="code"
+                                        value={data.code}
+                                        onChange={(e) => setData('code', e.target.value)}
+                                        placeholder="ATA-001"
+                                        required
+                                    />
+                                    {errors.code && (
+                                        <p className="text-sm text-destructive mt-1">{errors.code}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="material">Material</Label>
+                                    <Input
+                                        id="material"
+                                        value={data.material}
+                                        onChange={(e) => setData('material', e.target.value)}
+                                        placeholder="Roble"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <Label htmlFor="name">Nombre *</Label>
+                                <Input
+                                    id="name"
+                                    value={data.name}
+                                    onChange={(e) => setData('name', e.target.value)}
+                                    placeholder="Ataúd Roble Clásico"
+                                    required
+                                />
+                                {errors.name && (
+                                    <p className="text-sm text-destructive mt-1">{errors.name}</p>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="dimensions">Medidas</Label>
+                                    <Input
+                                        id="dimensions"
+                                        value={data.dimensions}
+                                        onChange={(e) => setData('dimensions', e.target.value)}
+                                        placeholder="200x60x40 cm"
+                                    />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="price">Precio (CLP) *</Label>
+                                    <Input
+                                        id="price"
+                                        type="number"
+                                        step="0.01"
+                                        value={data.price}
+                                        onChange={(e) => setData('price', e.target.value)}
+                                        required
+                                    />
+                                    {errors.price && (
+                                        <p className="text-sm text-destructive mt-1">{errors.price}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Label htmlFor="stock">Stock actual *</Label>
+                                    <Input
+                                        id="stock"
+                                        type="number"
+                                        value={data.stock}
+                                        onChange={(e) => setData('stock', e.target.value)}
+                                        required
+                                    />
+                                    {errors.stock && (
+                                        <p className="text-sm text-destructive mt-1">{errors.stock}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="stock_minimum">Stock mínimo *</Label>
+                                    <Input
+                                        id="stock_minimum"
+                                        type="number"
+                                        value={data.stock_minimum}
+                                        onChange={(e) => setData('stock_minimum', e.target.value)}
+                                        required
+                                    />
+                                    {errors.stock_minimum && (
+                                        <p className="text-sm text-destructive mt-1">{errors.stock_minimum}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <Label htmlFor="description">Descripción</Label>
+                                <textarea
+                                    id="description"
+                                    value={data.description}
+                                    onChange={(e) => setData('description', e.target.value)}
+                                    rows={3}
+                                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    id="is_active"
+                                    type="checkbox"
+                                    checked={data.is_active}
+                                    onChange={(e) => setData('is_active', e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300"
+                                />
+                                <Label htmlFor="is_active">Item activo</Label>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4 border-t">
+                                <Link href="/inventory">
+                                    <Button type="button" variant="outline">Cancelar</Button>
+                                </Link>
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Guardando...' : 'Actualizar Item'}
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            </div>
+        </AppLayout>
+    );
+}
