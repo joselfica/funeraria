@@ -23,6 +23,7 @@ class Client extends Model
         'address',
         'notes',
         'is_active',
+        'user_id',
     ];
 
     /**
@@ -65,5 +66,13 @@ class Client extends Model
                 ->orWhere('rut', 'ILIKE', "%{$term}%")
                 ->orWhere('email', 'ILIKE', "%{$term}%");
         });
+    }
+
+    /**
+     * Relación: cliente asociado a un usuario del sistema.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

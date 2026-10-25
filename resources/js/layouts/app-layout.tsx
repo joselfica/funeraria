@@ -1,17 +1,13 @@
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
 import type { BreadcrumbItem } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { usePage } from '@inertiajs/react';
 
 interface SharedProps {
     auth: {
         user: {
             id: number;
             name: string;
-            email: string;
             roles: string[];
-            permissions: string[];
         } | null;
     };
 }
@@ -23,31 +19,20 @@ export default function AppLayout({
     breadcrumbs?: BreadcrumbItem[];
     children: React.ReactNode;
 }) {
-    // Obtenemos los permisos del usuario logueado
     const { auth } = usePage<SharedProps>().props;
     const user = auth?.user;
     
-    // Verificamos si puede crear servicios
-    // (Administrador y Coordinador tienen este permiso)
-    const canCreateServices = user?.permissions?.includes('services.create') || false;
+    // Si el usuario es un cliente, renderizamos solo el contenido (el Portal ya tiene su propio header)
+    const isClient = user?.roles?.includes('Cliente');
+    
+    if (isClient) {
+        return <>{children}</>;
+    }
 
+    // Si es Administrador o Coordinador, renderizamos el layout normal con Sidebar
     return (
         <AppLayoutTemplate breadcrumbs={breadcrumbs}>
             {children}
-            
-            {/* Botón Flotante Global: SOLO visible si tiene permiso */}
-            {canCreateServices && (
-                <div className="fixed bottom-6 right-6 z-40">
-                    <Link href="/services/wizard">
-                        <Button 
-                            size="lg" 
-                            className="h-16 rounded-full px-6 shadow-2xl bg-emerald-600 hover:bg-emerald-700 text-white gap-2 text-lg font-bold"
-                        >
-                            <Plus className="h-6 w-6" /> Nuevo Servicio
-                        </Button>
-                    </Link>
-                </div>
-            )}
         </AppLayoutTemplate>
     );
 }

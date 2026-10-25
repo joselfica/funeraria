@@ -4,6 +4,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EmployeeAbsenceController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PortalController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\VehicleController;
@@ -15,121 +16,141 @@ use App\Http\Controllers\ReportController;
 // Página pública
 Route::inertia('/', 'welcome')->name('home');
 
-// Rutas protegidas (requieren autenticación + email verificado)
-Route::middleware(['auth', 'verified'])->group(function () {
+// Rutas protegidas (requieren autenticación)
+Route::middleware(['auth'])->group(function () {
     
-    // Dashboard
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Redirección inteligente según rol
+    Route::get('dashboard', function () {
+        $user = auth()->user();
+        
+        // Si es Cliente, va al portal
+        if ($user->hasRole('Cliente')) {
+            return redirect()->route('portal.index');
+        }
+        
+        // Si es Admin/Coordinador, va al dashboard
+        return app(\App\Http\Controllers\DashboardController::class)->index();
+    })->name('dashboard');
+    
+});
 
-    // ================================================
-    // MÓDULO CLIENTES
-    // Solo Administrador y Coordinador pueden acceder
-    // ================================================
-    Route::middleware('role:Administrador|Coordinador')->group(function () {
-        Route::resource('clients', ClientController::class);
-        Route::resource('inventory', InventoryController::class);
-        Route::resource('vehicles', VehicleController::class);
-        // Wizard de Nuevo Expediente
-        // (va ANTES del resource de services para que 'services/wizard'
-        // no sea interpretado como 'services/{service}')
-        Route::get('services/wizard', function () {
-            return \Inertia\Inertia::render('Services/Wizard', [
-                'branches' => \App\Models\Branch::active()->get(['id', 'name']),
-                'serviceTypes' => \App\Models\ServiceType::active()->get(['id', 'name', 'base_price', 'duration_hours']),
-                'beneficiaryTypes' => collect(\App\Enums\BeneficiaryType::cases())->map(fn ($t) => [
-                    'value' => $t->value,
-                    'label' => $t->label(),
-                ]),
-                // NUEVO: Enviar ataúdes y urnas con stock
-                'availableItems' => \App\Models\InventoryItem::active()
-                    ->where('stock', '>', 0)
-                    ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
-            ]);
-        })->name('services.wizard');
+// ================================================
+// MÓDULO ADMINISTRATIVO
+// Solo Administrador y Coordinador pueden acceder
+// ================================================
+Route::middleware(['auth', 'role:Administrador|Coordinador'])->group(function () {
+    Route::resource('clients', ClientController::class);
+    Route::resource('inventory', InventoryController::class);
+    Route::resource('vehicles', VehicleController::class);
+    // Wizard de Nuevo Expediente
+    // (va ANTES del resource de services para que 'services/wizard'
+    // no sea interpretado como 'services/{service}')
+    Route::get('services/wizard', function () {
+        return \Inertia\Inertia::render('Services/Wizard', [
+            'branches' => \App\Models\Branch::active()->get(['id', 'name']),
+            'serviceTypes' => \App\Models\ServiceType::active()->get(['id', 'name', 'base_price', 'duration_hours']),
+            'beneficiaryTypes' => collect(\App\Enums\BeneficiaryType::cases())->map(fn ($t) => [
+                'value' => $t->value,
+                'label' => $t->label(),
+            ]),
+            // NUEVO: Enviar ataúdes y urnas con stock
+            'availableItems' => \App\Models\InventoryItem::active()
+                ->where('stock', '>', 0)
+                ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
+        ]);
+    })->name('services.wizard');
 
-        Route::post('services/quick-store', [ServiceController::class, 'quickStore'])->name('services.quick-store');
+    Route::post('services/quick-store', [ServiceController::class, 'quickStore'])->name('services.quick-store');
 
-        Route::resource('services', ServiceController::class);
+    Route::resource('services', ServiceController::class);
 
-        // Asignación de inventario y vehículos a servicios
-        Route::post('services/{service}/assign-item', [ServiceController::class, 'assignInventoryItem'])
-            ->name('services.assign-item');
-        Route::delete('services/{service}/items/{item}', [ServiceController::class, 'removeInventoryItem'])
-            ->name('services.remove-item');
-        Route::post('services/{service}/assign-vehicle', [ServiceController::class, 'assignVehicle'])
-            ->name('services.assign-vehicle');
-        Route::delete('services/{service}/vehicles/{vehicle}', [ServiceController::class, 'removeVehicle'])
-            ->name('services.remove-vehicle');
+    // Asignación de inventario y vehículos a servicios
+    Route::post('services/{service}/assign-item', [ServiceController::class, 'assignInventoryItem'])
+        ->name('services.assign-item');
+    Route::delete('services/{service}/items/{item}', [ServiceController::class, 'removeInventoryItem'])
+        ->name('services.remove-item');
+    Route::post('services/{service}/assign-vehicle', [ServiceController::class, 'assignVehicle'])
+        ->name('services.assign-vehicle');
+    Route::delete('services/{service}/vehicles/{vehicle}', [ServiceController::class, 'removeVehicle'])
+        ->name('services.remove-vehicle');
 
-        // ──────────────────────────────────────────────────────────
-        // ASIGNACIÓN DE EMPLEADOS A SERVICIOS
-        // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────
+    // ASIGNACIÓN DE EMPLEADOS A SERVICIOS
+    // ──────────────────────────────────────────────────────────
 
-        Route::post('services/{service}/assign-employee', [ServiceController::class, 'assignEmployee'])
-            ->name('services.assign-employee');
+    Route::post('services/{service}/assign-employee', [ServiceController::class, 'assignEmployee'])
+        ->name('services.assign-employee');
 
-        Route::delete('services/{service}/assignments/{assignment}', [ServiceController::class, 'removeEmployee'])
-            ->name('services.remove-employee');
+    Route::delete('services/{service}/assignments/{assignment}', [ServiceController::class, 'removeEmployee'])
+        ->name('services.remove-employee');
 
-        Route::resource('deceased', DeceasedController::class);
+    Route::resource('deceased', DeceasedController::class);
 
-        // Rutas especiales de aprobación/rechazo
-        Route::post('services/{service}/approve', [ServiceController::class, 'approve'])
-            ->name('services.approve');
-        Route::post('services/{service}/reject', [ServiceController::class, 'reject'])
-            ->name('services.reject');
+    // Rutas especiales de aprobación/rechazo
+    Route::post('services/{service}/approve', [ServiceController::class, 'approve'])
+        ->name('services.approve');
+    Route::post('services/{service}/reject', [ServiceController::class, 'reject'])
+        ->name('services.reject');
 
-        // Documentos PDF del servicio
-        Route::get('services/{service}/contract', [ServiceController::class, 'downloadContract'])
-            ->name('services.contract');
+    // Documentos PDF del servicio
+    Route::get('services/{service}/contract', [ServiceController::class, 'downloadContract'])
+        ->name('services.contract');
 
-        Route::get('services/{service}/paz-y-salvo', [ServiceController::class, 'downloadPazYSalvo'])
-            ->name('services.paz-y-salvo');
+    Route::get('services/{service}/paz-y-salvo', [ServiceController::class, 'downloadPazYSalvo'])
+        ->name('services.paz-y-salvo');
 
-        // ──────────────────────────────────────────────────────────
-        // MÓDULO FINANCIERO — Pagos y comprobantes
-        // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────
+    // MÓDULO FINANCIERO — Pagos y comprobantes
+    // ──────────────────────────────────────────────────────────
 
-        Route::post('services/{service}/payments', [PaymentController::class, 'store'])
-            ->name('payments.store');
+    Route::post('services/{service}/payments', [PaymentController::class, 'store'])
+        ->name('payments.store');
 
-        Route::get('payments/{payment}/pdf', [PaymentController::class, 'downloadPdf'])
-            ->name('payments.pdf');
+    Route::get('payments/{payment}/pdf', [PaymentController::class, 'downloadPdf'])
+        ->name('payments.pdf');
 
-        Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])
-            ->name('payments.destroy');
+    Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])
+        ->name('payments.destroy');
 
-        // ──────────────────────────────────────────────────────────
-        // GESTIÓN DE AUSENCIAS (vacaciones, permisos, licencias)
-        // ──────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────
+    // GESTIÓN DE AUSENCIAS (vacaciones, permisos, licencias)
+    // ──────────────────────────────────────────────────────────
 
-        Route::resource('absences', EmployeeAbsenceController::class)
-            ->except(['destroy', 'edit', 'update']);
+    Route::resource('absences', EmployeeAbsenceController::class)
+        ->except(['destroy', 'edit', 'update']);
 
-        Route::post('absences/{absence}/approve', [EmployeeAbsenceController::class, 'approve'])
-            ->name('absences.approve');
+    Route::post('absences/{absence}/approve', [EmployeeAbsenceController::class, 'approve'])
+        ->name('absences.approve');
 
-        Route::post('absences/{absence}/reject', [EmployeeAbsenceController::class, 'reject'])
-            ->name('absences.reject');
+    Route::post('absences/{absence}/reject', [EmployeeAbsenceController::class, 'reject'])
+        ->name('absences.reject');
 
-        // ──────────────────────────────────────────────────────────
-        // GESTIÓN DE PERSONAL
-        // ──────────────────────────────────────────────────────────
-        Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
-        Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
-        Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
+    // ──────────────────────────────────────────────────────────
+    // GESTIÓN DE PERSONAL
+    // ──────────────────────────────────────────────────────────
+    Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+    Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
+    Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
 
-        // ──────────────────────────────────────────────────────────
-        // MÓDULO DE REPORTES
-        // ──────────────────────────────────────────────────────────
-        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-        Route::get('reports/services/pdf', [ReportController::class, 'servicesPdf'])->name('reports.services.pdf');
-        Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
-        Route::get('reports/payments/pdf', [ReportController::class, 'paymentsPdf'])->name('reports.payments.pdf');
-        Route::get('reports/payments/excel', [ReportController::class, 'paymentsExcel'])->name('reports.payments.excel');
-        Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
-    });
+    // ──────────────────────────────────────────────────────────
+    // MÓDULO DE REPORTES
+    // ──────────────────────────────────────────────────────────
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/services/pdf', [ReportController::class, 'servicesPdf'])->name('reports.services.pdf');
+    Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
+    Route::get('reports/payments/pdf', [ReportController::class, 'paymentsPdf'])->name('reports.payments.pdf');
+    Route::get('reports/payments/excel', [ReportController::class, 'paymentsExcel'])->name('reports.payments.excel');
+    Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
+});
 
+// ──────────────────────────────────────────────────────────
+// PORTAL DEL CLIENTE (Acceso Público con login propio)
+// ──────────────────────────────────────────────────────────
+Route::middleware(['auth'])->prefix('portal')->group(function () {
+    // Dashboard principal: el cliente ve sus servicios
+    Route::get('/', [PortalController::class, 'index'])->name('portal.index');
+    // Detalle de un servicio específico
+    Route::get('/servicio/{service:uuid}', [PortalController::class, 'show'])->name('portal.show');
 });
 
 // Rutas de configuración (settings)

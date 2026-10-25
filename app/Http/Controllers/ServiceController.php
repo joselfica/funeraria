@@ -25,11 +25,26 @@ class ServiceController extends Controller
 
         $services = Service::query()
             ->with(['client:id,name,rut', 'deceased:id,full_name', 'serviceType:id,name'])
+            // Sumamos los pagos de forma eficiente (Eager Loading con withSum)
+            ->withSum('payments', 'amount')
             ->when($search, fn ($q) => $q->search($search))
             ->when($status, fn ($q) => $q->where('status', $status))
             ->orderByDesc('scheduled_at')
             ->paginate(15)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function ($service) {
+                // Agregamos atributos calculados al objeto que va al frontend
+                $totalPaid = (float) ($service->payments_sum_amount ?? 0);
+                $totalPrice = (float) $service->total_price;
+                $balance = $totalPrice - $totalPaid;
+
+                $service->total_paid = $totalPaid;
+                $service->balance = $balance;
+                $service->is_fully_paid = $balance <= 0.01;
+                $service->payment_percentage = $totalPrice > 0 ? round(($totalPaid / $totalPrice) * 100, 1) : 0;
+
+                return $service;
+            });
 
         return Inertia::render('Services/Index', [
             'services' => $services,

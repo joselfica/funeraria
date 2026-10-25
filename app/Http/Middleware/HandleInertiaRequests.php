@@ -22,12 +22,14 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
+                // 🛡️ BLINDAJE: Verificamos si el usuario existe antes de leer roles
                 'user' => $user ? [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'roles' => $user->getRoleNames(),
-                    'permissions' => $user->getAllPermissions()->pluck('name'),
+                    // Si el usuario no tiene el trait HasRoles, esto fallaría.
+                    'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
+                    'permissions' => method_exists($user, 'getAllPermissions') ? $user->getAllPermissions()->pluck('name') : [],
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

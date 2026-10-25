@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { AlertTriangle, CheckSquare, Plus } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,31 @@ export default function ServicesIndex({ services, filters }: Props) {
             hour: '2-digit', minute: '2-digit',
         });
 
+    // Datos de pago: porcentaje (tope 100%), saldo y color según avance
+    const getPayment = (service: Service) => {
+        const total = parseFloat(service.total_price) || 0;
+        const paid = Number(service.total_paid) || 0;
+        const percentage = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
+        const balance = Math.max(total - paid, 0);
+        return { total, paid, percentage, balance };
+    };
+
+    const getPaymentBar = (p: number) => {
+        if (p >= 100) return 'bg-emerald-500';
+        if (p >= 90) return 'bg-green-400';
+        if (p >= 50) return 'bg-yellow-400';
+        if (p >= 25) return 'bg-orange-500';
+        return 'bg-red-500';
+    };
+
+    const getPaymentText = (p: number) => {
+        if (p >= 100) return 'text-emerald-500';
+        if (p >= 90) return 'text-green-400';
+        if (p >= 50) return 'text-yellow-400';
+        if (p >= 25) return 'text-orange-500';
+        return 'text-red-500';
+    };
+
     const formatPrice = (price: string) => 
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' })
             .format(parseFloat(price));
@@ -137,14 +163,15 @@ export default function ServicesIndex({ services, filters }: Props) {
                                 <TableHead>Tipo</TableHead>
                                 <TableHead>Programado</TableHead>
                                 <TableHead>Total</TableHead>
-                                <TableHead>Estado</TableHead>
+                                <TableHead>Estado de Pago</TableHead>
+                                <TableHead>Estado Servicio</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {services.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                         No hay servicios registrados
                                     </TableCell>
                                 </TableRow>
@@ -164,6 +191,36 @@ export default function ServicesIndex({ services, filters }: Props) {
                                         </TableCell>
                                         <TableCell className="font-medium">
                                             {formatPrice(service.total_price)}
+                                        </TableCell>
+                                        <TableCell className="min-w-[200px]">
+                                            {(() => {
+                                                const { percentage, balance } = getPayment(service);
+                                                return (
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center justify-between text-xs">
+                                                            <span className={`flex items-center gap-1 font-bold ${getPaymentText(percentage)}`}>
+                                                                {percentage >= 100 ? (
+                                                                    <CheckSquare className="h-3.5 w-3.5" />
+                                                                ) : percentage > 0 ? (
+                                                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                                                ) : (
+                                                                    <span className="inline-block h-3 w-3 rounded-full bg-red-500" />
+                                                                )}
+                                                                {percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}%
+                                                            </span>
+                                                            <span className="text-muted-foreground">
+                                                                {percentage >= 100 ? 'Pagado' : `Saldo: ${formatPrice(String(balance))}`}
+                                                            </span>
+                                                        </div>
+                                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                                            <div
+                                                                className={`h-full ${getPaymentBar(percentage)}`}
+                                                                style={{ width: `${percentage}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant={getStatusVariant(service.status)}>
@@ -216,6 +273,13 @@ export default function ServicesIndex({ services, filters }: Props) {
                     </div>
                 )}
             </div>
+
+            {/* Botón flotante */}
+            <Link href="/services/wizard" className="fixed bottom-6 right-6">
+                <Button className="h-12 rounded-full bg-emerald-600 px-5 text-white shadow-lg hover:bg-emerald-700">
+                    <Plus className="mr-2 h-5 w-5" /> Nuevo Servicio
+                </Button>
+            </Link>
         </AppLayout>
     );
 }

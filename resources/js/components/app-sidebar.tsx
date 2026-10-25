@@ -66,6 +66,16 @@ export function AppSidebar() {
                   },
               ]
             : []),
+        // Solo Administrador y Coordinador ven "Reportes"
+        ...(isAdminOrCoordinator
+            ? [
+                  {
+                      title: 'Reportes',
+                      href: '/reports',
+                      icon: FileText,
+                  },
+              ]
+            : []),
     ];
 
     return (

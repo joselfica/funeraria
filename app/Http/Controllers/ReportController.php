@@ -27,10 +27,10 @@ class ReportController extends Controller
     {
         return Inertia::render('Reports/Index', [
             'summary' => [
-                'total_services' => Service::count(),
-                'total_payments' => Payment::count(),
-                'total_clients' => Client::count(),
-                'total_inventory' => InventoryItem::count(),
+                'total_services' => \App\Models\Service::count(),
+                'total_payments' => \App\Models\Payment::count(),
+                'total_clients' => \App\Models\Client::count(),
+                'total_inventory' => \App\Models\InventoryItem::count(),
             ],
         ]);
     }
