@@ -23,13 +23,17 @@ class StaffController extends Controller
     {
         $today = Carbon::today();
 
-        // Traemos todos los usuarios con sus roles y sus ausencias de hoy
+        // 🛡️ FILTRO: Solo traemos usuarios que tengan alguno de los roles de empleados
         $staff = User::with(['roles', 'absences' => function ($q) use ($today) {
             $q->where('status', 'approved')
               ->where('starts_at', '<=', $today)
               ->where('ends_at', '>=', $today);
         }])
         ->where('is_active', true)
+        // Esta es la línea mágica que excluye a los clientes
+        ->whereHas('roles', function ($query) {
+            $query->whereIn('name', ['Administrador', 'Coordinador', 'Conductor']);
+        })
         ->orderBy('name')
         ->get()
         ->map(function ($user) {
