@@ -105,19 +105,73 @@ export default function ServicesIndex({ services, filters }: Props) {
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' })
             .format(parseFloat(price));
 
+    const renderPayment = (service: Service) => {
+        const { percentage, balance } = getPayment(service);
+        return (
+            <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className={`flex items-center gap-1 font-bold ${getPaymentText(percentage)}`}>
+                        {percentage >= 100 ? (
+                            <CheckSquare className="h-3.5 w-3.5" />
+                        ) : percentage > 0 ? (
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                        ) : (
+                            <span className="inline-block h-3 w-3 rounded-full bg-red-500" />
+                        )}
+                        {percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}%
+                    </span>
+                    <span className="text-muted-foreground">
+                        {percentage >= 100 ? 'Pagado' : `Saldo: ${formatPrice(String(balance))}`}
+                    </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className={`h-full ${getPaymentBar(percentage)}`} style={{ width: `${percentage}%` }} />
+                </div>
+            </div>
+        );
+    };
+
+    const renderActions = (service: Service) => (
+        <>
+            {/* Acción rápida: Cobrar si debe plata */}
+            {service.status === 'accepted' && parseFloat(service.total_price) > Number(service.total_paid) && (
+                <Link href={`/services/${service.id}`}>
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Cobrar
+                    </Button>
+                </Link>
+            )}
+
+            {/* Acción rápida: Aprobar si está pendiente */}
+            {service.status === 'pending' && (
+                <Link href={`/services/${service.id}`}>
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                        Aprobar
+                    </Button>
+                </Link>
+            )}
+
+            {/* Ver siempre disponible */}
+            <Link href={`/services/${service.id}`}>
+                <Button size="sm" variant="outline">Ver Todo</Button>
+            </Link>
+        </>
+    );
+
     return (
         <AppLayout>
             <Head title="Servicios Funerarios" />
 
-            <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
+            <div className="p-4 pb-24 sm:p-6">
+                {/* Encabezado */}
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold">Servicios Funerarios</h1>
-                        <p className="text-muted-foreground mt-1">
+                        <h1 className="text-2xl font-bold sm:text-3xl">Servicios Funerarios</h1>
+                        <p className="mt-1 text-muted-foreground">
                             Total: {services.total} servicios registrados
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Link href="/services/wizard">
                             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
                                 + Nuevo Expediente Completo
@@ -129,17 +183,18 @@ export default function ServicesIndex({ services, filters }: Props) {
                     </div>
                 </div>
 
-                <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+                {/* Búsqueda */}
+                <form onSubmit={handleSearch} className="mb-4 flex flex-col gap-2 sm:flex-row">
                     <Input
                         placeholder="Buscar por código, cliente o fallecido..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="max-w-md"
+                        className="w-full sm:max-w-md"
                     />
                     <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
-                        className="rounded-md border border-input bg-transparent px-3 text-sm"
+                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm sm:w-auto"
                     >
                         <option value="">Todos los estados</option>
                         <option value="pending">Pendiente</option>
@@ -150,10 +205,45 @@ export default function ServicesIndex({ services, filters }: Props) {
                         <option value="completed">Completada</option>
                         <option value="cancelled">Cancelada</option>
                     </select>
-                    <Button type="submit" variant="secondary">Buscar</Button>
+                    <Button type="submit" variant="secondary" className="w-full sm:w-auto">Buscar</Button>
                 </form>
 
-                <div className="border rounded-lg overflow-hidden bg-card">
+                {/* MÓVIL: tarjetas */}
+                <div className="space-y-3 md:hidden">
+                    {services.data.length === 0 ? (
+                        <p className="rounded-lg border bg-card py-8 text-center text-muted-foreground">
+                            No hay servicios registrados
+                        </p>
+                    ) : (
+                        services.data.map((service) => (
+                            <div key={service.id} className="space-y-3 rounded-lg border bg-card p-4">
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="font-mono text-sm">{service.code}</span>
+                                    <Badge variant={getStatusVariant(service.status)}>
+                                        {service.status_label}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <p className="font-medium">{service.client.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {service.deceased.full_name} · {service.service_type.name}
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">{formatDate(service.scheduled_at)}</span>
+                                    <span className="font-medium">{formatPrice(service.total_price)}</span>
+                                </div>
+                                {renderPayment(service)}
+                                <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
+                                    {renderActions(service)}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* ESCRITORIO: tabla */}
+                <div className="hidden overflow-x-auto rounded-lg border bg-card md:block">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -171,85 +261,27 @@ export default function ServicesIndex({ services, filters }: Props) {
                         <TableBody>
                             {services.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
                                         No hay servicios registrados
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 services.data.map((service) => (
                                     <TableRow key={service.id}>
-                                        <TableCell className="font-mono text-sm">
-                                            {service.code}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {service.client.name}
-                                        </TableCell>
+                                        <TableCell className="font-mono text-sm">{service.code}</TableCell>
+                                        <TableCell className="font-medium">{service.client.name}</TableCell>
                                         <TableCell>{service.deceased.full_name}</TableCell>
                                         <TableCell>{service.service_type.name}</TableCell>
-                                        <TableCell className="text-sm">
-                                            {formatDate(service.scheduled_at)}
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            {formatPrice(service.total_price)}
-                                        </TableCell>
-                                        <TableCell className="min-w-[200px]">
-                                            {(() => {
-                                                const { percentage, balance } = getPayment(service);
-                                                return (
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center justify-between text-xs">
-                                                            <span className={`flex items-center gap-1 font-bold ${getPaymentText(percentage)}`}>
-                                                                {percentage >= 100 ? (
-                                                                    <CheckSquare className="h-3.5 w-3.5" />
-                                                                ) : percentage > 0 ? (
-                                                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                                                ) : (
-                                                                    <span className="inline-block h-3 w-3 rounded-full bg-red-500" />
-                                                                )}
-                                                                {percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}%
-                                                            </span>
-                                                            <span className="text-muted-foreground">
-                                                                {percentage >= 100 ? 'Pagado' : `Saldo: ${formatPrice(String(balance))}`}
-                                                            </span>
-                                                        </div>
-                                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                                                            <div
-                                                                className={`h-full ${getPaymentBar(percentage)}`}
-                                                                style={{ width: `${percentage}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </TableCell>
+                                        <TableCell className="text-sm">{formatDate(service.scheduled_at)}</TableCell>
+                                        <TableCell className="font-medium">{formatPrice(service.total_price)}</TableCell>
+                                        <TableCell className="min-w-[200px]">{renderPayment(service)}</TableCell>
                                         <TableCell>
                                             <Badge variant={getStatusVariant(service.status)}>
                                                 {service.status_label}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            {/* Acción rápida: Cobrar si debe plata */}
-                                            {service.status === 'accepted' && parseFloat(service.total_price) > Number(service.total_paid) && (
-                                                <Link href={`/services/${service.id}`}>
-                                                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                                                        Cobrar
-                                                    </Button>
-                                                </Link>
-                                            )}
-
-                                            {/* Acción rápida: Aprobar si está pendiente */}
-                                            {service.status === 'pending' && (
-                                                <Link href={`/services/${service.id}`}>
-                                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                                        Aprobar
-                                                    </Button>
-                                                </Link>
-                                            )}
-
-                                            {/* Ver siempre disponible */}
-                                            <Link href={`/services/${service.id}`}>
-                                                <Button size="sm" variant="outline">Ver Todo</Button>
-                                            </Link>
+                                        <TableCell className="space-x-2 whitespace-nowrap text-right">
+                                            {renderActions(service)}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -259,12 +291,12 @@ export default function ServicesIndex({ services, filters }: Props) {
                 </div>
 
                 {services.last_page > 1 && (
-                    <div className="mt-4 flex justify-center gap-1">
+                    <div className="mt-4 flex flex-wrap justify-center gap-1">
                         {services.links.map((link, i) => (
                             <Link
                                 key={i}
                                 href={link.url || '#'}
-                                className={`px-3 py-1 rounded border text-sm ${
+                                className={`rounded border px-3 py-1 text-sm ${
                                     link.active ? 'bg-primary text-primary-foreground' : link.url ? 'hover:bg-accent' : 'opacity-50'
                                 }`}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
@@ -274,10 +306,11 @@ export default function ServicesIndex({ services, filters }: Props) {
                 )}
             </div>
 
-            {/* Botón flotante */}
-            <Link href="/services/wizard" className="fixed bottom-6 right-6">
-                <Button className="h-12 rounded-full bg-emerald-600 px-5 text-white shadow-lg hover:bg-emerald-700">
-                    <Plus className="mr-2 h-5 w-5" /> Nuevo Servicio
+            {/* Botón flotante (solo ícono en móvil) */}
+            <Link href="/services/wizard" className="fixed bottom-6 right-6 z-10">
+                <Button className="h-12 rounded-full bg-emerald-600 px-4 text-white shadow-lg hover:bg-emerald-700 sm:px-5">
+                    <Plus className="h-5 w-5 sm:mr-2" />
+                    <span className="hidden sm:inline">Nuevo Servicio</span>
                 </Button>
             </Link>
         </AppLayout>
