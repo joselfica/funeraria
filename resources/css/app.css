@@ -1,3 +1,5 @@
+@import 'node_modules/@fullcalendar/core/index.css';
+
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
@@ -140,4 +142,52 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* FullCalendar v6 - Ajustes para modo oscuro */
+.fc {
+    --fc-border-color: rgba(255, 255, 255, 0.15);
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: rgba(255, 255, 255, 0.05);
+    --fc-today-bg-color: rgba(16, 185, 129, 0.1);
+    --fc-event-text-color: #ffffff;
+}
+
+.fc .fc-toolbar-title {
+    color: #ffffff;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.fc .fc-button {
+    background-color: #262626;
+    border-color: #404040;
+    color: #ffffff;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    text-transform: capitalize;
+}
+
+.fc .fc-button:hover,
+.fc .fc-button-active {
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+}
+
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+    color: #d4d4d4;
+    text-decoration: none;
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+    background-color: rgba(16, 185, 129, 0.08);
+}
+
+.fc .fc-daygrid-event {
+    border-radius: 4px;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border: none;
 }

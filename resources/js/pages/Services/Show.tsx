@@ -104,9 +104,10 @@ interface Service {
     internal_notes: string | null;
     rejection_reason: string | null;
     approved_at: string | null;
-    client: Client;
-    deceased: Deceased;
-    service_type: ServiceType;
+    client: Client | null;
+    deceased: Deceased | null;
+    service_type: ServiceType | null;
+    branch: { name: string; address?: string | null } | null;
     created_by: User | null;
     approved_by: User | null;
     inventory_items: InventoryItem[];
@@ -365,7 +366,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                         {service.approved_by && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Por:</span>
-                                <span>{service.approved_by.name}</span>
+                                <span>{service.approved_by?.name ?? '—'}</span>
                             </div>
                         )}
 
@@ -401,31 +402,31 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                             <div>
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-medium text-sm text-muted-foreground">Cliente</h4>
-                                    <Link href={`/clients/${service.client.id}/edit`}>
+                                    <Link href={`/clients/${service.client?.id ?? 0}/edit`}>
                                         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
                                             ✏️ Editar
                                         </Button>
                                     </Link>
                                 </div>
-                                <p className="font-medium">{service.client.name}</p>
-                                <p className="text-sm text-muted-foreground">{service.client.rut}</p>
-                                {service.client.phone && <p className="text-sm">{service.client.phone}</p>}
-                                {service.client.email && <p className="text-sm">{service.client.email}</p>}
+                                <p className="font-medium">{service.client?.name ?? 'Sin cliente'}</p>
+                                <p className="text-sm text-muted-foreground">{service.client?.rut ?? '—'}</p>
+                                {service.client?.phone && <p className="text-sm">{service.client.phone}</p>}
+                                {service.client?.email && <p className="text-sm">{service.client.email}</p>}
                             </div>
                             
                             {/* FALLECIDO */}
                             <div>
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-medium text-sm text-muted-foreground">Fallecido</h4>
-                                    <Link href={`/deceased/${service.deceased.id}/edit`}>
+                                    <Link href={`/deceased/${service.deceased?.id ?? 0}/edit`}>
                                         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
                                             ✏️ Editar
                                         </Button>
                                     </Link>
                                 </div>
-                                <p className="font-medium">{service.deceased.full_name}</p>
-                                {service.deceased.rut && <p className="text-sm text-muted-foreground">{service.deceased.rut}</p>}
-                                <p className="text-sm">Fallecimiento: {formatDate(service.deceased.death_date)}</p>
+                                <p className="font-medium">{service.deceased?.full_name ?? 'Sin fallecido'}</p>
+                                {service.deceased?.rut && <p className="text-sm text-muted-foreground">{service.deceased.rut}</p>}
+                                <p className="text-sm">Fallecimiento: {formatDate(service.deceased?.death_date ?? null)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -440,7 +441,15 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                         <dl className="divide-y">
                             <div className="grid grid-cols-3 gap-4 py-3">
                                 <dt className="text-sm text-muted-foreground">Tipo de servicio</dt>
-                                <dd className="col-span-2 font-medium">{service.service_type.name}</dd>
+                                <dd className="col-span-2 font-medium">{service.service_type?.name ?? 'Sin tipo'}</dd>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 py-3">
+                                <dt className="text-sm text-muted-foreground">Sucursal</dt>
+                                <dd className="col-span-2">{service.branch?.name ?? 'Sin sucursal'}</dd>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4 py-3">
+                                <dt className="text-sm text-muted-foreground">Dirección sucursal</dt>
+                                <dd className="col-span-2">{service.branch?.address ?? '—'}</dd>
                             </div>
                             <div className="grid grid-cols-3 gap-4 py-3">
                                 <dt className="text-sm text-muted-foreground">Inicio</dt>

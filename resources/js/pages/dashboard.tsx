@@ -3,7 +3,8 @@ import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck, Package } from 'lucide-react';
+import { Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck, Package, Calendar as CalendarIcon } from 'lucide-react';
+import ServicesCalendar from '@/components/Dashboard/ServicesCalendar';
 import {
     LineChart,
     Line,
@@ -59,6 +60,20 @@ interface Alerts {
     seremi_critical: number;
 }
 
+interface CalendarService {
+    id: number;
+    code: string;
+    title: string;
+    start: string;
+    end: string | null;
+    status: string;
+    status_label: string;
+    client: string | null;
+    deceased: string | null;
+    service_type: string | null;
+    branch: string | null;
+}
+
 interface Props {
     kpis: Kpis;
     chart_data: ChartData[];
@@ -66,12 +81,13 @@ interface Props {
     upcoming_services: UpcomingService[];
     fleet_status: FleetStatus;
     alerts: Alerts;
+    services: CalendarService[];
 }
 
 // ──────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ──────────────────────────────────────────────────────────────
-export default function Dashboard({ kpis, chart_data, low_stock, upcoming_services, fleet_status, alerts }: Props) {
+export default function Dashboard({ kpis, chart_data, low_stock, upcoming_services, fleet_status, alerts, services }: Props) {
 
     const formatPrice = (value: number) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
@@ -327,6 +343,21 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* CALENDARIO DE SERVICIOS */}
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <CalendarIcon className="h-5 w-5" /> Calendario de Servicios
+                        </CardTitle>
+                        <CardDescription>
+                            Vista mensual de todos los servicios programados. Hacé clic en un servicio para ver el detalle.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ServicesCalendar services={services} />
+                    </CardContent>
+                </Card>
 
             </div>
         </AppLayout>

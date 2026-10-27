@@ -95,6 +95,28 @@ class DashboardController extends Controller
             'seremi_critical' => InventoryItem::seremiCritical()->count(),
         ];
 
+        // Servicios del mes actual (para el calendario)
+        $services = Service::with(['client:id,name', 'deceased:id,full_name', 'serviceType:id,name', 'branch:id,name'])
+            ->whereBetween('scheduled_at', [
+                Carbon::now()->startOfMonth()->subMonth(),
+                Carbon::now()->endOfMonth()->addMonth(),
+            ])
+            ->orderBy('scheduled_at')
+            ->get()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'code' => $s->code,
+                'title' => "{$s->code} — {$s->deceased?->full_name}",
+                'start' => $s->scheduled_at->toIso8601String(),
+                'end' => $s->ends_at?->toIso8601String(),
+                'status' => $s->status,
+                'status_label' => $s->status_label,
+                'client' => $s->client?->name,
+                'deceased' => $s->deceased?->full_name,
+                'service_type' => $s->serviceType?->name,
+                'branch' => $s->branch?->name,
+            ]);
+
         return Inertia::render('dashboard', [
             'kpis' => [
                 'total_clients' => $totalClients,
@@ -107,6 +129,7 @@ class DashboardController extends Controller
             'upcoming_services' => $upcomingServices,
             'fleet_status' => $fleetStatus,
             'alerts' => $alerts,
+            'services' => $services, // ← NUEVO
         ]);
     }
 }
