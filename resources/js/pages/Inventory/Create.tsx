@@ -16,6 +16,7 @@ interface FormData {
     stock: string;
     stock_minimum: string;
     is_active: boolean;
+    size_cm: string;
 }
 
 export default function InventoryCreate() {
@@ -30,6 +31,7 @@ export default function InventoryCreate() {
         stock: '0',
         stock_minimum: '0',
         is_active: true,
+        size_cm: '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -120,6 +122,20 @@ export default function InventoryCreate() {
                                         onChange={(e) => setData('dimensions', e.target.value)}
                                         placeholder="200x60x40 cm"
                                     />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="size_cm">Tamaño (cm)</Label>
+                                    <Input
+                                        id="size_cm"
+                                        type="number"
+                                        value={data.size_cm}
+                                        onChange={(e) => setData('size_cm', e.target.value)}
+                                        placeholder="30, 40, 60, 70..."
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Las urnas de 30, 40 y 60 cm son obligatorias por la Seremi.
+                                    </p>
                                 </div>
 
                                 <div>

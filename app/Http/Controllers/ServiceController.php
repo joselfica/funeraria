@@ -139,7 +139,7 @@ class ServiceController extends Controller
             'branch_id' => 'required|exists:branches,id',  // ← NUEVO
 
             // Tipo de beneficiario (AFP, municipal, etc.)
-            'beneficiary_type' => 'required|string|in:afp,adulto_mayor,menor_sin_beneficio,municipal,particular',  // ← NUEVO
+            'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',  // ← NUEVO
 
             // Programación
             'scheduled_at' => 'required|date|after:now',
@@ -177,7 +177,7 @@ class ServiceController extends Controller
         $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
 
         // Monto cubierto por la AFP (solo aplica al tipo AFP)
-        $validated['afp_amount'] = $beneficiaryType->afpAmount();
+        $validated['afp_amount'] = $beneficiaryType->defaultAmount();
 
         // Total del servicio: base + cargos - descuento
         $validated['total_price'] =
@@ -235,6 +235,9 @@ class ServiceController extends Controller
             'assignments.user:id,name,email',
         ]);
 
+        // Agregar manualmente los atributos calculados
+        $service->append(['beneficiary_label']);
+
         // Items disponibles para asignar
         $availableItems = InventoryItem::active()
             ->where('stock', '>', 0)
@@ -256,7 +259,7 @@ class ServiceController extends Controller
         $serviceDate = \Carbon\Carbon::parse($service->scheduled_at);
         $availableEmployees = $availability->getAvailableUsers($serviceDate)
             ->load('roles')
-            ->filter(fn ($u) => $u->hasAnyRole(['Administrador', 'Coordinador', 'Conductor']));
+            ->filter(fn ($u) => $u->hasAnyRole(['Administrador', 'Encargado', 'Chofer']));
 
         // Calcular los saldos de forma explícita para enviarlos al frontend
         $totalPaid = (float) $service->payments()->sum('amount');
@@ -336,7 +339,7 @@ class ServiceController extends Controller
             'deceased_id' => 'required|exists:deceased,id',
             'service_type_id' => 'required|exists:service_types,id',
             'branch_id' => 'required|exists:branches,id',
-            'beneficiary_type' => 'required|string|in:afp,adulto_mayor,menor_sin_beneficio,municipal,particular',
+            'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',
             'scheduled_at' => 'required|date',
             'duration_hours' => 'required|integer|min:1',
             'base_price' => 'required|numeric|min:0',
@@ -360,7 +363,7 @@ class ServiceController extends Controller
         // Recalcular montos según el tipo de beneficiario
         // ──────────────────────────────────────────────────────────────
         $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
-        $validated['afp_amount'] = $beneficiaryType->afpAmount();
+        $validated['afp_amount'] = $beneficiaryType->defaultAmount();
         $validated['total_price'] =
             $validated['base_price']
             + $validated['additional_charges']
@@ -649,6 +652,17 @@ class ServiceController extends Controller
         $validated['branch_id'] = (int) $validated['branch_id'];
         $validated['service_type_id'] = (int) $validated['service_type_id'];
 
+        // Si el servicio dura más de 48h, exigir resolución de Seremi
+        if ((int) $validated['duration_hours'] > 48) {
+            $seremi = $request->validate([
+                'seremi_resolution_number' => 'required|string|max:50',
+                'seremi_resolution_date' => 'required|date',
+            ]);
+
+            $validated = array_merge($validated, $seremi);
+            $validated['seremi_extension_granted'] = true;
+        }
+
         try {
             DB::beginTransaction();
 
@@ -685,12 +699,15 @@ class ServiceController extends Controller
                 'ends_at' => \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']),
                 'base_price' => $validated['base_price'],
                 'total_price' => $validated['base_price'],
-                'afp_amount' => $beneficiaryType->afpAmount(),
-                'family_amount' => $validated['base_price'] - $beneficiaryType->afpAmount(),
+                'afp_amount' => $beneficiaryType->defaultAmount(),
+                'family_amount' => $validated['base_price'] - $beneficiaryType->defaultAmount(),
                 'status' => 'accepted', // Lo dejamos "aceptado" directamente para que puedan asignar y pagar
                 'created_by' => auth()->id(),
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
+                'seremi_extension_granted' => $validated['seremi_extension_granted'] ?? false,
+                'seremi_resolution_number' => $validated['seremi_resolution_number'] ?? null,
+                'seremi_resolution_date' => $validated['seremi_resolution_date'] ?? null,
             ]);
 
             // 4. Asignar Item de Inventario (si se seleccionó)

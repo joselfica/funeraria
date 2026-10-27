@@ -1,5 +1,17 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FileText, FolderGit2, LayoutGrid, Package, Users } from 'lucide-react';
+import {
+    BookOpen,
+    Briefcase,
+    CalendarDays,
+    Car,
+    DollarSign,
+    FileText,
+    FolderGit2,
+    LayoutGrid,
+    MapPin,
+    Package,
+    Users,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -35,44 +47,90 @@ export function AppSidebar() {
         auth?: { user?: { roles?: string[] } };
     }>().props;
 
-    const roles = auth?.user?.roles ?? [];
-    const isAdminOrCoordinator = roles.includes('Administrador') || roles.includes('Coordinador');
+    const userRoles = auth?.user?.roles ?? [];
+    const isAdmin = userRoles.includes('Administrador');
+    const isEncargado = userRoles.includes('Encargado');
+    const isChofer = userRoles.includes('Chofer');
 
     const mainNavItems: NavItem[] = [
         {
-            title: 'Dashboard',
+            title: isChofer ? 'Mi Itinerario' : 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
         },
-        {
-            title: 'Servicios',
-            href: '/services',
-            icon: FileText,
-            badge: pending_counts?.services ?? 0,
-        },
-        {
-            title: 'Inventario',
-            href: '/inventory',
-            icon: Package,
-            badge: pending_counts?.low_stock ?? 0,
-        },
-        // Solo Administrador y Coordinador ven "Personal"
-        ...(isAdminOrCoordinator
+        // Clientes: Admin y Encargado
+        ...((isAdmin || isEncargado)
             ? [
                   {
-                      title: 'Personal',
-                      href: '/staff',
+                      title: 'Clientes',
+                      href: '/clients',
                       icon: Users,
                   },
               ]
             : []),
-        // Solo Administrador y Coordinador ven "Reportes"
-        ...(isAdminOrCoordinator
+        // Inventario: Admin, Encargado y Chofer
+        ...((isAdmin || isEncargado || isChofer)
+            ? [
+                  {
+                      title: 'Inventario',
+                      href: '/inventory',
+                      icon: Package,
+                  },
+              ]
+            : []),
+        // Vehículos: Admin y Encargado
+        ...((isAdmin || isEncargado)
+            ? [
+                  {
+                      title: 'Vehículos',
+                      href: '/vehicles',
+                      icon: Car,
+                  },
+              ]
+            : []),
+        // Servicios: Admin y Encargado (NO Chofer)
+        ...(!isChofer && (isAdmin || isEncargado)
+            ? [
+                  {
+                      title: 'Servicios',
+                      href: '/services',
+                      icon: FileText,
+                  },
+              ]
+            : []),
+        // Sucursales: Admin y Encargado
+        ...((isAdmin || isEncargado)
+            ? [
+                  {
+                      title: 'Sucursales',
+                      href: '/branches',
+                      icon: MapPin,
+                  },
+              ]
+            : []),
+        // Ausencias: Todos
+        {
+            title: 'Mis Ausencias',
+            href: '/absences',
+            icon: CalendarDays,
+        },
+        // Reportes: Admin
+        ...(isAdmin
             ? [
                   {
                       title: 'Reportes',
                       href: '/reports',
-                      icon: FileText,
+                      icon: DollarSign,
+                  },
+              ]
+            : []),
+        // Personal: Admin
+        ...(isAdmin
+            ? [
+                  {
+                      title: 'Personal',
+                      href: '/staff',
+                      icon: Briefcase,
                   },
               ]
             : []),

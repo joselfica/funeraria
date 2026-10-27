@@ -46,7 +46,7 @@ class AvailabilityService
      * Obtiene todos los usuarios disponibles en una fecha.
      *
      * @param Carbon $date
-     * @param string|null $role Filtro opcional por rol (ej: 'Coordinador')
+     * @param string|null $role Filtro opcional por rol (ej: 'Encargado')
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getAvailableUsers(Carbon $date, ?string $role = null)

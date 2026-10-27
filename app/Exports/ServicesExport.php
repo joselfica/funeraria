@@ -7,6 +7,9 @@ use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
+/**
+ * Exportación de servicios a Excel.
+ */
 class ServicesExport implements FromQuery, WithHeadings, WithMapping
 {
     public function __construct(

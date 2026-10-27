@@ -188,6 +188,16 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
                                 ))}
                             </select>
                             {errors.beneficiary_type && <p className="text-sm text-destructive mt-1">{errors.beneficiary_type}</p>}
+                            {['afp', 'ips', 'dipreca', 'capredena'].includes(data.beneficiary_type) && (
+                                <p className="text-xs text-emerald-600 mt-1">
+                                    ✓ Institución cubre hasta $600.000. Familia paga la diferencia.
+                                </p>
+                            )}
+                            {data.beneficiary_type === 'municipal' && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                    ⚠️ Evaluación municipal (~3 meses de demora).
+                                </p>
+                            )}
                         </div>
                     </div>
 

@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { Package, Box, FlaskConical } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ interface Item {
     stock_minimum: number;
     is_active: boolean;
     needs_restock: boolean;
+    category_description: string;
 }
 
 interface Props {
@@ -45,6 +47,17 @@ interface Props {
 export default function InventoryIndex({ items, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [category, setCategory] = useState(filters.category || '');
+
+    const getCategoryIcon = (category: string) => {
+        switch (category) {
+            case 'ataud':
+                return <Box className="h-4 w-4" />;
+            case 'urna':
+                return <FlaskConical className="h-4 w-4" />;
+            default:
+                return <Package className="h-4 w-4" />;
+        }
+    };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,6 +94,17 @@ export default function InventoryIndex({ items, filters }: Props) {
                     </Link>
                 </div>
 
+                <div className="flex items-center gap-6 mb-4 text-sm">
+                    <div className="flex items-center gap-2">
+                        <Box className="h-4 w-4 text-muted-foreground" />
+                        <span>Ataúdes: <strong>{items.data.filter(i => i.category === 'ataud').length}</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <FlaskConical className="h-4 w-4 text-muted-foreground" />
+                        <span>Urnas: <strong>{items.data.filter(i => i.category === 'urna').length}</strong></span>
+                    </div>
+                </div>
+
                 <form onSubmit={handleSearch} className="mb-4 flex gap-2">
                     <Input
                         placeholder="Buscar por código, nombre o material..."
@@ -94,8 +118,8 @@ export default function InventoryIndex({ items, filters }: Props) {
                         className="rounded-md border border-input bg-transparent px-3 text-sm"
                     >
                         <option value="">Todas las categorías</option>
-                        <option value="ataud">Ataúdes</option>
-                        <option value="urna">Urnas</option>
+                        <option value="ataud">Ataúdes (cuerpo completo)</option>
+                        <option value="urna">Urnas (cenizas)</option>
                     </select>
                     <Button type="submit" variant="secondary">
                         Buscar
@@ -129,8 +153,12 @@ export default function InventoryIndex({ items, filters }: Props) {
                                         <TableCell className="font-mono text-sm">{item.code}</TableCell>
                                         <TableCell className="font-medium">{item.name}</TableCell>
                                         <TableCell>
-                                            <Badge variant={item.category === 'ataud' ? 'default' : 'secondary'}>
-                                                {item.category === 'ataud' ? 'Ataúd' : 'Urna'}
+                                            <Badge
+                                                variant={item.category === 'ataud' ? 'default' : 'secondary'}
+                                                className="flex items-center gap-1.5 w-fit"
+                                            >
+                                                {getCategoryIcon(item.category)}
+                                                <span>{item.category === 'ataud' ? 'Ataúd' : 'Urna'}</span>
                                             </Badge>
                                         </TableCell>
                                         <TableCell>{item.material || '—'}</TableCell>

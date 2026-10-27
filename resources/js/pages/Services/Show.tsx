@@ -1,7 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Box, FlaskConical, Package } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,10 +89,17 @@ interface Service {
     scheduled_at: string;
     ends_at: string | null;
     duration_hours: number;
+    seremi_extension_granted: boolean;
+    seremi_resolution_number: string | null;
+    seremi_resolution_date: string | null;
     base_price: string;
     additional_charges: string;
     discount: string;
     total_price: string;
+    beneficiary_type: string;
+    beneficiary_label: string;
+    afp_amount: string;
+    family_amount: string;
     client_notes: string | null;
     internal_notes: string | null;
     rejection_reason: string | null;
@@ -389,15 +396,33 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* CLIENTE */}
                             <div>
-                                <h4 className="font-medium text-sm text-muted-foreground mb-2">Cliente</h4>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-medium text-sm text-muted-foreground">Cliente</h4>
+                                    <Link href={`/clients/${service.client.id}/edit`}>
+                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                                            ✏️ Editar
+                                        </Button>
+                                    </Link>
+                                </div>
                                 <p className="font-medium">{service.client.name}</p>
                                 <p className="text-sm text-muted-foreground">{service.client.rut}</p>
                                 {service.client.phone && <p className="text-sm">{service.client.phone}</p>}
                                 {service.client.email && <p className="text-sm">{service.client.email}</p>}
                             </div>
+                            
+                            {/* FALLECIDO */}
                             <div>
-                                <h4 className="font-medium text-sm text-muted-foreground mb-2">Fallecido</h4>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-medium text-sm text-muted-foreground">Fallecido</h4>
+                                    <Link href={`/deceased/${service.deceased.id}/edit`}>
+                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                                            ✏️ Editar
+                                        </Button>
+                                    </Link>
+                                </div>
                                 <p className="font-medium">{service.deceased.full_name}</p>
                                 {service.deceased.rut && <p className="text-sm text-muted-foreground">{service.deceased.rut}</p>}
                                 <p className="text-sm">Fallecimiento: {formatDate(service.deceased.death_date)}</p>
@@ -425,6 +450,25 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                 <dt className="text-sm text-muted-foreground">Fin estimado</dt>
                                 <dd className="col-span-2">{formatDate(service.ends_at)}</dd>
                             </div>
+                            <div className="grid grid-cols-3 gap-4 py-3">
+                                <dt className="text-sm text-muted-foreground">Duración</dt>
+                                <dd className="col-span-2">
+                                    {service.duration_hours} horas
+                                    {service.seremi_extension_granted && (
+                                        <Badge variant="secondary" className="ml-2">
+                                            Extensión Seremi
+                                        </Badge>
+                                    )}
+                                </dd>
+                            </div>
+                            {service.seremi_extension_granted && (
+                                <div className="grid grid-cols-3 gap-4 py-3 bg-amber-500/5">
+                                    <dt className="text-sm text-amber-600">Resolución Seremi</dt>
+                                    <dd className="col-span-2 text-amber-600 font-medium">
+                                        N° {service.seremi_resolution_number} — {formatDate(service.seremi_resolution_date)}
+                                    </dd>
+                                </div>
+                            )}
                         </dl>
                     </CardContent>
                 </Card>
@@ -437,16 +481,26 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                     <CardContent className="space-y-6">
                         {/* ITEMS: Ataúdes y Urnas */}
                         <div>
-                            <h4 className="font-medium mb-2">Ataúdes y Urnas</h4>
+                            <h4 className="font-medium mb-2 flex items-center gap-2">
+                                <Package className="h-4 w-4" /> Ataúdes y Urnas Asignados
+                            </h4>
                             {service.inventory_items && service.inventory_items.length > 0 ? (
                                 <div className="space-y-2 mb-3">
                                     {service.inventory_items.map((item) => (
                                         <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                            <div>
-                                                <p className="font-medium">{item.code} — {item.name}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Cantidad: {item.pivot?.quantity} | Precio: {formatPrice(item.pivot?.unit_price || '0')}
-                                                </p>
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 bg-muted rounded-lg">
+                                                    {item.category === 'ataud'
+                                                        ? <Box className="h-5 w-5 text-primary" />
+                                                        : <FlaskConical className="h-5 w-5 text-primary" />
+                                                    }
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">{item.code} — {item.name}</p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {item.category === 'ataud' ? 'Ataúd' : 'Urna'} · Cantidad: {item.pivot?.quantity} · Precio: {formatPrice(item.pivot?.unit_price || '0')}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <Button
                                                 size="sm"
@@ -472,11 +526,20 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
                                         >
                                             <option value="">Seleccionar...</option>
-                                            {availableItems.map((item) => (
-                                                <option key={item.id} value={item.id}>
-                                                    {item.code} — {item.name} (Stock: {item.stock})
-                                                </option>
-                                            ))}
+                                            <optgroup label="Ataúdes (cuerpo completo)">
+                                                {availableItems.filter(i => i.category === 'ataud').map((item) => (
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.code} — {item.name} (Stock: {item.stock})
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                            <optgroup label="Urnas (cenizas)">
+                                                {availableItems.filter(i => i.category === 'urna').map((item) => (
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.code} — {item.name} (Stock: {item.stock})
+                                                    </option>
+                                                ))}
+                                            </optgroup>
                                         </select>
                                     </div>
                                     <div className="w-24">
@@ -646,6 +709,34 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                 <dt className="text-sm text-muted-foreground">Precio base</dt>
                                 <dd className="col-span-2">{formatPrice(service.base_price)}</dd>
                             </div>
+                            
+                            {/* NUEVO: Tipo de beneficiario */}
+                            <div className="grid grid-cols-3 gap-4 py-3">
+                                <dt className="text-sm text-muted-foreground">Tipo de Beneficiario</dt>
+                                <dd className="col-span-2">
+                                    <Badge variant="secondary">{service.beneficiary_label}</Badge>
+                                </dd>
+                            </div>
+                            
+                            {/* NUEVO: Monto institución previsional */}
+                            {['afp', 'ips', 'dipreca', 'capredena'].includes(service.beneficiary_type) && (
+                                <div className="grid grid-cols-3 gap-4 py-3 bg-emerald-500/5">
+                                    <dt className="text-sm text-emerald-600">Cubierto por institución</dt>
+                                    <dd className="col-span-2 text-emerald-600 font-medium">
+                                        - {formatPrice(service.afp_amount)}
+                                    </dd>
+                                </div>
+                            )}
+                            
+                            {/* NUEVO: Monto familia */}
+                            <div className="grid grid-cols-3 gap-4 py-3 bg-blue-500/5">
+                                <dt className="text-sm text-blue-600">Pagado por la familia</dt>
+                                <dd className="col-span-2 text-blue-600 font-medium">
+                                    {formatPrice(service.family_amount)}
+                                </dd>
+                            </div>
+                            
+                            {/* Resto: cargos, descuento, total */}
                             <div className="grid grid-cols-3 gap-4 py-3">
                                 <dt className="text-sm text-muted-foreground">Cargos adicionales</dt>
                                 <dd className="col-span-2">{formatPrice(service.additional_charges)}</dd>

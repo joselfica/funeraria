@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Asignación de un empleado a un servicio funerario.
  *
- * Un servicio puede tener múltiples asignaciones (coordinador + asistente).
+ * Un servicio puede tener múltiples asignaciones (encargado + asistente).
  * Al crear una asignación, se valida que el empleado esté disponible.
  */
 class ServiceAssignment extends Model
@@ -49,7 +49,7 @@ class ServiceAssignment extends Model
     public function getRoleLabelAttribute(): string
     {
         return match ($this->role_in_service) {
-            'coordinator' => 'Coordinador',
+            'coordinator' => 'Encargado',
             'assistant' => 'Asistente',
             'driver' => 'Conductor',
             default => $this->role_in_service,

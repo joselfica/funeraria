@@ -24,9 +24,9 @@ interface Service {
     ends_at: string | null;
     total_price: string;
     total_paid: number;
-    client: { id: number; name: string; rut: string };
-    deceased: { id: number; full_name: string };
-    service_type: { id: number; name: string };
+    client: { id: number; name: string; rut: string } | null;
+    deceased: { id: number; full_name: string } | null;
+    service_type: { id: number; name: string } | null;
 }
 
 interface Props {
@@ -224,9 +224,9 @@ export default function ServicesIndex({ services, filters }: Props) {
                                     </Badge>
                                 </div>
                                 <div>
-                                    <p className="font-medium">{service.client.name}</p>
+                                    <p className="font-medium">{service.client?.name || 'Sin cliente'}</p>
                                     <p className="text-sm text-muted-foreground">
-                                        {service.deceased.full_name} · {service.service_type.name}
+                                        {service.deceased?.full_name || 'Sin fallecido'} · {service.service_type?.name || 'Sin tipo'}
                                     </p>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
@@ -269,9 +269,9 @@ export default function ServicesIndex({ services, filters }: Props) {
                                 services.data.map((service) => (
                                     <TableRow key={service.id}>
                                         <TableCell className="font-mono text-sm">{service.code}</TableCell>
-                                        <TableCell className="font-medium">{service.client.name}</TableCell>
-                                        <TableCell>{service.deceased.full_name}</TableCell>
-                                        <TableCell>{service.service_type.name}</TableCell>
+                                        <TableCell className="font-medium">{service.client?.name || 'Sin cliente'}</TableCell>
+                                        <TableCell>{service.deceased?.full_name || 'Sin fallecido'}</TableCell>
+                                        <TableCell>{service.service_type?.name || 'Sin tipo'}</TableCell>
                                         <TableCell className="text-sm">{formatDate(service.scheduled_at)}</TableCell>
                                         <TableCell className="font-medium">{formatPrice(service.total_price)}</TableCell>
                                         <TableCell className="min-w-[200px]">{renderPayment(service)}</TableCell>

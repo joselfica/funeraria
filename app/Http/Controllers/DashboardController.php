@@ -91,6 +91,8 @@ class DashboardController extends Controller
             'low_stock_items' => InventoryItem::active()
                 ->whereColumn('stock', '<=', 'stock_minimum')
                 ->count(),
+            // Urnas obligatorias por Seremi con stock bajo
+            'seremi_critical' => InventoryItem::seremiCritical()->count(),
         ];
 
         return Inertia::render('dashboard', [

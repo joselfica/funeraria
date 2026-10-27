@@ -56,6 +56,7 @@ interface Alerts {
     pending_services: number;
     unpaid_services: number;
     low_stock_items: number;
+    seremi_critical: number;
 }
 
 interface Props {
@@ -137,12 +138,20 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                 </div>
 
                 {/* PANEL DE ACCIÓN RÁPIDA (Modo Renato) */}
-                {(alerts.pending_services > 0 || alerts.unpaid_services > 0 || alerts.low_stock_items > 0) && (
+                {(alerts.pending_services > 0 || alerts.unpaid_services > 0 || alerts.low_stock_items > 0 || alerts.seremi_critical > 0) && (
                     <Card className="border-amber-500/50 bg-amber-500/5">
                         <CardHeader className="pb-3">
                             <CardTitle className="text-lg">Acciones Pendientes</CardTitle>
                         </CardHeader>
                         <CardContent className="flex gap-4 flex-wrap">
+                            {alerts.seremi_critical > 0 && (
+                                <Link href="/inventory">
+                                    <Button className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        ALERTA SEREMI: {alerts.seremi_critical} urna(s) obligatoria(s) sin stock
+                                    </Button>
+                                </Link>
+                            )}
                             {alerts.pending_services > 0 && (
                                 <Link href="/services?status=pending">
                                     <Button variant="destructive" className="gap-2">

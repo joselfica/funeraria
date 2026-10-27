@@ -24,6 +24,8 @@ class InventoryItem extends Model
         'stock_minimum',
         'photos',
         'is_active',
+        'size_cm',
+        'is_seremi_required',
     ];
 
     protected $casts = [
@@ -32,6 +34,8 @@ class InventoryItem extends Model
         'stock_minimum' => 'integer',
         'photos' => 'array',
         'is_active' => 'boolean',
+        'size_cm' => 'integer',
+        'is_seremi_required' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -39,6 +43,8 @@ class InventoryItem extends Model
 
     protected $appends = [
         'category_label',
+        'category_icon',
+        'category_description',
         'needs_restock',
     ];
 
@@ -47,6 +53,19 @@ class InventoryItem extends Model
         static::creating(function (InventoryItem $item) {
             if (empty($item->uuid)) {
                 $item->uuid = (string) Str::uuid();
+            }
+
+            // Marcar automáticamente como obligatorio Seremi si es 30, 40 o 60 cm
+            if (in_array($item->size_cm, [30, 40, 60])) {
+                $item->is_seremi_required = true;
+            }
+        });
+
+        static::updating(function (InventoryItem $item) {
+            if (in_array($item->size_cm, [30, 40, 60])) {
+                $item->is_seremi_required = true;
+            } else {
+                $item->is_seremi_required = false;
             }
         });
     }
@@ -65,6 +84,15 @@ class InventoryItem extends Model
     public function scopeLowStock($query)
     {
         return $query->whereColumn('stock', '<=', 'stock_minimum');
+    }
+
+    /**
+     * Scope: urnas obligatorias por Seremi que están bajo stock mínimo.
+     */
+    public function scopeSeremiCritical($query)
+    {
+        return $query->where('is_seremi_required', true)
+            ->whereColumn('stock', '<=', 'stock_minimum');
     }
 
     /**
@@ -89,6 +117,30 @@ class InventoryItem extends Model
             'urna' => 'Urna',
             null => 'Sin categoría',
             default => (string) $this->category,
+        };
+    }
+
+    /**
+     * Icono visual según la categoría.
+     */
+    public function getCategoryIconAttribute(): string
+    {
+        return match ($this->category) {
+            'ataud' => 'coffin',
+            'urna' => 'urn',
+            default => 'package',
+        };
+    }
+
+    /**
+     * Descripción larga para tooltips.
+     */
+    public function getCategoryDescriptionAttribute(): string
+    {
+        return match ($this->category) {
+            'ataud' => 'Ataúd (para velatorio e inhumación)',
+            'urna' => 'Urna (para cenizas de cremación)',
+            default => 'Producto',
         };
     }
 

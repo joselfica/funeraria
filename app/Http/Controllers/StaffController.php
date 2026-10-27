@@ -32,7 +32,7 @@ class StaffController extends Controller
         ->where('is_active', true)
         // Esta es la línea mágica que excluye a los clientes
         ->whereHas('roles', function ($query) {
-            $query->whereIn('name', ['Administrador', 'Coordinador', 'Conductor']);
+            $query->whereIn('name', ['Administrador', 'Encargado', 'Chofer']);
         })
         ->orderBy('name')
         ->get()

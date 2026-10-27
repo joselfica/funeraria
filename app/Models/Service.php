@@ -19,6 +19,9 @@ class Service extends Model
         'client_notes', 'internal_notes',
         'beneficiary_type', 'afp_amount', 'family_amount', 'municipal_amount',
         'expected_payment_date',
+        'seremi_extension_granted',
+        'seremi_resolution_number',
+        'seremi_resolution_date',
     ];
 
     protected $casts = [
@@ -34,6 +37,8 @@ class Service extends Model
         'afp_amount' => 'decimal:2',
         'family_amount' => 'decimal:2',
         'municipal_amount' => 'decimal:2',
+        'seremi_extension_granted' => 'boolean',
+        'seremi_resolution_date' => 'date',
     ];
 
     // 🔒 Ocultar notas internas (solo visibles para Admin)

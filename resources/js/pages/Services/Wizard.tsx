@@ -34,7 +34,7 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
         service_type_id: '',
         beneficiary_type: 'particular',
         scheduled_at: '',
-        duration_hours: '24',
+        duration_hours: '48',
         base_price: '0',
         inventory_item_id: '',
         initial_payment_amount: '',
@@ -189,9 +189,25 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                         </div>
                                         <div>
                                             <Label>Tipo de Beneficiario *</Label>
-                                            <select value={data.beneficiary_type} onChange={e => setData('beneficiary_type', e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm" required>
+                                            <select 
+                                                value={data.beneficiary_type} 
+                                                onChange={e => setData('beneficiary_type', e.target.value)}
+                                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                                            >
                                                 {beneficiaryTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                             </select>
+                                            {/* Texto de ayuda contextual */}
+                                            {['afp', 'ips', 'dipreca', 'capredena'].includes(data.beneficiary_type) && (
+                                                <p className="text-xs text-emerald-600 mt-1">
+                                                    ✓ Esta institución cubre hasta $600.000 de la cuota mortuoria.
+                                                    La familia paga la diferencia.
+                                                </p>
+                                            )}
+                                            {data.beneficiary_type === 'municipal' && (
+                                                <p className="text-xs text-amber-600 mt-1">
+                                                    ⚠️ La municipalidad evalúa con asistente social (demora ~3 meses).
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -223,11 +239,20 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                             className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                                         >
                                             <option value="">No asignar ahora</option>
-                                            {availableItems.map(item => (
-                                                <option key={item.id} value={item.id}>
-                                                    {item.code} - {item.name} ({formatPrice(Number(item.price))}) - Stock: {item.stock}
-                                                </option>
-                                            ))}
+                                            <optgroup label="Ataúdes (cuerpo completo)">
+                                                {availableItems.filter(i => i.category === 'ataud').map(item => (
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.code} - {item.name} ({formatPrice(Number(item.price))}) - Stock: {item.stock}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
+                                            <optgroup label="Urnas (cenizas)">
+                                                {availableItems.filter(i => i.category === 'urna').map(item => (
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.code} - {item.name} ({formatPrice(Number(item.price))}) - Stock: {item.stock}
+                                                    </option>
+                                                ))}
+                                            </optgroup>
                                         </select>
                                         <p className="text-xs text-muted-foreground mt-1">
                                             Si seleccionás un item, se descontará del stock inmediatamente.
