@@ -69,7 +69,7 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
             <div className="p-6 max-w-3xl mx-auto">
                 <div className="mb-8 text-center">
                     <h1 className="text-3xl font-bold">Nuevo Expediente Funerario</h1>
-                    <p className="text-muted-foreground mt-2">Complete los datos en 3 simples pasos</p>
+                    <p className="text-muted-foreground mt-2">Completa los datos en 3 simples pasos</p>
                 </div>
 
                 {/* Barra de Progreso (3 pasos) */}
@@ -94,7 +94,7 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
 
                 {Object.keys(errors).length > 0 && (
                     <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-                        <p className="font-bold mb-1">Revisá los siguientes campos:</p>
+                        <p className="font-bold mb-1">Revisa los siguientes campos:</p>
                         <ul className="list-disc list-inside">
                             {Object.entries(errors).map(([key, error]) => (
                                 <li key={key}>{error}</li>
@@ -255,7 +255,7 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                             </optgroup>
                                         </select>
                                         <p className="text-xs text-muted-foreground mt-1">
-                                            Si seleccionás un item, se descontará del stock inmediatamente.
+                                            Si selecciona un item, se descontará del stock inmediatamente.
                                         </p>
                                         {errors.inventory_item_id && <p className="text-sm text-destructive mt-1">{errors.inventory_item_id}</p>}
                                     </div>

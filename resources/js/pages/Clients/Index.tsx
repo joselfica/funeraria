@@ -12,6 +12,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { TableActions } from '@/components/ui/table-actions';
 
 interface Client {
     id: number;
@@ -133,36 +134,12 @@ export default function ClientsIndex({ clients, filters }: Props) {
                                                     : 'Inactivo'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="space-x-2 text-right">
-                                            <Link
-                                                href={`/clients/${client.id}`}
-                                            >
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                >
-                                                    Ver
-                                                </Button>
-                                            </Link>
-                                            <Link
-                                                href={`/clients/${client.id}/edit`}
-                                            >
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                >
-                                                    Editar
-                                                </Button>
-                                            </Link>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                    handleDelete(client)
-                                                }
-                                            >
-                                                Eliminar
-                                            </Button>
+                                        <TableCell>
+                                            <TableActions
+                                                viewHref={`/clients/${client.id}`}
+                                                editHref={`/clients/${client.id}/edit`}
+                                                onDelete={() => handleDelete(client)}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))

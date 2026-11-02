@@ -19,6 +19,7 @@ interface Client {
 
 interface Props {
     client: Client;
+    redirect_to?: string | null;
 }
 
 interface FormData {
@@ -29,9 +30,10 @@ interface FormData {
     address: string;
     notes: string;
     is_active: boolean;
+    redirect_to: string;
 }
 
-export default function ClientsEdit({ client }: Props) {
+export default function ClientsEdit({ client, redirect_to }: Props) {
     const { data, setData, put, processing, errors } = useForm<FormData>({
         rut: client.rut,
         name: client.name,
@@ -40,6 +42,7 @@ export default function ClientsEdit({ client }: Props) {
         address: client.address || '',
         notes: client.notes || '',
         is_active: client.is_active,
+        redirect_to: redirect_to || '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {

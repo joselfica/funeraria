@@ -70,10 +70,11 @@ class DeceasedController extends Controller
         ]);
     }
 
-    public function edit(Deceased $deceased)
+    public function edit(Deceased $deceased, Request $request)
     {
         return Inertia::render('Deceased/Edit', [
             'deceased' => $deceased,
+            'redirect_to' => $request->input('from'),
         ]);
     }
 
@@ -98,6 +99,16 @@ class DeceasedController extends Controller
         ]);
 
         $deceased->update($validated);
+
+        // Redirigir según el contexto (solo rutas internas)
+        $redirectTo = $request->input('redirect_to');
+        if ($redirectTo && str_starts_with($redirectTo, '/') && ! str_starts_with($redirectTo, '//')) {
+            return redirect($redirectTo)
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Fallecido actualizado correctamente.',
+                ]);
+        }
 
         return redirect()->route('deceased.index')
             ->with('toast', [

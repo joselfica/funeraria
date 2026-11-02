@@ -21,6 +21,7 @@ interface FormData {
     cemetery: string;
     niche_location: string;
     notes: string;
+    redirect_to: string;
 }
 
 interface Deceased {
@@ -44,9 +45,10 @@ interface Deceased {
 
 interface Props {
     deceased: Deceased;
+    redirect_to?: string | null;
 }
 
-export default function DeceasedEdit({ deceased }: Props) {
+export default function DeceasedEdit({ deceased, redirect_to }: Props) {
     const { data, setData, put, processing, errors } = useForm<FormData>({
         full_name: deceased.full_name,
         rut: deceased.rut || '',
@@ -63,6 +65,7 @@ export default function DeceasedEdit({ deceased }: Props) {
         cemetery: deceased.cemetery || '',
         niche_location: deceased.niche_location || '',
         notes: deceased.notes || '',
+        redirect_to: redirect_to || '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {

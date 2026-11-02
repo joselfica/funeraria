@@ -56,10 +56,11 @@ class ClientController extends Controller
         ]);
     }
 
-    public function edit(Client $client)
+    public function edit(Client $client, Request $request)
     {
         return Inertia::render('Clients/Edit', [
             'client' => $client,
+            'redirect_to' => $request->input('from'),
         ]);
     }
 
@@ -77,6 +78,16 @@ class ClientController extends Controller
 
         $client->update($validated);
 
+        // Redirigir según el contexto (solo rutas internas)
+        $redirectTo = $request->input('redirect_to');
+        if ($redirectTo && str_starts_with($redirectTo, '/') && ! str_starts_with($redirectTo, '//')) {
+            return redirect($redirectTo)
+                ->with('toast', [
+                    'type' => 'success',
+                    'message' => 'Cliente actualizado correctamente.',
+                ]);
+        }
+
         return redirect()->route('clients.index')
             ->with('toast', [
                 'type' => 'success',
@@ -86,12 +97,20 @@ class ClientController extends Controller
 
     public function destroy(Client $client)
     {
+        // Verificar que no tenga servicios asociados
+        if ($client->services()->count() > 0) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No se puede eliminar: el cliente tiene servicios registrados.',
+            ]);
+        }
+
         $client->delete();
 
         return redirect()->route('clients.index')
             ->with('toast', [
                 'type' => 'success',
-                'message' => 'Cliente eliminado correctamente.',
+                'message' => 'Cliente eliminado.',
             ]);
     }
 }

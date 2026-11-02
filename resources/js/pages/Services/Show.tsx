@@ -397,36 +397,40 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            
+                        
                             {/* CLIENTE */}
                             <div>
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-medium text-sm text-muted-foreground">Cliente</h4>
-                                    <Link href={`/clients/${service.client?.id ?? 0}/edit`}>
-                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                            ✏️ Editar
-                                        </Button>
-                                    </Link>
+                                    {service.client?.id && (
+                                        <Link href={`/clients/${service.client.id}/edit?from=/services/${service.id}`}>
+                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                                                Editar
+                                            </Button>
+                                        </Link>
+                                    )}
                                 </div>
-                                <p className="font-medium">{service.client?.name ?? 'Sin cliente'}</p>
-                                <p className="text-sm text-muted-foreground">{service.client?.rut ?? '—'}</p>
+                                <p className="font-medium">{service.client?.name || 'Sin cliente'}</p>
+                                <p className="text-sm text-muted-foreground">{service.client?.rut || '—'}</p>
                                 {service.client?.phone && <p className="text-sm">{service.client.phone}</p>}
                                 {service.client?.email && <p className="text-sm">{service.client.email}</p>}
                             </div>
-                            
+                        
                             {/* FALLECIDO */}
                             <div>
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-medium text-sm text-muted-foreground">Fallecido</h4>
-                                    <Link href={`/deceased/${service.deceased?.id ?? 0}/edit`}>
-                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                            ✏️ Editar
-                                        </Button>
-                                    </Link>
+                                    {service.deceased?.id && (
+                                        <Link href={`/deceased/${service.deceased.id}/edit?from=/services/${service.id}`}>
+                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                                                Editar
+                                            </Button>
+                                        </Link>
+                                    )}
                                 </div>
-                                <p className="font-medium">{service.deceased?.full_name ?? 'Sin fallecido'}</p>
+                                <p className="font-medium">{service.deceased?.full_name || 'Sin fallecido'}</p>
                                 {service.deceased?.rut && <p className="text-sm text-muted-foreground">{service.deceased.rut}</p>}
-                                <p className="text-sm">Fallecimiento: {formatDate(service.deceased?.death_date ?? null)}</p>
+                                <p className="text-sm">Fallecimiento: {formatDate(service.deceased?.death_date || null)}</p>
                             </div>
                         </div>
                     </CardContent>

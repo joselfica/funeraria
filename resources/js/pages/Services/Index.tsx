@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { AlertTriangle, CheckSquare, Plus } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Plus, Eye } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,7 @@ interface Service {
     ends_at: string | null;
     total_price: string;
     total_paid: number;
+    balance: number;
     client: { id: number; name: string; rut: string } | null;
     deceased: { id: number; full_name: string } | null;
     service_type: { id: number; name: string } | null;
@@ -53,7 +54,7 @@ export default function ServicesIndex({ services, filters }: Props) {
     };
 
     const handleDelete = (service: Service) => {
-        if (confirm(`¿Eliminar el servicio ${service.code}?`)) {
+        if (confirm(`¿Estás seguro de eliminar el servicio ${service.code}?`)) {
             router.delete(`/services/${service.id}`);
         }
     };
@@ -132,30 +133,27 @@ export default function ServicesIndex({ services, filters }: Props) {
     };
 
     const renderActions = (service: Service) => (
-        <>
-            {/* Acción rápida: Cobrar si debe plata */}
-            {service.status === 'accepted' && parseFloat(service.total_price) > Number(service.total_paid) && (
-                <Link href={`/services/${service.id}`}>
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                        Cobrar
-                    </Button>
-                </Link>
-            )}
-
-            {/* Acción rápida: Aprobar si está pendiente */}
+        <div className="flex items-center justify-end gap-2">
             {service.status === 'pending' && (
                 <Link href={`/services/${service.id}`}>
-                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
                         Aprobar
                     </Button>
                 </Link>
             )}
-
-            {/* Ver siempre disponible */}
+            {service.balance > 0 && service.status === 'accepted' && (
+                <Link href={`/services/${service.id}`}>
+                    <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white">
+                        Cobrar
+                    </Button>
+                </Link>
+            )}
             <Link href={`/services/${service.id}`}>
-                <Button size="sm" variant="outline">Ver Todo</Button>
+                <Button variant="outline" size="sm" className="h-8">
+                    <Eye className="h-4 w-4 mr-1" /> Ver
+                </Button>
             </Link>
-        </>
+        </div>
     );
 
     return (
@@ -219,8 +217,18 @@ export default function ServicesIndex({ services, filters }: Props) {
                             <div key={service.id} className="space-y-3 rounded-lg border bg-card p-4">
                                 <div className="flex items-start justify-between gap-2">
                                     <span className="font-mono text-sm">{service.code}</span>
-                                    <Badge variant={getStatusVariant(service.status)}>
-                                        {service.status_label}
+                                    <Badge 
+                                        variant={
+                                            service.status === 'accepted' ? 'default' :
+                                            service.status === 'pending' ? 'secondary' :
+                                            service.status === 'completed' ? 'default' :
+                                            service.status === 'cancelled' ? 'destructive' :
+                                            service.status === 'rejected' ? 'destructive' :
+                                            'outline'
+                                        }
+                                        className="w-fit"
+                                    >
+                                        {service.status_label || 'Sin estado'}
                                     </Badge>
                                 </div>
                                 <div>
@@ -276,11 +284,21 @@ export default function ServicesIndex({ services, filters }: Props) {
                                         <TableCell className="font-medium">{formatPrice(service.total_price)}</TableCell>
                                         <TableCell className="min-w-[200px]">{renderPayment(service)}</TableCell>
                                         <TableCell>
-                                            <Badge variant={getStatusVariant(service.status)}>
-                                                {service.status_label}
+                                            <Badge 
+                                                variant={
+                                                    service.status === 'accepted' ? 'default' :
+                                                    service.status === 'pending' ? 'secondary' :
+                                                    service.status === 'completed' ? 'default' :
+                                                    service.status === 'cancelled' ? 'destructive' :
+                                                    service.status === 'rejected' ? 'destructive' :
+                                                    'outline'
+                                                }
+                                                className="w-fit"
+                                            >
+                                                {service.status_label || 'Sin estado'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="space-x-2 whitespace-nowrap text-right">
+                                        <TableCell className="whitespace-nowrap text-right">
                                             {renderActions(service)}
                                         </TableCell>
                                     </TableRow>

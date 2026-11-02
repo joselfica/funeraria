@@ -97,6 +97,20 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
+    /**
+     * Formatea el eje Y del gráfico.
+     * Si el valor es menor a 1.000.000, muestra "k" (miles).
+     * Si es mayor o igual a 1.000.000, muestra "M" (millones).
+     */
+    const formatAxisTick = (value: number): string => {
+        if (value >= 1_000_000) {
+            const millions = value / 1_000_000;
+            return `$${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M`;
+        }
+        const thousands = value / 1_000;
+        return `$${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
+    };
+
     return (
         <AppLayout>
             <Head title="Dashboard" />
@@ -153,7 +167,7 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                     </Card>
                 </div>
 
-                {/* PANEL DE ACCIÓN RÁPIDA (Modo Renato) */}
+                {/* PANEL DE ACCIÓN RÁPIDA */}
                 {(alerts.pending_services > 0 || alerts.unpaid_services > 0 || alerts.low_stock_items > 0 || alerts.seremi_critical > 0) && (
                     <Card className="border-amber-500/50 bg-amber-500/5">
                         <CardHeader className="pb-3">
@@ -215,7 +229,7 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                                             fontSize={12} 
                                             tickLine={false} 
                                             axisLine={false} 
-                                            tickFormatter={(value) => `$${value / 1000}k`}
+                                            tickFormatter={formatAxisTick}
                                         />
                                         <Tooltip 
                                             formatter={(value: number) => [formatPrice(value), 'Ingresos']}
@@ -350,9 +364,9 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                         <CardTitle className="flex items-center gap-2">
                             <CalendarIcon className="h-5 w-5" /> Calendario de Servicios
                         </CardTitle>
-                        <CardDescription>
-                            Vista mensual de todos los servicios programados. Hacé clic en un servicio para ver el detalle.
-                        </CardDescription>
+<CardDescription>
+    Vista mensual de todos los servicios programados. Haz clic en un servicio para ver el detalle.
+</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <ServicesCalendar services={services} />

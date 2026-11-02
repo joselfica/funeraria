@@ -47,6 +47,12 @@ class Service extends Model
         'rejection_reason',
     ];
 
+    // Atributos calculados que siempre se incluyen en el JSON
+    protected $appends = [
+        'status_label',
+        'beneficiary_label',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (Service $service) {
@@ -120,16 +126,20 @@ class Service extends Model
             'in_review' => 'En revisión',
             'with_observations' => 'Con observaciones',
             'accepted' => 'Aceptada',
-            'rejected' => 'No aplica',
+            'rejected' => 'Rechazada',
             'in_progress' => 'En ejecución',
             'completed' => 'Completada',
             'cancelled' => 'Cancelada',
-            default => $this->status,
+            default => $this->status ?? 'Sin estado',
         };
     }
 
-    public function getBeneficiaryLabelAttribute(): string
+    public function getBeneficiaryLabelAttribute(): ?string
     {
+        if ($this->beneficiary_type === null || $this->beneficiary_type === '') {
+            return null;
+        }
+
         return \App\Enums\BeneficiaryType::tryFrom($this->beneficiary_type)?->label()
             ?? $this->beneficiary_type;
     }

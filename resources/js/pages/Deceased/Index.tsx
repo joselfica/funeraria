@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { TableActions } from '@/components/ui/table-actions';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -103,20 +104,12 @@ export default function DeceasedIndex({ deceased, filters }: Props) {
                                             {item.death_certificate_number || '—'}
                                         </TableCell>
                                         <TableCell className="text-sm">{item.current_location || '—'}</TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Link href={`/deceased/${item.id}`}>
-                                                <Button variant="ghost" size="sm">Ver</Button>
-                                            </Link>
-                                            <Link href={`/deceased/${item.id}/edit`}>
-                                                <Button variant="ghost" size="sm">Editar</Button>
-                                            </Link>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(item)}
-                                            >
-                                                Eliminar
-                                            </Button>
+                                        <TableCell>
+                                            <TableActions
+                                                viewHref={`/deceased/${item.id}`}
+                                                editHref={`/deceased/${item.id}/edit`}
+                                                onDelete={() => handleDelete(item)}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))

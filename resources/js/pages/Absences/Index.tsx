@@ -90,7 +90,7 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                         </h1>
                         <p className="text-muted-foreground mt-1">
                             {is_admin
-                                ? 'Administrá las solicitudes de vacaciones y permisos del personal'
+                                ? 'Administra las solicitudes de vacaciones y permisos del personal'
                                 : 'Tus solicitudes de vacaciones y permisos'}
                         </p>
                     </div>
@@ -191,25 +191,27 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                                                 {absence.status_label}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            {is_admin && absence.status === 'pending' && (
-                                                <>
-                                                    <Button
-                                                        size="sm"
-                                                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                        onClick={() => handleApprove(absence.id, absence.user.name)}
-                                                    >
-                                                        <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="destructive"
-                                                        onClick={() => handleReject(absence.id, absence.user.name)}
-                                                    >
-                                                        <XCircle className="h-4 w-4 mr-1" /> Rechazar
-                                                    </Button>
-                                                </>
-                                            )}
+                                        <TableCell>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {is_admin && absence.status === 'pending' && (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                            onClick={() => handleApprove(absence.id, absence.user.name)}
+                                                        >
+                                                            <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="destructive"
+                                                            onClick={() => handleReject(absence.id, absence.user.name)}
+                                                        >
+                                                            <XCircle className="h-4 w-4 mr-1" /> Rechazar
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))

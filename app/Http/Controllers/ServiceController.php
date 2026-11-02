@@ -41,7 +41,10 @@ class ServiceController extends Controller
                 $service->total_paid = $totalPaid;
                 $service->balance = $balance;
                 $service->is_fully_paid = $balance <= 0.01;
-                $service->payment_percentage = $totalPrice > 0 ? round(($totalPaid / $totalPrice) * 100, 1) : 0;
+                $service->payment_percentage = $totalPrice > 0 ? min(100, round(($totalPaid / $totalPrice) * 100, 1)) : 0;
+
+                // Asegurar que los accessors vayan en el JSON que recibe el frontend
+                $service->append(['status_label', 'beneficiary_label']);
 
                 return $service;
             });

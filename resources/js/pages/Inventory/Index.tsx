@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { TableActions } from '@/components/ui/table-actions';
 import {
     Table,
     TableBody,
@@ -173,20 +174,12 @@ export default function InventoryIndex({ items, filters }: Props) {
                                                 {item.is_active ? 'Activo' : 'Inactivo'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Link href={`/inventory/${item.id}`}>
-                                                <Button variant="ghost" size="sm">Ver</Button>
-                                            </Link>
-                                            <Link href={`/inventory/${item.id}/edit`}>
-                                                <Button variant="ghost" size="sm">Editar</Button>
-                                            </Link>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(item)}
-                                            >
-                                                Eliminar
-                                            </Button>
+                                        <TableCell>
+                                            <TableActions
+                                                viewHref={`/inventory/${item.id}`}
+                                                editHref={`/inventory/${item.id}/edit`}
+                                                onDelete={() => handleDelete(item)}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))

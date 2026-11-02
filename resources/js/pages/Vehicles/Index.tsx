@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { TableActions } from '@/components/ui/table-actions';
 import {
     Table,
     TableBody,
@@ -168,20 +169,12 @@ export default function VehiclesIndex({ vehicles, filters }: Props) {
                                                 {vehicle.is_active ? 'Sí' : 'No'}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Link href={`/vehicles/${vehicle.id}`}>
-                                                <Button variant="ghost" size="sm">Ver</Button>
-                                            </Link>
-                                            <Link href={`/vehicles/${vehicle.id}/edit`}>
-                                                <Button variant="ghost" size="sm">Editar</Button>
-                                            </Link>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(vehicle)}
-                                            >
-                                                Eliminar
-                                            </Button>
+                                        <TableCell>
+                                            <TableActions
+                                                viewHref={`/vehicles/${vehicle.id}`}
+                                                editHref={`/vehicles/${vehicle.id}/edit`}
+                                                onDelete={() => handleDelete(vehicle)}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))

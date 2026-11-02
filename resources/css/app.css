@@ -1,4 +1,4 @@
-@import 'node_modules/@fullcalendar/core/index.css';
+@import './fullcalendar.css';
 
 @import 'tailwindcss';
 
