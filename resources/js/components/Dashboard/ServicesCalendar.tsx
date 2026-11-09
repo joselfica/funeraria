@@ -88,12 +88,12 @@ export default function ServicesCalendar({ services }: Props) {
 
 function getEventColor(status: string): string {
     switch (status) {
-        case 'accepted': return '#10b981';
-        case 'in_progress': return '#3b82f6';
-        case 'pending': return '#f59e0b';
-        case 'completed': return '#8b5cf6';
-        case 'cancelled': return '#ef4444';
-        case 'rejected': return '#6b7280';
-        default: return '#64748b';
+        case 'accepted': return '#10b981';      // Verde
+        case 'in_progress': return '#3b82f6';   // Azul
+        case 'pending': return '#f59e0b';       // Amarillo
+        case 'completed': return '#8b5cf6';     // Violeta
+        case 'cancelled': return '#ef4444';     // Rojo
+        case 'rejected': return '#6b7280';      // Gris
+        default: return '#64748b';              // Slate
     }
 }
