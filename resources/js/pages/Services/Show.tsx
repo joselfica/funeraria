@@ -2,7 +2,6 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Box, FlaskConical, Package } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -92,6 +91,9 @@ interface Service {
     seremi_extension_granted: boolean;
     seremi_resolution_number: string | null;
     seremi_resolution_date: string | null;
+    origin_location: string | null;
+    destination_location: string | null;
+    burial_at: string | null;
     base_price: string;
     additional_charges: string;
     discount: string;
@@ -308,7 +310,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const canAssignResources = service.status === 'accepted' || service.status === 'in_progress';
 
     return (
-        <AppLayout>
+        <>
             <Head title={service.code} />
 
             <div className="p-6 max-w-5xl">
@@ -480,6 +482,22 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                     <dd className="col-span-2 text-amber-600 font-medium">
                                         N° {service.seremi_resolution_number} — {formatDate(service.seremi_resolution_date)}
                                     </dd>
+                                </div>
+                            )}
+                            <div className="grid grid-cols-3 gap-4 py-3">
+                                <dt className="text-sm text-muted-foreground">Lugar de origen</dt>
+                                <dd className="col-span-2">{service.origin_location || '—'}</dd>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4 py-3">
+                                <dt className="text-sm text-muted-foreground">Destino</dt>
+                                <dd className="col-span-2">{service.destination_location || '—'}</dd>
+                            </div>
+
+                            {service.burial_at && (
+                                <div className="grid grid-cols-3 gap-4 py-3">
+                                    <dt className="text-sm text-muted-foreground">Entierro / Cremación</dt>
+                                    <dd className="col-span-2">{formatDate(service.burial_at)}</dd>
                                 </div>
                             )}
                         </dl>
@@ -989,6 +1007,6 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                     document.body
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

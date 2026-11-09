@@ -7,6 +7,7 @@
         @page { margin: 40px; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; line-height: 1.6; }
         .header { text-align: center; border-bottom: 3px solid #10b981; padding-bottom: 15px; margin-bottom: 30px; }
+        .header .logo { width: 230px; margin-bottom: 6px; }
         .header h1 { color: #1e293b; font-size: 22px; margin: 0; }
         .header p { color: #64748b; font-size: 11px; margin: 3px 0; }
         .title { text-align: center; font-size: 18px; font-weight: bold; color: #10b981; margin: 30px 0; text-transform: uppercase; letter-spacing: 2px; }
@@ -26,10 +27,22 @@
 </head>
 <body>
 
+    @php
+        // Logo embebido en base64 (evita problemas de rutas en dompdf)
+        $logoPath = public_path('images/logo-pdf.png');
+        $logo = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
+    @endphp
+
     <div class="stamp">PAGADO</div>
 
     <div class="header">
-        <h1>Funeraria Cristo Rey</h1>
+        @if ($logo)
+            <img src="{{ $logo }}" class="logo" alt="Funeraria Cristo Rey">
+        @else
+            <h1>Funeraria Cristo Rey</h1>
+        @endif
         <p>Servicios Funerarios Integrales</p>
         <p>RUT: 76.543.210-K | Av. Principal 1234, Santiago</p>
     </div>
@@ -61,6 +74,27 @@
             <span class="info-label">Fecha de Servicio:</span>
             <span class="info-value">{{ \Carbon\Carbon::parse($service->scheduled_at)->format('d/m/Y') }}</span>
         </div>
+        {{-- NUEVOS CAMPOS --}}
+        @if ($service->origin_location)
+            <div class="info-row">
+                <span class="info-label">Lugar de origen:</span>
+                <span class="info-value">{{ $service->origin_location }}</span>
+            </div>
+        @endif
+
+        @if ($service->destination_location)
+            <div class="info-row">
+                <span class="info-label">Cementerio / Crematorio:</span>
+                <span class="info-value">{{ $service->destination_location }}</span>
+            </div>
+        @endif
+
+        @if ($service->burial_at)
+            <div class="info-row">
+                <span class="info-label">Entierro / Cremación:</span>
+                <span class="info-value">{{ \Carbon\Carbon::parse($service->burial_at)->format('d/m/Y H:i') }}</span>
+            </div>
+        @endif
     </div>
 
     <div class="total-box">

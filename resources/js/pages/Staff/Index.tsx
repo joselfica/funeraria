@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,7 @@ interface Props {
 
 export default function StaffIndex({ staff }: Props) {
     return (
-        <AppLayout>
+        <>
             <Head title="Gestión de Personal" />
 
             <div className="p-6 max-w-6xl mx-auto">
@@ -106,6 +105,6 @@ export default function StaffIndex({ staff }: Props) {
                     </CardContent>
                 </Card>
             </div>
-        </AppLayout>
+        </>
     );
 }

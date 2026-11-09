@@ -1,7 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Package, Box, FlaskConical } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +78,7 @@ export default function InventoryIndex({ items, filters }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Inventario" />
 
             <div className="p-6">
@@ -207,6 +206,6 @@ export default function InventoryIndex({ items, filters }: Props) {
                     </div>
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

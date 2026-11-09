@@ -349,6 +349,9 @@ class ServiceController extends Controller
             'additional_charges' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'municipal_amount' => 'nullable|numeric|min:0',
+            'origin_location' => 'nullable|string|max:200',
+            'destination_location' => 'nullable|string|max:200',
+            'burial_at' => 'nullable|date',
             'client_notes' => 'nullable|string|max:1000',
             'internal_notes' => 'nullable|string|max:1000',
         ]);
@@ -639,6 +642,9 @@ class ServiceController extends Controller
             'scheduled_at' => 'required|date|after:now',
             'duration_hours' => 'required|integer|min:1',
             'base_price' => 'required|numeric|min:0',
+            'origin_location' => 'nullable|string|max:200',
+            'destination_location' => 'nullable|string|max:200',
+            'burial_at' => 'nullable|date',
 
             // Inventario (opcional pero recomendado)
             'inventory_item_id' => 'nullable|exists:inventory_items,id',
@@ -711,6 +717,9 @@ class ServiceController extends Controller
                 'seremi_extension_granted' => $validated['seremi_extension_granted'] ?? false,
                 'seremi_resolution_number' => $validated['seremi_resolution_number'] ?? null,
                 'seremi_resolution_date' => $validated['seremi_resolution_date'] ?? null,
+                'origin_location' => $validated['origin_location'] ?? null,
+                'destination_location' => $validated['destination_location'] ?? null,
+                'burial_at' => $validated['burial_at'] ?? null,
             ]);
 
             // 4. Asignar Item de Inventario (si se seleccionó)
@@ -762,7 +771,8 @@ class ServiceController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.contract', [
             'service' => $service,
-        ]);
+        ])
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download("contrato-{$service->code}.pdf");
     }
@@ -784,7 +794,8 @@ class ServiceController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.reports.paz-y-salvo', [
             'service' => $service,
-        ]);
+        ])
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download("paz-y-salvo-{$service->code}.pdf");
     }

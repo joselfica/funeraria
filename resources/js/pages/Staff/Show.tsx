@@ -1,5 +1,4 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -57,7 +56,7 @@ export default function StaffShow({ employee, all_roles }: Props) {
         new Date(date).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 
     return (
-        <AppLayout>
+        <>
             <Head title={`Ficha: ${employee.name}`} />
 
             <div className="p-6 max-w-4xl mx-auto">
@@ -173,6 +172,6 @@ export default function StaffShow({ employee, all_roles }: Props) {
                     </div>
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

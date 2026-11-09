@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +29,7 @@ export default function ClientsCreate() {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Nuevo Cliente" />
 
             <div className="max-w-3xl p-6">
@@ -176,6 +175,6 @@ export default function ClientsCreate() {
                     </CardContent>
                 </Card>
             </div>
-        </AppLayout>
+        </>
     );
 }

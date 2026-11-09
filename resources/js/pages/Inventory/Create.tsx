@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,7 +39,7 @@ export default function InventoryCreate() {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Nuevo Item de Inventario" />
 
             <div className="p-6 max-w-3xl">
@@ -218,6 +217,6 @@ export default function InventoryCreate() {
                     </CardContent>
                 </Card>
             </div>
-        </AppLayout>
+        </>
     );
 }

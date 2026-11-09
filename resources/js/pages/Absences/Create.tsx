@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +32,7 @@ export default function AbsencesCreate({ is_admin, employees }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Solicitar Ausencia" />
 
             <div className="p-6 max-w-2xl">
@@ -171,6 +170,6 @@ export default function AbsencesCreate({ is_admin, employees }: Props) {
                     </div>
                 </form>
             </div>
-        </AppLayout>
+        </>
     );
 }

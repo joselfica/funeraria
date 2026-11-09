@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -90,7 +89,7 @@ export default function ServicesEdit({ service, clients, deceased, serviceTypes 
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
 
     return (
-        <AppLayout>
+        <>
             <Head title={`Editar ${service.code}`} />
 
             <div className="p-6 max-w-4xl">
@@ -281,6 +280,6 @@ export default function ServicesEdit({ service, clients, deceased, serviceTypes 
                     </div>
                 </form>
             </div>
-        </AppLayout>
+        </>
     );
 }

@@ -53,7 +53,8 @@ class ReportController extends Controller
             'to' => $request->to,
             'status' => $request->status,
             'generatedAt' => now(),
-        ]);
+        ])
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download('reporte-servicios-' . now()->format('Y-m-d') . '.pdf');
     }
@@ -88,7 +89,8 @@ class ReportController extends Controller
             'from' => $request->from,
             'to' => $request->to,
             'generatedAt' => now(),
-        ]);
+        ])
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download('reporte-ingresos-' . now()->format('Y-m-d') . '.pdf');
     }
@@ -116,7 +118,8 @@ class ReportController extends Controller
             'items' => $items,
             'totalValue' => $totalValue,
             'generatedAt' => now(),
-        ]);
+        ])
+            ->setPaper('a4', 'portrait');
 
         return $pdf->download('reporte-inventario-' . now()->format('Y-m-d') . '.pdf');
     }

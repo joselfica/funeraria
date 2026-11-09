@@ -1,5 +1,4 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,7 +41,7 @@ export default function DriverDashboard({ todayServices, upcomingServices, lowSt
     const formattedToday = today.charAt(0).toUpperCase() + today.slice(1);
 
     return (
-        <AppLayout>
+        <>
             <Head title="Mi Itinerario - Chofer" />
 
             <div className="p-6 max-w-5xl mx-auto">
@@ -195,6 +194,6 @@ export default function DriverDashboard({ todayServices, upcomingServices, lowSt
                     </Card>
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

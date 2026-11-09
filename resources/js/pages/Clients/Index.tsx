@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -54,7 +53,7 @@ export default function ClientsIndex({ clients, filters }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Clientes" />
 
             <div className="p-6">
@@ -167,6 +166,6 @@ export default function ClientsIndex({ clients, filters }: Props) {
                     </div>
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

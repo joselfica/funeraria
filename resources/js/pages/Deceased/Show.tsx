@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +55,7 @@ export default function DeceasedShow({ deceased }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title={deceased.full_name} />
 
             <div className="p-6 max-w-4xl">
@@ -233,6 +232,6 @@ export default function DeceasedShow({ deceased }: Props) {
                     </Card>
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

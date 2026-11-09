@@ -113,7 +113,8 @@ class PaymentController extends Controller
         $pdf = Pdf::loadView('pdfs.receipt', [
             'payment' => $payment,
             'service' => $payment->service,
-        ]);
+        ])
+            ->setPaper('a4', 'portrait');
 
         // Guardar en storage
         $path = "receipts/{$payment->uuid}.pdf";

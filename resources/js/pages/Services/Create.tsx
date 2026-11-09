@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -87,7 +86,7 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
 
     return (
-        <AppLayout>
+        <>
             <Head title="Nuevo Servicio" />
 
             <div className="p-6 max-w-4xl">
@@ -353,6 +352,6 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
                     </div>
                 </form>
             </div>
-        </AppLayout>
+        </>
     );
 }

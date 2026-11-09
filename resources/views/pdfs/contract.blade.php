@@ -4,21 +4,22 @@
     <meta charset="UTF-8">
     <title>Contrato - {{ $service->code }}</title>
     <style>
-        @page { margin: 40px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #333; line-height: 1.5; }
-        .header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 20px; }
+        @page { margin: 32px 40px; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
+        .header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 14px; }
+        .header .logo { width: 210px; margin-bottom: 4px; }
         .header h1 { font-size: 20px; margin: 0; }
-        .title { text-align: center; font-size: 16px; font-weight: bold; margin: 20px 0; }
-        .section { margin-bottom: 15px; }
-        .section-title { background: #f1f5f9; padding: 6px 10px; font-weight: bold; font-size: 12px; margin-bottom: 8px; }
+        .title { text-align: center; font-size: 16px; font-weight: bold; margin: 14px 0; }
+        .section { margin-bottom: 10px; }
+        .section-title { background: #f1f5f9; border-left: 4px solid #1e293b; padding: 5px 10px; font-weight: bold; font-size: 12px; margin-bottom: 8px; }
         .grid { display: table; width: 100%; }
         .row { display: table-row; }
         .cell-label { display: table-cell; width: 35%; padding: 3px 0; color: #64748b; }
-        .cell-value { display: table-cell; width: 65%; padding: 3px 0; font-weight: 600; }
-        .signature { margin-top: 50px; display: table; width: 100%; }
+        .cell-value { display: table-cell; width: 65%; padding: 3px 0; font-weight: bold; color: #1e293b; }
+        .signature { margin-top: 30px; display: table; width: 100%; page-break-inside: avoid; }
         .signature-cell { display: table-cell; width: 50%; text-align: center; padding: 0 20px; }
-        .signature-line { border-top: 1px solid #333; padding-top: 5px; margin-top: 50px; font-size: 10px; }
-        .footer { margin-top: 30px; font-size: 9px; color: #94a3b8; text-align: center; }
+        .signature-line { border-top: 1px solid #333; padding-top: 5px; margin-top: 40px; font-size: 10px; }
+        .footer { margin-top: 20px; font-size: 9px; color: #94a3b8; text-align: center; }
         .stamp-paid {
             position: absolute;
             top: 300px;
@@ -37,6 +38,14 @@
 </head>
 <body>
 
+    @php
+        // Logo embebido en base64 (evita problemas de rutas en dompdf)
+        $logoPath = public_path('images/logo-pdf.png');
+        $logo = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
+    @endphp
+
     {{-- Sello de PAGADO solo si el servicio está 100% pagado --}}
     @if ($service->is_fully_paid)
         <div class="stamp-paid">PAGADO</div>
@@ -44,7 +53,11 @@
 
 
     <div class="header">
-        <h1>Funeraria Cristo Rey</h1>
+        @if ($logo)
+            <img src="{{ $logo }}" class="logo" alt="Funeraria Cristo Rey">
+        @else
+            <h1>Funeraria Cristo Rey</h1>
+        @endif
         <p>RUT: 76.543.210-K | Av. Principal 1234, Santiago</p>
     </div>
 
@@ -78,6 +91,18 @@
             <div class="row"><div class="cell-label">Sucursal:</div><div class="cell-value">{{ $service->branch->name ?? 'No asignada' }}</div></div>
             <div class="row"><div class="cell-label">Fecha de Inicio:</div><div class="cell-value">{{ \Carbon\Carbon::parse($service->scheduled_at)->format('d/m/Y H:i') }}</div></div>
             <div class="row"><div class="cell-label">Duración:</div><div class="cell-value">{{ $service->duration_hours }} horas</div></div>
+            {{-- NUEVOS CAMPOS --}}
+            @if ($service->origin_location)
+                <div class="row"><div class="cell-label">Lugar de origen del fallecido:</div><div class="cell-value">{{ $service->origin_location }}</div></div>
+            @endif
+
+            @if ($service->destination_location)
+                <div class="row"><div class="cell-label">Cementerio / Crematorio:</div><div class="cell-value">{{ $service->destination_location }}</div></div>
+            @endif
+
+            @if ($service->burial_at)
+                <div class="row"><div class="cell-label">Fecha de Entierro / Cremación:</div><div class="cell-value">{{ \Carbon\Carbon::parse($service->burial_at)->format('d/m/Y H:i') }}</div></div>
+            @endif
         </div>
     </div>
 

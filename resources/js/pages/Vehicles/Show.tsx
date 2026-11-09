@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -69,7 +68,7 @@ export default function VehiclesShow({ vehicle }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title={`Vehículo ${vehicle.plate}`} />
 
             <div className="p-6 max-w-3xl">
@@ -183,6 +182,6 @@ export default function VehiclesShow({ vehicle }: Props) {
                     </CardContent>
                 </Card>
             </div>
-        </AppLayout>
+        </>
     );
 }

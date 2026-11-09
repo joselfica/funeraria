@@ -22,6 +22,9 @@ class Service extends Model
         'seremi_extension_granted',
         'seremi_resolution_number',
         'seremi_resolution_date',
+        'origin_location',
+        'destination_location',
+        'burial_at',
     ];
 
     protected $casts = [
@@ -39,6 +42,7 @@ class Service extends Model
         'municipal_amount' => 'decimal:2',
         'seremi_extension_granted' => 'boolean',
         'seremi_resolution_date' => 'date',
+        'burial_at' => 'datetime',
     ];
 
     // 🔒 Ocultar notas internas (solo visibles para Admin)

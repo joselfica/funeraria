@@ -1,7 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { AlertTriangle, CheckSquare, Plus, Eye } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -157,7 +156,7 @@ export default function ServicesIndex({ services, filters }: Props) {
     );
 
     return (
-        <AppLayout>
+        <>
             <Head title="Servicios Funerarios" />
 
             <div className="p-4 pb-24 sm:p-6">
@@ -331,6 +330,6 @@ export default function ServicesIndex({ services, filters }: Props) {
                     <span className="hidden sm:inline">Nuevo Servicio</span>
                 </Button>
             </Link>
-        </AppLayout>
+        </>
     );
 }

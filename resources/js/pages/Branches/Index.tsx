@@ -1,5 +1,4 @@
 import { Head, Link, router } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +27,7 @@ export default function BranchesIndex({ branches }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Sucursales" />
 
             <div className="p-6 max-w-5xl mx-auto">
@@ -94,6 +93,6 @@ export default function BranchesIndex({ branches }: Props) {
                     ))}
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,7 +43,7 @@ export default function VehiclesCreate() {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Nuevo Vehículo" />
 
             <div className="p-6 max-w-3xl">
@@ -223,6 +222,6 @@ export default function VehiclesCreate() {
                     </CardContent>
                 </Card>
             </div>
-        </AppLayout>
+        </>
     );
 }

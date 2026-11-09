@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -79,7 +78,7 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Ausencias" />
 
             <div className="p-6 max-w-6xl">
@@ -220,6 +219,6 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                     </Table>
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

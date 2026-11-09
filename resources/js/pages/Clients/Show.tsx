@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +33,7 @@ export default function ClientsShow({ client }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title={client.name} />
 
             <div className="max-w-3xl p-6">
@@ -134,6 +133,6 @@ export default function ClientsShow({ client }: Props) {
                     </CardContent>
                 </Card>
             </div>
-        </AppLayout>
+        </>
     );
 }

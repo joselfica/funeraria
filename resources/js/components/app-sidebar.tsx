@@ -1,12 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
     Briefcase,
     CalendarDays,
     Car,
     DollarSign,
     FileText,
-    FolderGit2,
     LayoutGrid,
     MapPin,
     Package,
@@ -29,16 +27,8 @@ import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
+    // Eliminamos los items del Starter Kit
+    // Podés dejarlo vacío o poner links a tu doc
 ];
 
 export function AppSidebar() {

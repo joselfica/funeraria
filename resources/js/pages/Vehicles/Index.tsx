@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +71,7 @@ export default function VehiclesIndex({ vehicles, filters }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Vehículos" />
 
             <div className="p-6">
@@ -198,6 +197,6 @@ export default function VehiclesIndex({ vehicles, filters }: Props) {
                     </div>
                 )}
             </div>
-        </AppLayout>
+        </>
     );
 }

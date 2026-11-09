@@ -1,7 +1,5 @@
 @import './fullcalendar.css';
-
 @import 'tailwindcss';
-
 @import 'tw-animate-css';
 
 @source '../views';
@@ -21,38 +19,28 @@
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
-
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
-
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
-
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
-
     --color-muted: var(--muted);
     --color-muted-foreground: var(--muted-foreground);
-
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
-
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
-
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
-
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
     --color-chart-3: var(--chart-3);
     --color-chart-4: var(--chart-4);
     --color-chart-5: var(--chart-5);
-
     --color-sidebar: var(--sidebar);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
@@ -63,106 +51,129 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ─────────────────────────────────────────────────────────────
+   TEMA CLARO Y RESPETUOSO - Funeraria Cristo Rey
+   ───────────────────────────────────────────────────────────── */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    /* Fondos */
+    --background: oklch(0.985 0.003 90);
+    --foreground: oklch(0.205 0.008 60);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
+    --card-foreground: oklch(0.205 0.008 60);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+    --popover-foreground: oklch(0.205 0.008 60);
+    
+    /* Colores primarios */
+    /* Rojo vino (color del logo de la funeraria) */
+    --primary: oklch(0.42 0.13 20);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.96 0.005 90);
+    --secondary-foreground: oklch(0.205 0.008 60);
+    --muted: oklch(0.96 0.005 90);
+    --muted-foreground: oklch(0.52 0.015 60);
+    --accent: oklch(0.96 0.005 90);
+    --accent-foreground: oklch(0.205 0.008 60);
+    
+    /* Estados */
+    --destructive: oklch(0.48 0.19 27);
+    --destructive-foreground: oklch(1 0 0);
+    
+    /* Bordes */
+    --border: oklch(0.91 0.005 90);
+    --input: oklch(0.91 0.005 90);
+    --ring: oklch(0.42 0.13 20);
+    
+    /* Charts */
+    --chart-1: oklch(0.42 0.13 20);
+    --chart-2: oklch(0.55 0.13 145);
+    --chart-3: oklch(0.65 0.15 60);
+    --chart-4: oklch(0.55 0.18 280);
+    --chart-5: oklch(0.65 0.19 30);
+    
+    /* Radius */
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    
+    /* Sidebar - IMPORTANTE */
+    --sidebar: oklch(1 0 0);
+    --sidebar-foreground: oklch(0.205 0.008 60);
+    --sidebar-primary: oklch(0.42 0.13 20);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.96 0.005 90);
+    --sidebar-accent-foreground: oklch(0.205 0.008 60);
+    --sidebar-border: oklch(0.91 0.005 90);
+    --sidebar-ring: oklch(0.45 0.09 180);
 }
 
+/* Modo oscuro (por compatibilidad, no se usa) */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.269 0 0);
-    --sidebar-ring: oklch(0.439 0 0);
+    --background: oklch(0.205 0.008 60);
+    --foreground: oklch(0.985 0.003 90);
+    --card: oklch(0.245 0.008 60);
+    --card-foreground: oklch(0.985 0.003 90);
+    --popover: oklch(0.245 0.008 60);
+    --popover-foreground: oklch(0.985 0.003 90);
+    --primary: oklch(0.65 0.12 180);
+    --primary-foreground: oklch(0.205 0.008 60);
+    --secondary: oklch(0.305 0.008 60);
+    --secondary-foreground: oklch(0.985 0.003 90);
+    --muted: oklch(0.305 0.008 60);
+    --muted-foreground: oklch(0.708 0.005 90);
+    --accent: oklch(0.305 0.008 60);
+    --accent-foreground: oklch(0.985 0.003 90);
+    --destructive: oklch(0.7 0.19 27);
+    --destructive-foreground: oklch(0.985 0.003 90);
+    --border: oklch(0.305 0.008 60);
+    --input: oklch(0.305 0.008 60);
+    --ring: oklch(0.65 0.12 180);
+    --sidebar: oklch(0.245 0.008 60);
+    --sidebar-foreground: oklch(0.985 0.003 90);
+    --sidebar-primary: oklch(0.65 0.12 180);
+    --sidebar-primary-foreground: oklch(0.205 0.008 60);
+    --sidebar-accent: oklch(0.305 0.008 60);
+    --sidebar-accent-foreground: oklch(0.985 0.003 90);
+    --sidebar-border: oklch(0.305 0.008 60);
+    --sidebar-ring: oklch(0.65 0.12 180);
 }
 
 @layer base {
     * {
         @apply border-border;
     }
-
     body {
         @apply bg-background text-foreground;
     }
 }
 
-/* FullCalendar v6 - Ajustes para modo oscuro */
+/* ─────────────────────────────────────────────────────────────
+   FIX: Variables del sidebar (shadcn/ui)
+   ───────────────────────────────────────────────────────────── */
+:root {
+    --sidebar-width: 16rem;
+    --sidebar-width-mobile: 18rem;
+    --sidebar-width-icon: 3rem;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FullCalendar v6 - Tema claro
+   ───────────────────────────────────────────────────────────── */
 .fc {
-    --fc-border-color: rgba(255, 255, 255, 0.15);
-    --fc-page-bg-color: transparent;
-    --fc-neutral-bg-color: rgba(255, 255, 255, 0.05);
-    --fc-today-bg-color: rgba(16, 185, 129, 0.1);
+    --fc-border-color: #e7e5e4;
+    --fc-page-bg-color: #ffffff;
+    --fc-neutral-bg-color: #f5f4f2;
+    --fc-today-bg-color: rgba(15, 118, 110, 0.08);
     --fc-event-text-color: #ffffff;
 }
 
 .fc .fc-toolbar-title {
-    color: #ffffff;
+    color: #1c1917;
     font-size: 1.1rem;
     font-weight: 600;
 }
 
 .fc .fc-button {
-    background-color: #262626;
-    border-color: #404040;
-    color: #ffffff;
+    background-color: #ffffff;
+    border-color: #e7e5e4;
+    color: #1c1917;
     padding: 4px 12px;
     font-size: 0.85rem;
     border-radius: 6px;
@@ -171,18 +182,19 @@
 
 .fc .fc-button:hover,
 .fc .fc-button-active {
-    background-color: #10b981 !important;
-    border-color: #10b981 !important;
+    background-color: #0f766e !important;
+    border-color: #0f766e !important;
+    color: #ffffff !important;
 }
 
 .fc .fc-col-header-cell-cushion,
 .fc .fc-daygrid-day-number {
-    color: #d4d4d4;
+    color: #1c1917;
     text-decoration: none;
 }
 
 .fc .fc-daygrid-day.fc-day-today {
-    background-color: rgba(16, 185, 129, 0.08);
+    background-color: rgba(15, 118, 110, 0.08);
 }
 
 .fc .fc-daygrid-event {

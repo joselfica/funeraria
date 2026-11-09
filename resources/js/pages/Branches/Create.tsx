@@ -1,5 +1,4 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +20,7 @@ export default function BranchesCreate() {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Nueva Sucursal" />
 
             <div className="p-6 max-w-2xl mx-auto">
@@ -89,6 +88,6 @@ export default function BranchesCreate() {
                     </div>
                 </form>
             </div>
-        </AppLayout>
+        </>
     );
 }

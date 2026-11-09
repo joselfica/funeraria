@@ -13,11 +13,8 @@ const listeners = new Set<() => void>();
 let currentAppearance: Appearance = 'system';
 
 const prefersDark = (): boolean => {
-    if (typeof window === 'undefined') {
-        return false;
-    }
-
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Sistema forzado en modo claro (funeraria)
+    return false;
 };
 
 const setCookie = (name: string, value: string, days = 365): void => {
@@ -75,16 +72,12 @@ export function initializeTheme(): void {
         return;
     }
 
-    if (!localStorage.getItem('appearance')) {
-        localStorage.setItem('appearance', 'system');
-        setCookie('appearance', 'system');
-    }
+    // Forzar modo claro siempre
+    localStorage.setItem('appearance', 'light');
+    setCookie('appearance', 'light');
 
-    currentAppearance = getStoredAppearance();
-    applyTheme(currentAppearance);
-
-    // Set up system theme change listener
-    mediaQuery()?.addEventListener('change', handleSystemThemeChange);
+    currentAppearance = 'light';
+    applyTheme('light');
 }
 
 export function useAppearance(): UseAppearanceReturn {

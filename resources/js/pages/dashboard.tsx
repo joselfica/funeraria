@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -112,7 +111,7 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Dashboard" />
 
             <div className="p-6 space-y-6">
@@ -374,6 +373,6 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                 </Card>
 
             </div>
-        </AppLayout>
+        </>
     );
 }

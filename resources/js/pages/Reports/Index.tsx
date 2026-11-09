@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +40,7 @@ export default function ReportsIndex({ summary }: Props) {
     };
 
     return (
-        <AppLayout>
+        <>
             <Head title="Reportes" />
             
             <div className="p-6 max-w-6xl mx-auto">
@@ -227,6 +226,6 @@ export default function ReportsIndex({ summary }: Props) {
 
                 </div>
             </div>
-        </AppLayout>
+        </>
     );
 }

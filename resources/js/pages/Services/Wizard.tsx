@@ -1,6 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +33,9 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
         service_type_id: '',
         beneficiary_type: 'particular',
         scheduled_at: '',
+        origin_location: '',
+        destination_location: '',
+        burial_at: '',
         duration_hours: '48',
         base_price: '0',
         inventory_item_id: '',
@@ -63,7 +65,7 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
 
     return (
-        <AppLayout>
+        <>
             <Head title="Nuevo Expediente" />
 
             <div className="p-6 max-w-3xl mx-auto">
@@ -227,6 +229,48 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                         </div>
                                     </div>
 
+                                    {/* Nuevos campos de ubicación */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="origin_location">Lugar de origen del fallecido</Label>
+                                            <Input
+                                                id="origin_location"
+                                                value={data.origin_location}
+                                                onChange={(e) => setData('origin_location', e.target.value)}
+                                                placeholder="Hospital, domicilio, SML, etc."
+                                            />
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                De dónde se retira el cuerpo
+                                            </p>
+                                            {errors.origin_location && <p className="text-sm text-destructive mt-1">{errors.origin_location}</p>}
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="destination_location">Cementerio / Crematorio de destino</Label>
+                                            <Input
+                                                id="destination_location"
+                                                value={data.destination_location}
+                                                onChange={(e) => setData('destination_location', e.target.value)}
+                                                placeholder="Cementerio Parque, Crematorio, etc."
+                                            />
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                A dónde se lleva el cuerpo
+                                            </p>
+                                            {errors.destination_location && <p className="text-sm text-destructive mt-1">{errors.destination_location}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="burial_at">Fecha y hora del entierro/cremación</Label>
+                                        <Input
+                                            id="burial_at"
+                                            type="datetime-local"
+                                            value={data.burial_at}
+                                            onChange={(e) => setData('burial_at', e.target.value)}
+                                        />
+                                        {errors.burial_at && <p className="text-sm text-destructive mt-1">{errors.burial_at}</p>}
+                                    </div>
+
                                     {/* ASIGNAR URNA O ATAÚD */}
                                     <div className="p-4 border border-primary/20 rounded-lg bg-primary/5">
                                         <div className="flex items-center gap-2 mb-2">
@@ -325,6 +369,6 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                     </div>
                 </form>
             </div>
-        </AppLayout>
+        </>
     );
 }
