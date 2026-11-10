@@ -6,38 +6,65 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, ChevronLeft, ChevronRight, Package, DollarSign } from 'lucide-react';
 
+interface Client {
+    id: number;
+    name: string;
+    rut: string;
+}
+
+interface Deceased {
+    id: number;
+    full_name: string;
+    rut: string | null;
+}
+
 interface Props {
     branches: Array<{ id: number; name: string }>;
     serviceTypes: Array<{ id: number; name: string; base_price: string; duration_hours: number }>;
     beneficiaryTypes: Array<{ value: string; label: string }>;
     availableItems: Array<{ id: number; code: string; name: string; category: string; stock: number; price: string }>;
+    existingClients: Client[];
+    existingDeceased: Deceased[];
 }
 
-export default function ServicesWizard({ branches, serviceTypes, beneficiaryTypes, availableItems }: Props) {
+export default function ServicesWizard({
+    branches,
+    serviceTypes,
+    beneficiaryTypes,
+    availableItems,
+    existingClients,
+    existingDeceased,
+}: Props) {
     const [step, setStep] = useState(1);
+    const [clientMode, setClientMode] = useState<'existing' | 'new'>('new');
+    const [deceasedMode, setDeceasedMode] = useState<'existing' | 'new'>('new');
 
     const { data, setData, post, processing, errors } = useForm({
-        // Paso 1: Cliente
+        // Cliente
+        existing_client_id: '',
         client_rut: '',
         client_name: '',
         client_phone: '',
         client_email: '',
         client_address: '',
-        // Paso 2: Fallecido
+
+        // Fallecido
+        existing_deceased_id: '',
         deceased_full_name: '',
         deceased_rut: '',
         deceased_death_date: '',
         deceased_death_certificate: '',
-        // Paso 3: Todo en Uno (Servicio + Inventario + Pago)
+
+        // Resto de campos (Paso 3)
         branch_id: '',
         service_type_id: '',
         beneficiary_type: 'particular',
         scheduled_at: '',
+        duration_hours: '48',
+        base_price: '0',
         origin_location: '',
         destination_location: '',
         burial_at: '',
-        duration_hours: '48',
-        base_price: '0',
         inventory_item_id: '',
         initial_payment_amount: '',
         payment_method: 'efectivo',
@@ -119,61 +146,199 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                             {/* PASO 1: CLIENTE */}
                             {step === 1 && (
                                 <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Toggle: Cliente existente / Nuevo cliente */}
+        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit mb-4">
+            <button
+                type="button"
+                onClick={() => setClientMode('existing')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    clientMode === 'existing'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                Cliente existente
+            </button>
+            <button
+                type="button"
+                onClick={() => setClientMode('new')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    clientMode === 'new'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                Nuevo cliente
+            </button>
+        </div>
+
+                                    {/* CLIENTE EXISTENTE */}
+                                    {clientMode === 'existing' && (
                                         <div>
-                                            <Label>RUT del Cliente *</Label>
-                                            <Input value={data.client_rut} onChange={e => setData('client_rut', e.target.value)} required />
-                                            {errors.client_rut && <p className="text-sm text-destructive mt-1">{errors.client_rut}</p>}
+                                            <Label>Seleccionar Cliente *</Label>
+                                            <select
+                                                value={data.existing_client_id}
+                                                onChange={(e) => setData('existing_client_id', e.target.value)}
+                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                            >
+                                                <option value="">Seleccionar cliente...</option>
+                                                {existingClients.map((c) => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name} — {c.rut}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Selecciona un cliente ya registrado para vincularlo a este servicio.
+                                            </p>
                                         </div>
-                                        <div>
-                                            <Label>Nombre Completo *</Label>
-                                            <Input value={data.client_name} onChange={e => setData('client_name', e.target.value)} required />
-                                            {errors.client_name && <p className="text-sm text-destructive mt-1">{errors.client_name}</p>}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <Label>Teléfono</Label>
-                                            <Input value={data.client_phone} onChange={e => setData('client_phone', e.target.value)} />
-                                        </div>
-                                        <div>
-                                            <Label>Email</Label>
-                                            <Input type="email" value={data.client_email} onChange={e => setData('client_email', e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Label>Dirección</Label>
-                                        <Input value={data.client_address} onChange={e => setData('client_address', e.target.value)} />
-                                    </div>
+                                    )}
+
+                                    {/* CLIENTE NUEVO */}
+                                    {clientMode === 'new' && (
+                                        <>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <Label>RUT del Cliente *</Label>
+                                                    <Input
+                                                        value={data.client_rut}
+                                                        onChange={(e) => setData('client_rut', e.target.value)}
+                                                        placeholder="12.345.678-9"
+                                                    />
+                                                    {errors.client_rut && <p className="text-sm text-destructive mt-1">{errors.client_rut}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label>Nombre Completo *</Label>
+                                                    <Input
+                                                        value={data.client_name}
+                                                        onChange={(e) => setData('client_name', e.target.value)}
+                                                        placeholder="Juan Pérez González"
+                                                    />
+                                                    {errors.client_name && <p className="text-sm text-destructive mt-1">{errors.client_name}</p>}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <Label>Teléfono</Label>
+                                                    <Input
+                                                        value={data.client_phone}
+                                                        onChange={(e) => setData('client_phone', e.target.value)}
+                                                        placeholder="+56912345678"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>Email</Label>
+                                                    <Input
+                                                        type="email"
+                                                        value={data.client_email}
+                                                        onChange={(e) => setData('client_email', e.target.value)}
+                                                        placeholder="juan@email.cl"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <Label>Dirección</Label>
+                                                <Input
+                                                    value={data.client_address}
+                                                    onChange={(e) => setData('client_address', e.target.value)}
+                                                    placeholder="Av. Principal 1234, Temuco"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             )}
 
                             {/* PASO 2: FALLECIDO */}
                             {step === 2 && (
                                 <>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Toggle: Fallecido existente / Nuevo fallecido */}
+        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit mb-4">
+            <button
+                type="button"
+                onClick={() => setDeceasedMode('existing')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    deceasedMode === 'existing'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                Fallecido existente
+            </button>
+            <button
+                type="button"
+                onClick={() => setDeceasedMode('new')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    deceasedMode === 'new'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                }`}
+            >
+                Nuevo fallecido
+            </button>
+        </div>
+
+                                    {/* FALLECIDO EXISTENTE */}
+                                    {deceasedMode === 'existing' && (
                                         <div>
-                                            <Label>Nombre del Fallecido *</Label>
-                                            <Input value={data.deceased_full_name} onChange={e => setData('deceased_full_name', e.target.value)} required />
-                                            {errors.deceased_full_name && <p className="text-sm text-destructive mt-1">{errors.deceased_full_name}</p>}
+                                            <Label>Seleccionar Fallecido *</Label>
+                                            <select
+                                                value={data.existing_deceased_id}
+                                                onChange={(e) => setData('existing_deceased_id', e.target.value)}
+                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                            >
+                                                <option value="">Seleccionar fallecido...</option>
+                                                {existingDeceased.map((d) => (
+                                                    <option key={d.id} value={d.id}>
+                                                        {d.full_name} {d.rut && `— ${d.rut}`}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
-                                        <div>
-                                            <Label>RUT del Fallecido</Label>
-                                            <Input value={data.deceased_rut} onChange={e => setData('deceased_rut', e.target.value)} />
-                                            {errors.deceased_rut && <p className="text-sm text-destructive mt-1">{errors.deceased_rut}</p>}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <Label>Fecha de Fallecimiento *</Label>
-                                            <Input type="date" value={data.deceased_death_date} onChange={e => setData('deceased_death_date', e.target.value)} required />
-                                            {errors.deceased_death_date && <p className="text-sm text-destructive mt-1">{errors.deceased_death_date}</p>}
-                                        </div>
-                                        <div>
-                                            <Label>N° Certificado de Defunción</Label>
-                                            <Input value={data.deceased_death_certificate} onChange={e => setData('deceased_death_certificate', e.target.value)} placeholder="Opcional" />
-                                        </div>
-                                    </div>
+                                    )}
+
+                                    {/* FALLECIDO NUEVO */}
+                                    {deceasedMode === 'new' && (
+                                        <>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <Label>Nombre del Fallecido *</Label>
+                                                    <Input
+                                                        value={data.deceased_full_name}
+                                                        onChange={(e) => setData('deceased_full_name', e.target.value)}
+                                                        placeholder="Juan Pérez González"
+                                                    />
+                                                    {errors.deceased_full_name && <p className="text-sm text-destructive mt-1">{errors.deceased_full_name}</p>}
+                                                </div>
+                                                <div>
+                                                    <Label>RUT del Fallecido</Label>
+                                                    <Input
+                                                        value={data.deceased_rut}
+                                                        onChange={(e) => setData('deceased_rut', e.target.value)}
+                                                        placeholder="12.345.678-9"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <Label>Fecha de Fallecimiento *</Label>
+                                                    <Input
+                                                        type="date"
+                                                        value={data.deceased_death_date}
+                                                        onChange={(e) => setData('deceased_death_date', e.target.value)}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label>N° Certificado de Defunción</Label>
+                                                    <Input
+                                                        value={data.deceased_death_certificate}
+                                                        onChange={(e) => setData('deceased_death_certificate', e.target.value)}
+                                                        placeholder="CERT-2026-001"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             )}
 

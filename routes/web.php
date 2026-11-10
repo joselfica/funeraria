@@ -69,10 +69,15 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
             'branches' => \App\Models\Branch::active()->get(['id', 'name']),
             'serviceTypes' => \App\Models\ServiceType::active()->get(['id', 'name', 'base_price', 'duration_hours']),
             'beneficiaryTypes' => collect(\App\Enums\BeneficiaryType::cases())->map(fn ($t) => [
-                'value' => $t->value, 'label' => $t->label(),
+                'value' => $t->value,
+                'label' => $t->label(),
             ]),
-            'availableItems' => \App\Models\InventoryItem::active()->where('stock', '>', 0)
+            'availableItems' => \App\Models\InventoryItem::active()
+                ->where('stock', '>', 0)
                 ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
+            // Clientes y fallecidos existentes
+            'existingClients' => \App\Models\Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
+            'existingDeceased' => \App\Models\Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
         ]);
     })->name('services.wizard');
     
