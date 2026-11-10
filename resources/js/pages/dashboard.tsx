@@ -2,7 +2,10 @@ import { Head, Link } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck, Package, Calendar as CalendarIcon } from 'lucide-react';
+import {
+    Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck, Package, Calendar as CalendarIcon,
+    Clock, CheckCircle2, Building2, // ← NUEVOS
+} from 'lucide-react';
 import ServicesCalendar from '@/components/Dashboard/ServicesCalendar';
 import {
     LineChart,
@@ -41,8 +44,16 @@ interface UpcomingService {
     id: number;
     code: string;
     scheduled_at: string;
-    client: { name: string };
-    deceased: { full_name: string };
+    scheduled_date: string;
+    scheduled_time: string;
+    status: string;
+    status_label: string;
+    deceased: string | null;
+    client: string | null;
+    service_type: string | null;
+    origin_location: string | null;
+    destination_location: string | null;
+    vehicles: string;
 }
 
 interface FleetStatus {
@@ -54,7 +65,6 @@ interface FleetStatus {
 
 interface Alerts {
     pending_services: number;
-    unpaid_services: number;
     low_stock_items: number;
     seremi_critical: number;
 }
@@ -73,6 +83,50 @@ interface CalendarService {
     branch: string | null;
 }
 
+interface TodayService {
+    id: number;
+    code: string;
+    scheduled_at: string;
+    time: string;
+    status: string;
+    status_label: string;
+    client: string | null;
+    deceased: string | null;
+    service_type: string | null;
+    branch: string | null;
+}
+
+interface Debtor {
+    id: number;
+    code: string;
+    client: string | null;
+    deceased: string | null;
+    total_price: number;
+    total_paid: number;
+    balance: number;
+    days_old: number;
+}
+
+interface Receivables {
+    total_pending: number;
+    unpaid_count: number;
+    old_unpaid_count: number;
+    top_debtors: Debtor[];
+}
+
+interface MunicipalPayment {
+    id: number;
+    code: string;
+    client: string | null;
+    deceased: string | null;
+    balance: number;
+    expected_payment_date: string;
+    expected_date_formatted: string;
+    days_until_due: number;
+    is_urgent: boolean;
+    is_overdue: boolean;
+}
+
 interface Props {
     kpis: Kpis;
     chart_data: ChartData[];
@@ -81,20 +135,39 @@ interface Props {
     fleet_status: FleetStatus;
     alerts: Alerts;
     services: CalendarService[];
+    today_services: TodayService[];
+    receivables: Receivables;
+    municipal_payments: MunicipalPayment[];  // ← NUEVO
 }
 
 // ──────────────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ──────────────────────────────────────────────────────────────
-export default function Dashboard({ kpis, chart_data, low_stock, upcoming_services, fleet_status, alerts, services }: Props) {
+export default function Dashboard({
+    kpis,
+    chart_data,
+    low_stock,
+    upcoming_services,
+    fleet_status,
+    alerts,
+    services,
+    today_services,
+    receivables,
+    municipal_payments,  // ← NUEVO
+}: Props) {
+
+    const municipalTotal = municipal_payments.reduce((sum, p) => sum + p.balance, 0);
+
+    const dueLabel = (p: MunicipalPayment): string => {
+        const days = Math.abs(p.days_until_due);
+        if (p.is_overdue) return `⚠️ Vencido hace ${days} ${days === 1 ? 'día' : 'días'}`;
+        if (p.days_until_due === 0) return '⚠️ Vence hoy';
+        if (p.is_urgent) return `⚠️ Vence en ${days} ${days === 1 ? 'día' : 'días'}`;
+        return `Vence ${p.expected_date_formatted}`;
+    };
 
     const formatPrice = (value: number) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
-
-    const formatDate = (date: string) =>
-        new Date(date).toLocaleDateString('es-CL', {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
 
     /**
      * Formatea el eje Y del gráfico.
@@ -122,11 +195,70 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                     <p className="text-muted-foreground">Resumen general de la operación de Funeraria Cristo Rey</p>
                 </div>
 
-                {/* KPI CARDS (4 tarjetas) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                {/* ────────────────────────────────────────────────────────── */}
+                {/* SERVICIOS DE HOY                                          */}
+                {/* ────────────────────────────────────────────────────────── */}
+                {today_services.length === 0 ? (
+                    /* Sin servicios: tarjeta compacta de una sola línea */
+                    <Card className="border-t-4 border-t-primary shadow-sm">
+                        <CardContent className="flex flex-wrap items-center justify-between gap-2 py-3">
+                            <div className="flex items-center gap-2">
+                                <Clock className="h-5 w-5 text-primary" />
+                                <span className="text-lg font-semibold">Servicios de Hoy</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                Ningún servicio programado para hoy
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="border-t-4 border-t-primary shadow-sm">
+                        <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Clock className="h-5 w-5 text-primary" />
+                                    Servicios de Hoy
+                                </CardTitle>
+                                <Badge variant="default" className="text-sm">
+                                    {today_services.length} {today_services.length === 1 ? 'servicio' : 'servicios'}
+                                </Badge>
+                            </div>
+                            <CardDescription>Servicios programados para el día de hoy</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {/* Las tarjetas se centran y se reparten según la cantidad (1, 2, 3 o más) */}
+                            <div className="flex flex-wrap justify-center gap-3">
+                                {today_services.map((service) => (
+                                    <Link
+                                        key={service.id}
+                                        href={`/services/${service.id}`}
+                                        className="w-full md:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.5rem)] p-4 border rounded-lg hover:bg-muted/50 transition-colors bg-card"
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="font-bold text-lg text-primary">{service.time}</p>
+                                                <p className="font-mono text-xs text-muted-foreground">{service.code}</p>
+                                            </div>
+                                            <Badge variant={service.status === 'accepted' ? 'default' : 'secondary'} className="text-xs">
+                                                {service.status_label}
+                                            </Badge>
+                                        </div>
+                                        <p className="font-medium text-sm truncate">{service.deceased}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{service.client}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{service.service_type}</p>
+                                    </Link>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* KPI CARDS (5 tarjetas compactas, incluye la flota) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+
+                    <Card className="gap-1 py-3">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
                             <CardTitle className="text-sm font-medium text-muted-foreground">Clientes Activos</CardTitle>
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
@@ -135,8 +267,8 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <Card className="gap-1 py-3">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
                             <CardTitle className="text-sm font-medium text-muted-foreground">Servicios Activos</CardTitle>
                             <Activity className="h-4 w-4 text-emerald-500" />
                         </CardHeader>
@@ -145,8 +277,8 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <Card className="gap-1 py-3">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
                             <CardTitle className="text-sm font-medium text-muted-foreground">Ingresos del Mes</CardTitle>
                             <DollarSign className="h-4 w-4 text-emerald-500" />
                         </CardHeader>
@@ -155,8 +287,8 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <Card className="gap-1 py-3">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
                             <CardTitle className="text-sm font-medium text-muted-foreground">Registros Fallecidos</CardTitle>
                             <FileText className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
@@ -164,18 +296,173 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                             <div className="text-2xl font-bold">{kpis.total_deceased}</div>
                         </CardContent>
                     </Card>
+
+                    {/* Estado de la Flota */}
+                    <Card className="gap-1 py-3">
+                        <CardHeader className="flex flex-row items-center justify-between pb-0">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Flota Disponible</CardTitle>
+                            <Truck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">
+                                {fleet_status.available}
+                                <span className="text-base font-medium text-muted-foreground"> / {fleet_status.total}</span>
+                            </div>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                                {fleet_status.in_service} en servicio · {fleet_status.maintenance} en mantención
+                            </p>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                {/* PANEL DE ACCIÓN RÁPIDA */}
-                {(alerts.pending_services > 0 || alerts.unpaid_services > 0 || alerts.low_stock_items > 0 || alerts.seremi_critical > 0) && (
-                    <Card className="border-amber-500/50 bg-amber-500/5">
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-lg">Acciones Pendientes</CardTitle>
+                {/* ────────────────────────────────────────────────────────── */}
+                {/* MONTO POR COBRAR                                         */}
+                {/* ────────────────────────────────────────────────────────── */}
+                {receivables.unpaid_count === 0 ? (
+                    /* Sin deudas: tarjeta compacta de una sola línea */
+                    <Card className="border-l-4 border-l-emerald-500 shadow-sm gap-0 py-3">
+                        <CardContent className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="h-5 w-5 text-emerald-500" />
+                                <span className="text-lg font-semibold">Total por Cobrar</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                Sin montos pendientes de cobro
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="border-l-4 border-l-destructive bg-destructive/5 shadow-sm gap-2 py-4">
+                        <CardHeader className="pb-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <DollarSign className="h-5 w-5 text-destructive" />
+                                    Total por Cobrar
+                                </CardTitle>
+                                <Badge variant="destructive">
+                                    {receivables.unpaid_count} {receivables.unpaid_count === 1 ? 'servicio' : 'servicios'}
+                                </Badge>
+                            </div>
                         </CardHeader>
-                        <CardContent className="flex gap-4 flex-wrap">
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                                {/* Monto total */}
+                                <div className="md:col-span-1">
+                                    <p className="text-3xl font-bold text-destructive">
+                                        {formatPrice(receivables.total_pending)}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Pendiente de cobro
+                                    </p>
+                                    {receivables.old_unpaid_count > 0 && (
+                                        <p className="text-xs text-destructive font-medium mt-2">
+                                            ⚠️ {receivables.old_unpaid_count} con más de 30 días
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Top 3 deudores */}
+                                <div className="md:col-span-2">
+                                    <p className="text-sm font-medium mb-2">Top deudores:</p>
+                                    <div className="space-y-2">
+                                        {receivables.top_debtors.map((debtor, index) => (
+                                            <Link
+                                                key={debtor.id}
+                                                href={`/services/${debtor.id}`}
+                                                className="flex items-center justify-between p-2 bg-background border rounded-lg hover:bg-muted/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-destructive/10 text-destructive font-bold text-xs shrink-0">
+                                                        {index + 1}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-sm truncate">{debtor.client}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">
+                                                            {debtor.deceased} · {debtor.days_old} {debtor.days_old === 1 ? 'día' : 'días'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <p className="font-bold text-destructive text-sm ml-3 shrink-0">
+                                                    {formatPrice(debtor.balance)}
+                                                </p>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* ────────────────────────────────────────────────────────── */}
+                {/* PAGOS MUNICIPALES PENDIENTES                              */}
+                {/* ────────────────────────────────────────────────────────── */}
+                {municipal_payments.length > 0 && (
+                    <Card className="border-l-4 border-l-amber-500 bg-amber-500/5 shadow-sm gap-2 py-4">
+                        <CardHeader className="pb-0">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <CardTitle className="flex items-center gap-2 text-base">
+                                    <Building2 className="h-5 w-5 text-amber-500" />
+                                    Pagos Municipales Pendientes
+                                </CardTitle>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-amber-500">{formatPrice(municipalTotal)}</span>
+                                    <Badge variant="outline" className="border-amber-500 text-amber-500">
+                                        {municipal_payments.length} {municipal_payments.length === 1 ? 'pendiente' : 'pendientes'}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                {municipal_payments.map((payment) => (
+                                    <Link
+                                        key={payment.id}
+                                        href={`/services/${payment.id}`}
+                                        className={`flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors ${
+                                            payment.is_overdue
+                                                ? 'border-destructive bg-destructive/5'
+                                                : payment.is_urgent
+                                                    ? 'border-amber-500 bg-amber-500/5'
+                                                    : 'bg-background'
+                                        }`}
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="font-medium text-sm truncate">{payment.deceased}</p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                {payment.client} · <span className="font-mono">{payment.code}</span>
+                                            </p>
+                                        </div>
+
+                                        <div className="text-right ml-3 shrink-0">
+                                            <p className="font-bold text-sm">{formatPrice(payment.balance)}</p>
+                                            <p className={`text-xs ${
+                                                payment.is_overdue
+                                                    ? 'text-destructive font-medium'
+                                                    : payment.is_urgent
+                                                        ? 'text-amber-500 font-medium'
+                                                        : 'text-muted-foreground'
+                                            }`}>
+                                                {dueLabel(payment)}
+                                            </p>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* PANEL DE ACCIÓN RÁPIDA (franja delgada) */}
+                {(alerts.pending_services > 0 || alerts.low_stock_items > 0 || alerts.seremi_critical > 0) && (
+                    <Card className="gap-0 border-amber-500/50 bg-amber-500/5 py-3">
+                        <CardContent className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm font-semibold">Acciones pendientes</span>
                             {alerts.seremi_critical > 0 && (
                                 <Link href="/inventory">
-                                    <Button className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                                    <Button size="sm" className="gap-2 bg-red-600 hover:bg-red-700 text-white">
                                         <AlertTriangle className="h-4 w-4" />
                                         ALERTA SEREMI: {alerts.seremi_critical} urna(s) obligatoria(s) sin stock
                                     </Button>
@@ -183,23 +470,15 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                             )}
                             {alerts.pending_services > 0 && (
                                 <Link href="/services?status=pending">
-                                    <Button variant="destructive" className="gap-2">
+                                    <Button size="sm" variant="destructive" className="gap-2">
                                         <AlertTriangle className="h-4 w-4" />
                                         {alerts.pending_services} Servicio(s) por Aprobar
                                     </Button>
                                 </Link>
                             )}
-                            {alerts.unpaid_services > 0 && (
-                                <Link href="/services">
-                                    <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                                        <DollarSign className="h-4 w-4" />
-                                        {alerts.unpaid_services} Servicio(s) con Deuda
-                                    </Button>
-                                </Link>
-                            )}
                             {alerts.low_stock_items > 0 && (
                                 <Link href="/inventory">
-                                    <Button variant="outline" className="gap-2 border-amber-500 text-amber-500">
+                                    <Button size="sm" variant="outline" className="gap-2 border-amber-500 text-amber-500">
                                         <Package className="h-4 w-4" />
                                         {alerts.low_stock_items} Item(s) con Stock Bajo
                                     </Button>
@@ -209,76 +488,45 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                     </Card>
                 )}
 
-                {/* GRÁFICO Y FLOTA */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
-                    {/* Gráfico de Ingresos (ocupa 2 columnas) */}
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle>Ingresos Últimos 6 Meses</CardTitle>
-                        </CardHeader>
-                        <CardContent className="h-[300px]">
-                            {chart_data.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={chart_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                                        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                                        <YAxis 
-                                            stroke="#888888" 
-                                            fontSize={12} 
-                                            tickLine={false} 
-                                            axisLine={false} 
-                                            tickFormatter={formatAxisTick}
-                                        />
-                                        <Tooltip 
-                                            formatter={(value: number) => [formatPrice(value), 'Ingresos']}
-                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
-                                        />
-                                        <Line 
-                                            type="monotone" 
-                                            dataKey="total" 
-                                            stroke="#10b981" 
-                                            strokeWidth={3} 
-                                            dot={{ r: 4, fill: '#10b981' }} 
-                                            activeDot={{ r: 6 }} 
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-muted-foreground">
-                                    No hay datos de ingresos para mostrar
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Estado de la Flota */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Truck className="h-5 w-5" /> Estado de Flota
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex justify-between items-center pb-2 border-b">
-                                <span className="text-sm font-medium">Total Vehículos</span>
-                                <span className="font-bold">{fleet_status.total}</span>
+                {/* GRÁFICO DE INGRESOS (ancho completo, más bajo) */}
+                <Card className="gap-2 py-4">
+                    <CardHeader className="pb-0">
+                        <CardTitle className="text-base">Ingresos Últimos 6 Meses</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-[220px]">
+                        {chart_data.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={chart_data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis
+                                        stroke="#888888"
+                                        fontSize={12}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickFormatter={formatAxisTick}
+                                    />
+                                    <Tooltip
+                                        formatter={(value: number) => [formatPrice(value), 'Ingresos']}
+                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="total"
+                                        stroke="#10b981"
+                                        strokeWidth={3}
+                                        dot={{ r: 4, fill: '#10b981' }}
+                                        activeDot={{ r: 6 }}
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                                No hay datos de ingresos para mostrar
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Disponibles</span>
-                                <span className="font-medium">{fleet_status.available}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div> En Servicio</span>
-                                <span className="font-medium">{fleet_status.in_service}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500"></div> Mantenimiento</span>
-                                <span className="font-medium">{fleet_status.maintenance}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 {/* ALERTAS Y PRÓXIMOS SERVICIOS */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -321,36 +569,78 @@ export default function Dashboard({ kpis, chart_data, low_stock, upcoming_servic
                     {/* Próximos Servicios */}
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Calendar className="h-5 w-5 text-blue-500" /> Próximos Servicios
-                            </CardTitle>
-                            <CardDescription>Programados para los próximos 7 días</CardDescription>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2">
+                                    <Calendar className="h-5 w-5 text-primary" /> Próximos Servicios
+                                </CardTitle>
+                                <Badge variant={upcoming_services.length > 0 ? 'default' : 'secondary'}>
+                                    {upcoming_services.length}
+                                </Badge>
+                            </div>
+                            <CardDescription>
+                                Programados desde mañana y durante los próximos 7 días
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {upcoming_services.length > 0 ? (
+                            {upcoming_services.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <CheckCircle2 className="h-12 w-12 text-emerald-500/50 mx-auto mb-3" />
+                                    <p className="text-sm text-muted-foreground">Sin servicios programados para los próximos días.</p>
+                                </div>
+                            ) : (
                                 <div className="space-y-3">
                                     {upcoming_services.map((service) => (
-                                        <Link 
-                                            key={service.id} 
+                                        <Link
+                                            key={service.id}
                                             href={`/services/${service.id}`}
-                                            className="flex justify-between items-center p-2 border rounded-lg hover:bg-accent transition-colors"
+                                            className="block p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                                         >
-                                            <div>
-                                                <p className="font-medium text-sm">{service.code}</p>
-                                                <p className="text-xs text-muted-foreground">{service.deceased.full_name}</p>
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className="font-bold text-sm truncate">{service.deceased}</p>
+                                                        <Badge
+                                                            variant={service.status === 'accepted' ? 'default' : 'secondary'}
+                                                            className="text-xs shrink-0"
+                                                        >
+                                                            {service.status_label}
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground truncate">{service.client}</p>
+                                                </div>
+                                                <div className="text-right ml-3 shrink-0">
+                                                    <p className="font-bold text-primary">{service.scheduled_time}</p>
+                                                    <p className="text-xs text-muted-foreground">{service.scheduled_date}</p>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-medium text-blue-500">
-                                                    {formatDate(service.scheduled_at)}
+
+                                            {(service.origin_location || service.destination_location) && (
+                                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-2">
+                                                    {service.origin_location && (
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <span className="font-medium">📍</span> {service.origin_location}
+                                                        </span>
+                                                    )}
+                                                    {service.destination_location && (
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <span className="font-medium">→</span> {service.destination_location}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {service.vehicles && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    🚗 Vehículo: {service.vehicles}
                                                 </p>
-                                                <p className="text-xs text-muted-foreground">{service.client.name}</p>
+                                            )}
+
+                                            <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                                                <span className="text-xs font-mono text-muted-foreground">{service.code}</span>
+                                                <span className="text-xs text-primary font-medium">{service.service_type}</span>
                                             </div>
                                         </Link>
                                     ))}
-                                </div>
-                            ) : (
-                                <div className="text-sm text-muted-foreground text-center py-4">
-                                    No hay servicios programados
                                 </div>
                             )}
                         </CardContent>

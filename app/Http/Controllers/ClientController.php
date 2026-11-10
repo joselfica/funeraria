@@ -51,8 +51,43 @@ class ClientController extends Controller
 
     public function show(Client $client)
     {
+        // Cargar servicios del cliente con sus relaciones
+        $services = $client->services()
+            ->with(['deceased:id,full_name', 'serviceType:id,name', 'branch:id,name'])
+            ->withSum('payments', 'amount')
+            ->orderByDesc('scheduled_at')
+            ->get()
+            ->map(function ($service) {
+                $paid = (float) ($service->payments_sum_amount ?? 0);
+                $total = (float) $service->total_price;
+                $balance = $total - $paid;
+
+                return [
+                    'id' => $service->id,
+                    'code' => $service->code,
+                    'scheduled_at' => $service->scheduled_at->toIso8601String(),
+                    'scheduled_date' => $service->scheduled_at->translatedFormat('d M Y'),
+                    'status' => $service->status,
+                    'status_label' => $service->status_label,
+                    'deceased' => $service->deceased?->full_name,
+                    'service_type' => $service->serviceType?->name,
+                    'branch' => $service->branch?->name,
+                    'total_price' => $total,
+                    'total_paid' => $paid,
+                    'balance' => $balance,
+                    'is_fully_paid' => $balance <= 0.01,
+                ];
+            });
+
         return Inertia::render('Clients/Show', [
             'client' => $client,
+            'services' => $services,
+            'stats' => [
+                'total_services' => $services->count(),
+                'total_billed' => $services->sum('total_price'),
+                'total_paid' => $services->sum('total_paid'),
+                'total_pending' => $services->sum('balance'),
+            ],
         ]);
     }
 
