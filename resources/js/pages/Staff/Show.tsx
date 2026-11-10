@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChevronLeft, User, Calendar, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, User, Calendar, CalendarDays, ShieldCheck } from 'lucide-react';
 
 interface Role { id: number; name: string; }
 interface Absence {
@@ -14,6 +14,10 @@ interface Absence {
     starts_at: string;
     ends_at: string;
     business_days: number;
+    reason: string | null;
+    rejection_reason: string | null;
+    approved_at: string | null;
+    approved_by: { name: string } | null;
 }
 
 interface Props {
@@ -28,9 +32,16 @@ interface Props {
         vacation_days_available: number;
     };
     all_roles: Role[];
+    absencesStats: {
+        total: number;
+        approved: number;
+        pending: number;
+        rejected: number;
+        vacation_days_used: number;
+    };
 }
 
-export default function StaffShow({ employee, all_roles }: Props) {
+export default function StaffShow({ employee, all_roles, absencesStats }: Props) {
     const { auth } = usePage<{ auth?: { user?: { roles?: string[] } } }>().props;
     const isAdmin = auth?.user?.roles?.includes('Administrador') ?? false;
 
@@ -128,6 +139,35 @@ export default function StaffShow({ employee, all_roles }: Props) {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Estadísticas de ausencias */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <CalendarDays className="h-5 w-5" /> Resumen de Ausencias
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="p-3 bg-muted/50 rounded-lg">
+                                        <p className="text-xs text-muted-foreground">Total registradas</p>
+                                        <p className="text-2xl font-bold">{absencesStats.total}</p>
+                                    </div>
+                                    <div className="p-3 bg-emerald-500/10 rounded-lg">
+                                        <p className="text-xs text-emerald-600">Aprobadas</p>
+                                        <p className="text-2xl font-bold text-emerald-600">{absencesStats.approved}</p>
+                                    </div>
+                                    <div className="p-3 bg-amber-500/10 rounded-lg">
+                                        <p className="text-xs text-amber-600">Pendientes</p>
+                                        <p className="text-2xl font-bold text-amber-600">{absencesStats.pending}</p>
+                                    </div>
+                                    <div className="p-3 bg-destructive/10 rounded-lg">
+                                        <p className="text-xs text-destructive">Rechazadas</p>
+                                        <p className="text-2xl font-bold text-destructive">{absencesStats.rejected}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
 
                     {/* Columna Derecha: Historial de Ausencias */}
@@ -145,21 +185,65 @@ export default function StaffShow({ employee, all_roles }: Props) {
                                 ) : (
                                     <div className="space-y-3">
                                         {employee.absences.map((abs) => (
-                                            <div key={abs.id} className="flex justify-between items-center p-3 border rounded-lg">
-                                                <div>
-                                                    <p className="font-medium">{abs.type_label}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {formatDate(abs.starts_at)} al {formatDate(abs.ends_at)} ({abs.business_days} días)
-                                                    </p>
+                                            <div 
+                                                key={abs.id} 
+                                                className={`p-4 border rounded-lg ${
+                                                    abs.status_label === 'Aprobada' 
+                                                        ? 'border-emerald-200 bg-emerald-50/30' 
+                                                        : abs.status_label === 'Rechazada' 
+                                                            ? 'border-destructive/30 bg-destructive/5' 
+                                                            : 'border-amber-200 bg-amber-50/30'
+                                                }`}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="font-semibold">{abs.type_label}</p>
+                                                            <Badge 
+                                                                variant={
+                                                                    abs.status_label === 'Aprobada' ? 'default' : 
+                                                                    abs.status_label === 'Rechazada' ? 'destructive' : 
+                                                                    'secondary'
+                                                                }
+                                                                className="text-xs"
+                                                            >
+                                                                {abs.status_label}
+                                                            </Badge>
+                                                        </div>
+
+                                                        <p className="text-sm text-muted-foreground">
+                                                            📅 {formatDate(abs.starts_at)} → {formatDate(abs.ends_at)}
+                                                        </p>
+
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            {abs.business_days} día(s) hábil(es)
+                                                        </p>
+
+                                                        {abs.reason && (
+                                                            <p className="text-sm mt-2 p-2 bg-background rounded border">
+                                                                <span className="font-medium">Motivo:</span> {abs.reason}
+                                                            </p>
+                                                        )}
+
+                                                        {abs.rejection_reason && abs.status_label === 'Rechazada' && (
+                                                            <p className="text-sm mt-2 p-2 bg-destructive/10 rounded border border-destructive/20">
+                                                                <span className="font-medium text-destructive">Motivo del rechazo:</span> {abs.rejection_reason}
+                                                            </p>
+                                                        )}
+
+                                                        {abs.approved_at && (
+                                                            <p className="text-xs text-muted-foreground mt-2">
+                                                                {abs.status_label === 'Aprobada' ? '✓ Aprobada' : '✗ Rechazada'} el {formatDate(abs.approved_at)}
+                                                                {abs.approved_by && ` por ${abs.approved_by.name}`}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <Badge variant={abs.status_label === 'Aprobada' ? 'default' : abs.status_label === 'Rechazada' ? 'destructive' : 'secondary'}>
-                                                    {abs.status_label}
-                                                </Badge>
                                             </div>
                                         ))}
                                     </div>
                                 )}
-                                
+
                                 <div className="mt-6 pt-4 border-t">
                                     <Link href="/absences/create">
                                         <Button variant="outline" className="w-full">

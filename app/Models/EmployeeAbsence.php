@@ -41,6 +41,15 @@ class EmployeeAbsence extends Model
         'approved_at' => 'datetime',
     ];
 
+    /**
+     * Accessors que viajan siempre en el JSON (hacia Inertia/React).
+     */
+    protected $appends = [
+        'type_label',
+        'status_label',
+        'business_days',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (EmployeeAbsence $absence) {

@@ -28,12 +28,16 @@ import type { NavItem } from '@/types';
 
 const footerNavItems: NavItem[] = [
     // Eliminamos los items del Starter Kit
-    // Podés dejarlo vacío o poner links a tu doc
+    // Puedes dejarlo vacío o poner enlaces a tu documentación
 ];
 
 export function AppSidebar() {
     const { pending_counts, auth } = usePage<{
-        pending_counts?: { services: number; low_stock: number };
+        pending_counts?: {
+            services: number;
+            low_stock: number;
+            absences?: number;
+        };
         auth?: { user?: { roles?: string[] } };
     }>().props;
 
@@ -41,6 +45,7 @@ export function AppSidebar() {
     const isAdmin = userRoles.includes('Administrador');
     const isEncargado = userRoles.includes('Encargado');
     const isChofer = userRoles.includes('Chofer');
+    const pendingAbsences = pending_counts?.absences ?? 0;
 
     const mainNavItems: NavItem[] = [
         {
@@ -103,6 +108,7 @@ export function AppSidebar() {
             title: 'Mis Ausencias',
             href: '/absences',
             icon: CalendarDays,
+            badge: pendingAbsences > 0 ? pendingAbsences : undefined,
         },
         // Reportes: Admin
         ...(isAdmin

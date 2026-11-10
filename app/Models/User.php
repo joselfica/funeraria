@@ -96,6 +96,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Relación: registro de chofer asociado a este usuario.
+     */
+    public function driver()
+    {
+        return $this->hasOne(Driver::class);
+    }
+
+    /**
      * Accessor: días de vacaciones disponibles.
      */
     public function getVacationDaysAvailableAttribute(): int

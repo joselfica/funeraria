@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Users, FileText, Activity, DollarSign, AlertTriangle, Calendar, Truck, Package, Calendar as CalendarIcon,
-    Clock, CheckCircle2, Building2, // ← NUEVOS
+    Clock, CheckCircle2, Building2, CalendarDays, // ← NUEVOS
 } from 'lucide-react';
 import ServicesCalendar from '@/components/Dashboard/ServicesCalendar';
 import {
@@ -67,6 +67,7 @@ interface Alerts {
     pending_services: number;
     low_stock_items: number;
     seremi_critical: number;
+    pending_absences: number;
 }
 
 interface CalendarService {
@@ -309,7 +310,7 @@ export default function Dashboard({
                                 <span className="text-base font-medium text-muted-foreground"> / {fleet_status.total}</span>
                             </div>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                {fleet_status.in_service} en servicio · {fleet_status.maintenance} en mantención
+                                {fleet_status.in_service} en servicio · {fleet_status.maintenance} en mantenimiento
                             </p>
                         </CardContent>
                     </Card>
@@ -456,7 +457,7 @@ export default function Dashboard({
                 )}
 
                 {/* PANEL DE ACCIÓN RÁPIDA (franja delgada) */}
-                {(alerts.pending_services > 0 || alerts.low_stock_items > 0 || alerts.seremi_critical > 0) && (
+                {(alerts.pending_services > 0 || alerts.low_stock_items > 0 || alerts.seremi_critical > 0 || alerts.pending_absences > 0) && (
                     <Card className="gap-0 border-amber-500/50 bg-amber-500/5 py-3">
                         <CardContent className="flex flex-wrap items-center gap-3">
                             <span className="text-sm font-semibold">Acciones pendientes</span>
@@ -481,6 +482,14 @@ export default function Dashboard({
                                     <Button size="sm" variant="outline" className="gap-2 border-amber-500 text-amber-500">
                                         <Package className="h-4 w-4" />
                                         {alerts.low_stock_items} Item(s) con Stock Bajo
+                                    </Button>
+                                </Link>
+                            )}
+                            {alerts.pending_absences > 0 && (
+                                <Link href="/absences?status=pending">
+                                    <Button size="sm" variant="outline" className="gap-2 border-destructive text-destructive">
+                                        <CalendarDays className="h-4 w-4" />
+                                        {alerts.pending_absences} Ausencia(s) por Aprobar
                                     </Button>
                                 </Link>
                             )}

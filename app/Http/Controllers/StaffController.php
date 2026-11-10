@@ -69,9 +69,23 @@ class StaffController extends Controller
             $q->orderByDesc('starts_at');
         }]);
 
+        // Estadísticas de ausencias
+        $absencesStats = [
+            'total' => $user->absences()->count(),
+            'approved' => $user->absences()->where('status', 'approved')->count(),
+            'pending' => $user->absences()->where('status', 'pending')->count(),
+            'rejected' => $user->absences()->where('status', 'rejected')->count(),
+            'vacation_days_used' => $user->absences()
+                ->where('type', 'vacation')
+                ->where('status', 'approved')
+                ->get()
+                ->sum(fn ($a) => $a->business_days),
+        ];
+
         return Inertia::render('Staff/Show', [
             'employee' => $user,
             'all_roles' => \Spatie\Permission\Models\Role::all(['id', 'name']),
+            'absencesStats' => $absencesStats,
         ]);
     }
 
@@ -95,5 +109,118 @@ class StaffController extends Controller
             'type' => 'success',
             'message' => 'Roles actualizados correctamente.',
         ]);
+    }
+
+    /**
+     * Mostrar formulario para crear un nuevo usuario.
+     */
+    public function create()
+    {
+        return Inertia::render('Staff/Create', [
+            'roles' => \Spatie\Permission\Models\Role::all(['id', 'name']),
+        ]);
+    }
+
+    /**
+     * Guardar un nuevo usuario en el sistema.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:150',
+            'email' => 'required|email|max:150|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'required|exists:roles,name',
+            'is_active' => 'boolean',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+            'email_verified_at' => now(), // Verificado por el admin
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        // Asignar rol
+        $user->assignRole($validated['role']);
+
+        // Si es Chofer, crear el registro en la tabla drivers
+        if ($validated['role'] === 'Chofer') {
+            \App\Models\Driver::create([
+                'user_id' => $user->id,
+                'rut' => $request->input('rut', ''),
+                'phone' => $request->input('phone', ''),
+                'license_number' => $request->input('license_number', ''),
+                'license_type' => $request->input('license_type', 'A1'),
+                'license_expires_at' => now()->addYears(2),
+                'plate' => $request->input('plate', ''),
+                'vehicle_brand' => $request->input('vehicle_brand', ''),
+                'vehicle_model' => $request->input('vehicle_model', ''),
+                'vehicle_color' => $request->input('vehicle_color', ''),
+                'is_carroza' => $request->boolean('is_carroza', false),
+                'is_active' => true,
+            ]);
+        }
+
+        return redirect()->route('staff.index')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => "Usuario {$user->name} creado con rol {$validated['role']}.",
+            ]);
+    }
+
+    /**
+     * Cambiar contraseña de un usuario (solo Admin).
+     */
+    public function updatePassword(Request $request, \App\Models\User $user)
+    {
+        if (! auth()->user()->hasRole('Administrador')) {
+            abort(403, 'Solo el Administrador puede cambiar contraseñas.');
+        }
+
+        $validated = $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->update([
+            'password' => bcrypt($validated['password']),
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Contraseña actualizada correctamente.',
+        ]);
+    }
+
+    /**
+     * Eliminar (soft delete) un usuario.
+     */
+    public function destroy(\App\Models\User $user)
+    {
+        if (! auth()->user()->hasRole('Administrador')) {
+            abort(403, 'Solo el Administrador puede eliminar usuarios.');
+        }
+
+        // No permitir que el admin se elimine a sí mismo
+        if ($user->id === auth()->id()) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No puedes eliminar tu propio usuario.',
+            ]);
+        }
+
+        // Si es chofer, eliminar también el registro de driver
+        if ($user->hasRole('Chofer') && $user->driver) {
+            $user->driver->delete();
+        }
+
+        $user->delete();
+
+        return redirect()->route('staff.index')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Usuario eliminado correctamente.',
+            ]);
     }
 }

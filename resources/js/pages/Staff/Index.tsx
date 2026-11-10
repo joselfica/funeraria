@@ -1,8 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, CheckCircle2, XCircle, Calendar } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Calendar, Plus, KeyRound, Trash2 } from 'lucide-react';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -23,6 +23,30 @@ interface Props {
 }
 
 export default function StaffIndex({ staff }: Props) {
+    const handleChangePassword = (userId: number, userName: string) => {
+        const password = prompt(`Nueva contraseña para ${userName} (mínimo 8 caracteres):`);
+        if (!password || password.length < 8) {
+            alert('La contraseña debe tener al menos 8 caracteres.');
+            return;
+        }
+        const confirmation = prompt('Confirma la contraseña:');
+        if (password !== confirmation) {
+            alert('Las contraseñas no coinciden.');
+            return;
+        }
+
+        router.post(`/staff/${userId}/password`, {
+            password: password,
+            password_confirmation: confirmation,
+        });
+    };
+
+    const handleDelete = (userId: number, userName: string) => {
+        if (confirm(`¿Eliminar el usuario "${userName}"?\n\nEsta acción se puede revertir desde la base de datos, pero el usuario perderá acceso inmediato.`)) {
+            router.delete(`/staff/${userId}`);
+        }
+    };
+
     return (
         <>
             <Head title="Gestión de Personal" />
@@ -37,6 +61,11 @@ export default function StaffIndex({ staff }: Props) {
                             Estado de disponibilidad y roles del equipo
                         </p>
                     </div>
+                    <Link href="/staff/create">
+                        <Button>
+                            <Plus className="h-4 w-4 mr-2" /> Nuevo Usuario
+                        </Button>
+                    </Link>
                 </div>
 
                 <Card>
@@ -86,17 +115,45 @@ export default function StaffIndex({ staff }: Props) {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1 text-sm">
+                                            <div className="flex items-center gap-2">
                                                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                                                <span className={emp.vacation_days_available > 5 ? 'text-emerald-500' : 'text-amber-500'}>
-                                                    {emp.vacation_days_available} días disp.
-                                                </span>
+                                                <div>
+                                                    <p className={`text-sm font-medium ${
+                                                        emp.vacation_days_available > 5 ? 'text-emerald-600' : 
+                                                        emp.vacation_days_available > 0 ? 'text-amber-600' : 
+                                                        'text-destructive'
+                                                    }`}>
+                                                        {emp.vacation_days_available} / {emp.vacation_days_total} días
+                                                    </p>
+                                                    {emp.vacation_days_available === 0 && (
+                                                        <p className="text-xs text-destructive font-medium">Sin vacaciones</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Link href={`/staff/${emp.id}`}>
-                                                <Button variant="outline" size="sm">Gestionar</Button>
-                                            </Link>
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleChangePassword(emp.id, emp.name)}
+                                                    title="Cambiar contraseña"
+                                                >
+                                                    <KeyRound className="h-4 w-4" />
+                                                </Button>
+                                                <Link href={`/staff/${emp.id}`}>
+                                                    <Button variant="outline" size="sm">Gestionar</Button>
+                                                </Link>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(emp.id, emp.name)}
+                                                    title="Eliminar"
+                                                    className="text-destructive hover:text-destructive"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\Deceased;
+use App\Models\EmployeeAbsence;
 use App\Models\InventoryItem;
 use App\Models\Payment;
 use App\Models\Service;
@@ -103,6 +104,8 @@ class DashboardController extends Controller
                 ->count(),
             // Urnas obligatorias por Seremi con stock bajo
             'seremi_critical' => InventoryItem::seremiCritical()->count(),
+            // Ausencias de personal pendientes de aprobación
+            'pending_absences' => EmployeeAbsence::where('status', 'pending')->count(),
         ];
 
         // Servicios del mes actual (para el calendario)

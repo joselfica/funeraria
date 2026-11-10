@@ -36,6 +36,14 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'toast' => $request->session()->get('toast'),
             ],
+            // Contadores para el sidebar
+            'pending_counts' => $user && $user->hasRole('Administrador') ? [
+                'absences' => \App\Models\EmployeeAbsence::where('status', 'pending')->count(),
+                'services' => \App\Models\Service::where('status', 'pending')->count(),
+            ] : [
+                'absences' => 0,
+                'services' => 0,
+            ],
         ];
     }
 }

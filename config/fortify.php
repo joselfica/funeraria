@@ -161,7 +161,7 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Features::registration(), // Registro público deshabilitado (las cuentas las crea el Administrador)
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

@@ -124,10 +124,18 @@ Route::middleware(['auth', 'role:Administrador'])->group(function () {
     Route::get('reports/payments/pdf', [ReportController::class, 'paymentsPdf'])->name('reports.payments.pdf');
     Route::get('reports/payments/excel', [ReportController::class, 'paymentsExcel'])->name('reports.payments.excel');
     
-    // Personal
-    Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
-    Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
-    Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
+    // ─────────────────────────────────────────────────────────
+    // GESTIÓN DE PERSONAL (solo Administrador)
+    // ─────────────────────────────────────────────────────────
+    Route::middleware('role:Administrador')->group(function () {
+        Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+        Route::get('staff/create', [StaffController::class, 'create'])->name('staff.create');
+        Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+        Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
+        Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
+        Route::post('staff/{user}/password', [StaffController::class, 'updatePassword'])->name('staff.update-password');
+        Route::delete('staff/{user}', [StaffController::class, 'destroy'])->name('staff.destroy');
+    });
     
     // Sucursales (crear/editar/eliminar)
     Route::get('branches/create', [BranchController::class, 'create'])->name('branches.create');
