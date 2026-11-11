@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
@@ -43,6 +44,25 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable, HasRoles;
+
+    /**
+     * Eventos del modelo.
+     */
+    protected static function booted(): void
+    {
+        // Invalidar sesiones cuando el usuario es desactivado
+        static::updated(function (User $user) {
+            if ($user->wasChanged('is_active') && ! $user->is_active) {
+                // Invalidar sesiones activas
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+
+                // Invalidar tokens de Sanctum (si los usa)
+                if (method_exists($user, 'tokens')) {
+                    $user->tokens()->delete();
+                }
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

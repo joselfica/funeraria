@@ -32,6 +32,29 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+
+        // Bloquear login si el usuario está inactivo
+        \Laravel\Fortify\Fortify::authenticateUsing(function (\Illuminate\Http\Request $request) {
+            $user = \App\Models\User::where('email', $request->email)->first();
+
+            if (! $user) {
+                return null;
+            }
+
+            // Verificar que esté activo
+            if (! $user->is_active) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'email' => 'Tu cuenta está desactivada. Contacta al administrador.',
+                ]);
+            }
+
+            // Verificar contraseña
+            if (\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                return $user;
+            }
+
+            return null;
+        });
     }
 
     /**

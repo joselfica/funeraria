@@ -29,11 +29,11 @@ class StaffController extends Controller
               ->where('starts_at', '<=', $today)
               ->where('ends_at', '>=', $today);
         }])
-        ->where('is_active', true)
         // Esta es la línea mágica que excluye a los clientes
         ->whereHas('roles', function ($query) {
             $query->whereIn('name', ['Administrador', 'Encargado', 'Chofer']);
         })
+        ->orderByDesc('is_active') // activos primero, desactivados al final
         ->orderBy('name')
         ->get()
         ->map(function ($user) {
@@ -45,6 +45,7 @@ class StaffController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'roles' => $user->roles->pluck('name'),
+                'is_active' => $user->is_active,
                 'is_available' => ! $currentAbsence, // Si no tiene ausencia, está disponible
                 'current_absence' => $currentAbsence ? [
                     'type' => $currentAbsence->type_label,
@@ -132,6 +133,16 @@ class StaffController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|exists:roles,name',
             'is_active' => 'boolean',
+
+            // Datos del chofer (obligatorios solo si el rol es Chofer)
+            'rut' => 'required_if:role,Chofer|nullable|string|max:12',
+            'phone' => 'required_if:role,Chofer|nullable|string|max:20',
+            'license_number' => 'required_if:role,Chofer|nullable|string|max:50',
+            'license_type' => 'nullable|string|max:10',
+            'plate' => 'nullable|string|max:20',
+            'vehicle_brand' => 'nullable|string|max:50',
+            'vehicle_model' => 'nullable|string|max:50',
+            'vehicle_color' => 'nullable|string|max:30',
         ]);
 
         $user = \App\Models\User::create([
@@ -147,17 +158,19 @@ class StaffController extends Controller
 
         // Si es Chofer, crear el registro en la tabla drivers
         if ($validated['role'] === 'Chofer') {
+            // Laravel convierte '' en null (ConvertEmptyStringsToNull), por eso
+            // se usa ?? '' para las columnas NOT NULL de la tabla drivers.
             \App\Models\Driver::create([
                 'user_id' => $user->id,
-                'rut' => $request->input('rut', ''),
-                'phone' => $request->input('phone', ''),
-                'license_number' => $request->input('license_number', ''),
-                'license_type' => $request->input('license_type', 'A1'),
+                'rut' => $validated['rut'] ?? '',
+                'phone' => $validated['phone'] ?? '',
+                'license_number' => $validated['license_number'] ?? '',
+                'license_type' => $validated['license_type'] ?? 'A1',
                 'license_expires_at' => now()->addYears(2),
-                'plate' => $request->input('plate', ''),
-                'vehicle_brand' => $request->input('vehicle_brand', ''),
-                'vehicle_model' => $request->input('vehicle_model', ''),
-                'vehicle_color' => $request->input('vehicle_color', ''),
+                'plate' => $validated['plate'] ?? '',
+                'vehicle_brand' => $validated['vehicle_brand'] ?? '',
+                'vehicle_model' => $validated['vehicle_model'] ?? '',
+                'vehicle_color' => $validated['vehicle_color'] ?? '',
                 'is_carroza' => $request->boolean('is_carroza', false),
                 'is_active' => true,
             ]);
@@ -222,5 +235,40 @@ class StaffController extends Controller
                 'type' => 'success',
                 'message' => 'Usuario eliminado correctamente.',
             ]);
+    }
+
+    /**
+     * Activar o desactivar un usuario.
+     * Al desactivar, las sesiones activas se invalidan automáticamente.
+     */
+    public function toggleActive(User $user)
+    {
+        $currentUser = auth()->user();
+
+        // Solo el Admin puede activar/desactivar usuarios
+        if (! $currentUser->hasRole('Administrador')) {
+            abort(403, 'Solo el Administrador puede activar o desactivar usuarios.');
+        }
+
+        // No permitir que el admin se desactive a sí mismo
+        if ($user->id === $currentUser->id) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'No puedes desactivar tu propio usuario.',
+            ]);
+        }
+
+        // Toggle
+        $user->update(['is_active' => ! $user->is_active]);
+
+        $action = $user->is_active ? 'activado' : 'desactivado';
+        $detail = $user->is_active
+            ? 'El usuario puede iniciar sesión nuevamente.'
+            : 'Sus sesiones activas fueron cerradas.';
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Usuario {$user->name} {$action}. {$detail}",
+        ]);
     }
 }
