@@ -35,10 +35,10 @@ export default function BranchesEdit({ branch }: Props) {
         <>
             <Head title="Editar Sucursal" />
 
-            <div className="p-6 max-w-2xl mx-auto">
+            <div className="p-4 md:p-6 max-w-2xl mx-auto">
                 <div className="mb-6">
-                    <h1 className="text-3xl font-bold">Editar Sucursal</h1>
-                    <p className="text-muted-foreground mt-1">Modificá los datos de la sede</p>
+                    <h1 className="text-2xl md:text-3xl font-bold">Editar Sucursal</h1>
+                    <p className="text-muted-foreground mt-1">Modifica los datos de la sede</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -90,11 +90,11 @@ export default function BranchesEdit({ branch }: Props) {
                         </CardContent>
                     </Card>
 
-                    <div className="flex justify-end gap-2 mt-6">
-                        <Link href="/branches">
-                            <Button type="button" variant="outline">Cancelar</Button>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+                        <Link href="/branches" className="w-full sm:w-auto">
+                            <Button type="button" variant="outline" className="w-full sm:w-auto">Cancelar</Button>
                         </Link>
-                        <Button type="submit" disabled={processing}>
+                        <Button type="submit" disabled={processing} className="w-full sm:w-auto">
                             {processing ? 'Guardando...' : 'Actualizar Sucursal'}
                         </Button>
                     </div>

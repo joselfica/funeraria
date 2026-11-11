@@ -24,6 +24,10 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Las finanzas (ingresos, cobros, pagos) son solo para el Administrador
+        $canSeeFinance = auth()->user()->hasRole('Administrador');
+        $activeStatuses = ['accepted', 'in_progress', 'completed'];
+
         // 1. KPIs Principales
         $totalClients = Client::active()->count();
         $totalDeceased = Deceased::count();
@@ -31,31 +35,67 @@ class DashboardController extends Controller
         // Servicios activos = aceptados o en progreso
         $activeServices = Service::whereIn('status', ['accepted', 'in_progress'])->count();
         
-        // Ingresos del mes actual (suma de pagos)
-        $monthlyRevenue = Payment::whereMonth('payment_date', Carbon::now()->month)
-            ->whereYear('payment_date', Carbon::now()->year)
-            ->sum('amount');
+        // Ingresos del mes actual y del anterior (suma de pagos) — solo Administrador
+        $monthlyRevenue = 0.0;
+        $revenueChangePct = null;
+        if ($canSeeFinance) {
+            $monthlyRevenue = (float) Payment::whereMonth('payment_date', Carbon::now()->month)
+                ->whereYear('payment_date', Carbon::now()->year)
+                ->sum('amount');
 
-        // 2. Gráfico de Ingresos (últimos 6 meses)
-        // Agrupamos pagos por mes.
-        $chartData = Payment::select(
-            DB::raw('EXTRACT(MONTH FROM payment_date) as month'),
-            DB::raw('EXTRACT(YEAR FROM payment_date) as year'),
-            DB::raw('SUM(amount) as total')
+            $prevMonth = Carbon::now()->startOfMonth()->subMonth();
+            $previousRevenue = (float) Payment::whereMonth('payment_date', $prevMonth->month)
+                ->whereYear('payment_date', $prevMonth->year)
+                ->sum('amount');
+
+            $revenueChangePct = $previousRevenue > 0
+                ? (int) round((($monthlyRevenue - $previousRevenue) / $previousRevenue) * 100)
+                : null;
+        }
+
+        $newClientsMonth = Client::active()
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->whereYear('created_at', Carbon::now()->year)
+            ->count();
+
+        // 2. Resumen general (últimos 6 meses, incluye meses sin movimiento)
+        $chartStart = Carbon::now()->startOfMonth()->subMonths(5);
+        $chartEnd = Carbon::now()->endOfMonth();
+
+        $revenueByMonth = collect();
+        if ($canSeeFinance) {
+            $revenueByMonth = Payment::select(
+                DB::raw('EXTRACT(MONTH FROM payment_date) as month'),
+                DB::raw('EXTRACT(YEAR FROM payment_date) as year'),
+                DB::raw('SUM(amount) as total')
+            )
+                ->whereBetween('payment_date', [$chartStart, $chartEnd])
+                ->groupBy('year', 'month')
+                ->get()
+                ->keyBy(fn ($r) => ((int) $r->year).'-'.((int) $r->month));
+        }
+
+        $servicesByMonth = Service::select(
+            DB::raw('EXTRACT(MONTH FROM scheduled_at) as month'),
+            DB::raw('EXTRACT(YEAR FROM scheduled_at) as year'),
+            DB::raw('COUNT(*) as total')
         )
-        ->where('payment_date', '>=', Carbon::now()->subMonths(6))
-        ->groupBy('year', 'month')
-        ->orderBy('year', 'asc')
-        ->orderBy('month', 'asc')
-        ->get()
-        ->map(function ($item) {
-            // Convertir número de mes a nombre (Ene, Feb, etc.)
-            $date = Carbon::createFromDate($item->year, $item->month, 1);
+            ->whereIn('status', $activeStatuses)
+            ->whereBetween('scheduled_at', [$chartStart, $chartEnd])
+            ->groupBy('year', 'month')
+            ->get()
+            ->keyBy(fn ($r) => ((int) $r->year).'-'.((int) $r->month));
+
+        $chartData = collect(range(0, 5))->map(function ($i) use ($chartStart, $revenueByMonth, $servicesByMonth) {
+            $date = $chartStart->copy()->addMonths($i);
+            $key = $date->year.'-'.$date->month;
+
             return [
-                'name' => $date->translatedFormat('M'),
-                'total' => (float) $item->total,
+                'name' => ucfirst(rtrim($date->translatedFormat('M'), '.')),
+                'total' => (float) ($revenueByMonth[$key]->total ?? 0),
+                'services' => (int) ($servicesByMonth[$key]->total ?? 0),
             ];
-        });
+        })->values();
 
         // 3. Alertas de Stock Crítico
         $lowStockItems = InventoryItem::active()
@@ -78,6 +118,8 @@ class DashboardController extends Controller
                 'scheduled_at' => $s->scheduled_at->toIso8601String(),
                 'scheduled_date' => $s->scheduled_at->translatedFormat('D d M'),
                 'scheduled_time' => $s->scheduled_at->format('H:i'),
+                'day' => $s->scheduled_at->format('j'),
+                'month' => ucfirst(rtrim($s->scheduled_at->translatedFormat('M'), '.')),
                 'status' => $s->status,
                 'status_label' => $s->status_label,
                 'deceased' => $s->deceased?->full_name,
@@ -106,6 +148,50 @@ class DashboardController extends Controller
             'seremi_critical' => InventoryItem::seremiCritical()->count(),
             // Ausencias de personal pendientes de aprobación
             'pending_absences' => EmployeeAbsence::where('status', 'pending')->count(),
+        ];
+
+        // Últimos servicios registrados
+        $recentServices = Service::with(['client:id,name', 'deceased:id,full_name'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'code' => $s->code,
+                'client' => $s->client?->name,
+                'deceased' => $s->deceased?->full_name,
+                'date' => $s->scheduled_at?->format('d/m/Y'),
+                'status' => $s->status,
+                'status_label' => $s->status_label,
+            ]);
+
+        // Indicadores clave (porcentajes)
+        $operativeServices = Service::whereIn('status', $activeStatuses)->count();
+        $completedServices = Service::where('status', 'completed')->count();
+
+        $collectedPct = null;
+        if ($canSeeFinance) {
+            $billingServices = Service::whereIn('status', $activeStatuses)
+                ->withSum('payments', 'amount')
+                ->get();
+            $billed = (float) $billingServices->sum('total_price');
+            $collected = (float) $billingServices->sum(
+                fn ($s) => min((float) ($s->payments_sum_amount ?? 0), (float) $s->total_price)
+            );
+            $collectedPct = $billed > 0 ? (int) round(($collected / $billed) * 100) : null;
+        }
+
+        $activeItems = InventoryItem::active()->count();
+
+        $indicators = [
+            'completed_pct' => $operativeServices > 0 ? (int) round(($completedServices / $operativeServices) * 100) : 0,
+            'collected_pct' => $collectedPct,
+            'inventory_ok_pct' => $activeItems > 0
+                ? (int) round((($activeItems - $alerts['low_stock_items']) / $activeItems) * 100)
+                : 100,
+            'fleet_available_pct' => $fleetStatus['total'] > 0
+                ? (int) round(($fleetStatus['available'] / $fleetStatus['total']) * 100)
+                : 0,
         ];
 
         // Servicios del mes actual (para el calendario)
@@ -140,6 +226,8 @@ class DashboardController extends Controller
                 'code' => $s->code,
                 'scheduled_at' => $s->scheduled_at->toIso8601String(),
                 'time' => $s->scheduled_at->format('H:i'),
+                'day' => $s->scheduled_at->format('j'),
+                'month' => ucfirst(rtrim($s->scheduled_at->translatedFormat('M'), '.')),
                 'status' => $s->status,
                 'status_label' => $s->status_label,
                 'client' => $s->client?->name,
@@ -232,7 +320,13 @@ class DashboardController extends Controller
                 'total_deceased' => $totalDeceased,
                 'active_services' => $activeServices,
                 'monthly_revenue' => (float) $monthlyRevenue,
+                'revenue_change_pct' => $revenueChangePct,
+                'new_clients_month' => $newClientsMonth,
             ],
+            'can_see_finance' => $canSeeFinance,
+            'today_label' => ucfirst(now()->translatedFormat('l, j \d\e F \d\e Y')),
+            'recent_services' => $recentServices,
+            'indicators' => $indicators,
             'chart_data' => $chartData,
             'low_stock' => $lowStockItems,
             'upcoming_services' => $upcomingServices,
@@ -240,13 +334,14 @@ class DashboardController extends Controller
             'alerts' => $alerts,
             'services' => $services,
             'today_services' => $todayServices,
-            'receivables' => [
+            // Datos financieros: solo se envían al Administrador
+            'receivables' => $canSeeFinance ? [
                 'total_pending' => (float) $totalPending,
                 'unpaid_count' => $unpaidCount,
                 'old_unpaid_count' => $oldUnpaidCount,
                 'top_debtors' => $topDebtors,
-            ],
-            'municipal_payments' => $municipalPayments, // ← NUEVO
+            ] : null,
+            'municipal_payments' => $canSeeFinance ? $municipalPayments : [],
         ]);
     }
 }

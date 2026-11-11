@@ -9,10 +9,15 @@ use Inertia\Inertia;
 /**
  * Controlador de Sucursales.
  * 
- * Permite a Renato gestionar las sedes de la funeraria.
+ * Permite gestionar las sedes de la funeraria.
+ * Las sucursales no se eliminan físicamente por motivos de auditoría:
+ * solo se activan o desactivan.
  */
 class BranchController extends Controller
 {
+    /**
+     * Muestra el listado de todas las sucursales registradas.
+     */
     public function index()
     {
         $branches = Branch::orderBy('name')->get();
@@ -22,11 +27,17 @@ class BranchController extends Controller
         ]);
     }
 
+    /**
+     * Muestra el formulario para crear una nueva sucursal.
+     */
     public function create()
     {
         return Inertia::render('Branches/Create');
     }
 
+    /**
+     * Almacena una nueva sucursal en la base de datos.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -47,6 +58,9 @@ class BranchController extends Controller
             ]);
     }
 
+    /**
+     * Muestra el formulario para editar una sucursal existente.
+     */
     public function edit(Branch $branch)
     {
         return Inertia::render('Branches/Edit', [
@@ -54,6 +68,9 @@ class BranchController extends Controller
         ]);
     }
 
+    /**
+     * Actualiza los datos de una sucursal existente.
+     */
     public function update(Request $request, Branch $branch)
     {
         $validated = $request->validate([
@@ -74,22 +91,23 @@ class BranchController extends Controller
             ]);
     }
 
-    public function destroy(Branch $branch)
+    /**
+     * Activa o desactiva una sucursal según su estado actual.
+     * 
+     * Se utiliza en lugar de eliminar para preservar el historial
+     * de servicios y mantener la integridad de los datos.
+     */
+    public function toggleActive(Branch $branch)
     {
-        // Verificar que no tenga servicios asociados
-        if ($branch->services()->count() > 0) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se puede eliminar: tiene servicios asociados.',
-            ]);
-        }
-
-        $branch->delete();
+        // Invierte el estado actual: activa -> inactiva, inactiva -> activa
+        $branch->update(['is_active' => !$branch->is_active]);
 
         return redirect()->route('branches.index')
             ->with('toast', [
                 'type' => 'success',
-                'message' => 'Sucursal eliminada correctamente.',
+                'message' => $branch->is_active
+                    ? 'Sucursal activada correctamente.'
+                    : 'Sucursal desactivada correctamente.',
             ]);
     }
 }

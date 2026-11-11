@@ -111,9 +111,8 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
     Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
     
-    // Sucursales (solo ver)
+    // Sucursales (solo ver el listado; el CRUD está en el bloque de Administrador)
     Route::get('branches', [BranchController::class, 'index'])->name('branches.index');
-    Route::get('branches/{branch}', [BranchController::class, 'show'])->name('branches.show');
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -143,12 +142,16 @@ Route::middleware(['auth', 'role:Administrador'])->group(function () {
         Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
     });
     
-    // Sucursales (crear/editar/eliminar)
+    // ─────────────────────────────────────────────────────────
+    // SUCURSALES (CRUD) - Solo Administrador
+    // ─────────────────────────────────────────────────────────
     Route::get('branches/create', [BranchController::class, 'create'])->name('branches.create');
     Route::post('branches', [BranchController::class, 'store'])->name('branches.store');
     Route::get('branches/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
     Route::put('branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
-    Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
+
+    // Las sucursales no se eliminan: solo se activan o desactivan
+    Route::patch('branches/{branch}/toggle-active', [BranchController::class, 'toggleActive'])->name('branches.toggle-active');
 });
 
 // ─────────────────────────────────────────────────────────────

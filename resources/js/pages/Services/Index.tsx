@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import { AlertTriangle, CheckSquare, Plus, Eye, UserX, UserCheck } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Plus, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -52,32 +52,8 @@ export default function ServicesIndex({ services, filters }: Props) {
         router.get('/services', { search, status }, { preserveState: true });
     };
 
-    const handleToggleActive = (clientId: number, clientName: string, isActive: boolean) => {
-        const action = isActive ? 'desactivar' : 'activar';
-        if (confirm(`¿Estás seguro de ${action} al cliente "${clientName}"?\n\n${isActive ? 'El cliente no aparecerá en las búsquedas activas, pero su historial se conservará.' : 'El cliente volverá a aparecer en las búsquedas activas.'}`)) {
-            router.patch(`/clients/${clientId}/toggle-active`);
-        }
-    };
+    const formatDate = (date: string) => new Date(date).toLocaleDateString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-    const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-        switch (status) {
-            case 'accepted': return 'default';
-            case 'pending': return 'secondary';
-            case 'in_review': return 'outline';
-            case 'rejected': return 'destructive';
-            case 'completed': return 'default';
-            case 'cancelled': return 'destructive';
-            default: return 'secondary';
-        }
-    };
-
-    const formatDate = (date: string) => 
-        new Date(date).toLocaleDateString('es-CL', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit',
-        });
-
-    // Datos de pago: porcentaje (tope 100%), saldo y color según avance
     const getPayment = (service: Service) => {
         const total = parseFloat(service.total_price) || 0;
         const paid = Number(service.total_paid) || 0;
@@ -95,37 +71,27 @@ export default function ServicesIndex({ services, filters }: Props) {
     };
 
     const getPaymentText = (p: number) => {
-        if (p >= 100) return 'text-emerald-500';
-        if (p >= 90) return 'text-green-400';
-        if (p >= 50) return 'text-yellow-400';
+        if (p >= 100) return 'text-emerald-600';
+        if (p >= 90) return 'text-green-500';
+        if (p >= 50) return 'text-yellow-500';
         if (p >= 25) return 'text-orange-500';
         return 'text-red-500';
     };
 
-    const formatPrice = (price: string) => 
-        new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' })
-            .format(parseFloat(price));
+    const formatPrice = (price: string) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseFloat(price));
 
     const renderPayment = (service: Service) => {
         const { percentage, balance } = getPayment(service);
         return (
-            <div className="space-y-1">
+            <div className="space-y-1 w-full">
                 <div className="flex items-center justify-between gap-2 text-xs">
                     <span className={`flex items-center gap-1 font-bold ${getPaymentText(percentage)}`}>
-                        {percentage >= 100 ? (
-                            <CheckSquare className="h-3.5 w-3.5" />
-                        ) : percentage > 0 ? (
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                        ) : (
-                            <span className="inline-block h-3 w-3 rounded-full bg-red-500" />
-                        )}
+                        {percentage >= 100 ? <CheckSquare className="h-3.5 w-3.5" /> : percentage > 0 ? <AlertTriangle className="h-3.5 w-3.5" /> : <span className="inline-block h-3 w-3 rounded-full bg-red-500" />}
                         {percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}%
                     </span>
-                    <span className="text-muted-foreground">
-                        {percentage >= 100 ? 'Pagado' : `Saldo: ${formatPrice(String(balance))}`}
-                    </span>
+                    <span className="text-muted-foreground">{percentage >= 100 ? 'Pagado' : `Saldo: ${formatPrice(String(balance))}`}</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                     <div className={`h-full ${getPaymentBar(percentage)}`} style={{ width: `${percentage}%` }} />
                 </div>
             </div>
@@ -133,67 +99,61 @@ export default function ServicesIndex({ services, filters }: Props) {
     };
 
     const renderActions = (service: Service) => (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-col items-end gap-1.5">
             {service.status === 'pending' && (
-                <Link href={`/services/${service.id}`}>
-                    <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+                <Link href={`/services/${service.id}`} className="w-full">
+                    <Button size="sm" className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
                         Aprobar
                     </Button>
                 </Link>
             )}
             {service.balance > 0 && service.status === 'accepted' && (
-                <Link href={`/services/${service.id}`}>
-                    <Button size="sm" className="h-8 bg-blue-600 hover:bg-blue-700 text-white">
+                <Link href={`/services/${service.id}`} className="w-full">
+                    <Button size="sm" className="w-full h-8 bg-blue-600 hover:bg-blue-700 text-white">
                         Cobrar
                     </Button>
                 </Link>
             )}
-            <Link href={`/services/${service.id}`}>
-                <Button variant="outline" size="sm" className="h-8">
+            <Link href={`/services/${service.id}`} className="w-full">
+                <Button variant="outline" size="sm" className="w-full h-8">
                     <Eye className="h-4 w-4 mr-1" /> Ver
                 </Button>
             </Link>
         </div>
     );
 
+    const getStatusBadge = (service: Service) => {
+        const variant = service.status === 'accepted' || service.status === 'completed' ? 'default' :
+                        service.status === 'cancelled' || service.status === 'rejected' ? 'destructive' :
+                        service.status === 'pending' ? 'secondary' : 'outline';
+        return <Badge variant={variant} className="w-fit">{service.status_label || 'Sin estado'}</Badge>;
+    };
+
     return (
         <>
             <Head title="Servicios Funerarios" />
 
-            <div className="p-4 pb-24 sm:p-6">
-                {/* Encabezado */}
+            <div className="p-4 md:p-6 max-w-7xl mx-auto pb-24">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold sm:text-3xl">Servicios Funerarios</h1>
-                        <p className="mt-1 text-muted-foreground">
-                            Total: {services.total} servicios registrados
-                        </p>
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">Servicios Funerarios</h1>
+                        <p className="mt-1 text-sm md:text-base text-muted-foreground">Total: {services.total} servicios registrados</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Link href="/services/wizard">
-                            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                + Nuevo Expediente Completo
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Link href="/services/wizard" className="w-full sm:w-auto">
+                            <Button className="w-full sm:w-auto bg-rose-800 hover:bg-rose-900 text-white shadow-md">
+                                <Plus className="h-4 w-4 mr-1" /> Nuevo Expediente Completo
                             </Button>
                         </Link>
-                        <Link href="/services/create">
-                            <Button variant="outline">Nuevo Servicio (Solo)</Button>
+                        <Link href="/services/create" className="w-full sm:w-auto">
+                            <Button variant="outline" className="w-full sm:w-auto">Nuevo Servicio (Solo)</Button>
                         </Link>
                     </div>
                 </div>
 
-                {/* Búsqueda */}
-                <form onSubmit={handleSearch} className="mb-4 flex flex-col gap-2 sm:flex-row">
-                    <Input
-                        placeholder="Buscar por código, cliente o fallecido..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full sm:max-w-md"
-                    />
-                    <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm sm:w-auto"
-                    >
+                <form onSubmit={handleSearch} className="mb-6 flex flex-col sm:flex-row gap-2 bg-slate-50 dark:bg-slate-900/40 p-3 rounded-xl">
+                    <Input placeholder="Buscar por código, cliente o fallecido..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:max-w-md bg-white dark:bg-slate-950" />
+                    <select value={status} onChange={(e) => setStatus(e.target.value)} className="h-10 w-full rounded-md border border-input bg-white dark:bg-slate-950 px-3 text-sm sm:w-auto">
                         <option value="">Todos los estados</option>
                         <option value="pending">Pendiente</option>
                         <option value="in_review">En revisión</option>
@@ -206,54 +166,36 @@ export default function ServicesIndex({ services, filters }: Props) {
                     <Button type="submit" variant="secondary" className="w-full sm:w-auto">Buscar</Button>
                 </form>
 
-                {/* MÓVIL: tarjetas */}
+                {/* VISTA MÓVIL */}
                 <div className="space-y-3 md:hidden">
                     {services.data.length === 0 ? (
-                        <p className="rounded-lg border bg-card py-8 text-center text-muted-foreground">
-                            No hay servicios registrados
-                        </p>
+                        <p className="rounded-lg border bg-card py-8 text-center text-muted-foreground">No hay servicios registrados</p>
                     ) : (
                         services.data.map((service) => (
-                            <div key={service.id} className="space-y-3 rounded-lg border bg-card p-4">
+                            <div key={service.id} className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
                                 <div className="flex items-start justify-between gap-2">
-                                    <span className="font-mono text-sm">{service.code}</span>
-                                    <Badge 
-                                        variant={
-                                            service.status === 'accepted' ? 'default' :
-                                            service.status === 'pending' ? 'secondary' :
-                                            service.status === 'completed' ? 'default' :
-                                            service.status === 'cancelled' ? 'destructive' :
-                                            service.status === 'rejected' ? 'destructive' :
-                                            'outline'
-                                        }
-                                        className="w-fit"
-                                    >
-                                        {service.status_label || 'Sin estado'}
-                                    </Badge>
+                                    <span className="font-mono text-sm font-bold">{service.code}</span>
+                                    {getStatusBadge(service)}
                                 </div>
                                 <div>
-                                    <p className="font-medium">{service.client?.name || 'Sin cliente'}</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {service.deceased?.full_name || 'Sin fallecido'} · {service.service_type?.name || 'Sin tipo'}
-                                    </p>
+                                    <p className="font-medium text-slate-800 dark:text-slate-100">{service.client?.name || 'Sin cliente'}</p>
+                                    <p className="text-sm text-muted-foreground">{service.deceased?.full_name || 'Sin fallecido'} · {service.service_type?.name || 'Sin tipo'}</p>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-muted-foreground">{formatDate(service.scheduled_at)}</span>
-                                    <span className="font-medium">{formatPrice(service.total_price)}</span>
+                                    <span className="font-bold">{formatPrice(service.total_price)}</span>
                                 </div>
                                 {renderPayment(service)}
-                                <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
-                                    {renderActions(service)}
-                                </div>
+                                <div className="flex flex-wrap justify-end gap-2 border-t pt-3">{renderActions(service)}</div>
                             </div>
                         ))
                     )}
                 </div>
 
-                {/* ESCRITORIO: tabla */}
-                <div className="hidden overflow-x-auto rounded-lg border bg-card md:block">
+                {/* VISTA DESKTOP */}
+                <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-sm md:block">
                     <Table>
-                        <TableHeader>
+                        <TableHeader className="bg-slate-50 dark:bg-slate-900/40">
                             <TableRow>
                                 <TableHead>Código</TableHead>
                                 <TableHead>Cliente</TableHead>
@@ -261,46 +203,26 @@ export default function ServicesIndex({ services, filters }: Props) {
                                 <TableHead>Tipo</TableHead>
                                 <TableHead>Programado</TableHead>
                                 <TableHead>Total</TableHead>
-                                <TableHead>Estado de Pago</TableHead>
+                                <TableHead className="min-w-[180px]">Estado de Pago</TableHead>
                                 <TableHead>Estado Servicio</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {services.data.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
-                                        No hay servicios registrados
-                                    </TableCell>
-                                </TableRow>
+                                <TableRow><TableCell colSpan={9} className="py-12 text-center text-muted-foreground">No hay servicios registrados</TableCell></TableRow>
                             ) : (
                                 services.data.map((service) => (
-                                    <TableRow key={service.id}>
+                                    <TableRow key={service.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30">
                                         <TableCell className="font-mono text-sm">{service.code}</TableCell>
                                         <TableCell className="font-medium">{service.client?.name || 'Sin cliente'}</TableCell>
                                         <TableCell>{service.deceased?.full_name || 'Sin fallecido'}</TableCell>
                                         <TableCell>{service.service_type?.name || 'Sin tipo'}</TableCell>
                                         <TableCell className="text-sm">{formatDate(service.scheduled_at)}</TableCell>
                                         <TableCell className="font-medium">{formatPrice(service.total_price)}</TableCell>
-                                        <TableCell className="min-w-[200px]">{renderPayment(service)}</TableCell>
-                                        <TableCell>
-                                            <Badge 
-                                                variant={
-                                                    service.status === 'accepted' ? 'default' :
-                                                    service.status === 'pending' ? 'secondary' :
-                                                    service.status === 'completed' ? 'default' :
-                                                    service.status === 'cancelled' ? 'destructive' :
-                                                    service.status === 'rejected' ? 'destructive' :
-                                                    'outline'
-                                                }
-                                                className="w-fit"
-                                            >
-                                                {service.status_label || 'Sin estado'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap text-right">
-                                            {renderActions(service)}
-                                        </TableCell>
+                                        <TableCell>{renderPayment(service)}</TableCell>
+                                        <TableCell>{getStatusBadge(service)}</TableCell>
+                                        <TableCell className="whitespace-nowrap text-right">{renderActions(service)}</TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -309,26 +231,17 @@ export default function ServicesIndex({ services, filters }: Props) {
                 </div>
 
                 {services.last_page > 1 && (
-                    <div className="mt-4 flex flex-wrap justify-center gap-1">
+                    <div className="mt-6 flex flex-wrap justify-center gap-1">
                         {services.links.map((link, i) => (
-                            <Link
-                                key={i}
-                                href={link.url || '#'}
-                                className={`rounded border px-3 py-1 text-sm ${
-                                    link.active ? 'bg-primary text-primary-foreground' : link.url ? 'hover:bg-accent' : 'opacity-50'
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
+                            <Link key={i} href={link.url || '#'} className={`rounded-lg border px-3 py-1 text-sm ${link.active ? 'bg-rose-800 text-white border-rose-800' : link.url ? 'hover:bg-slate-100 dark:hover:bg-slate-800' : 'opacity-50'}`} dangerouslySetInnerHTML={{ __html: link.label }} />
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Botón flotante (solo ícono en móvil) */}
-            <Link href="/services/wizard" className="fixed bottom-6 right-6 z-10">
-                <Button className="h-12 rounded-full bg-emerald-600 px-4 text-white shadow-lg hover:bg-emerald-700 sm:px-5">
-                    <Plus className="h-5 w-5 sm:mr-2" />
-                    <span className="hidden sm:inline">Nuevo Servicio</span>
+            <Link href="/services/wizard" className="fixed bottom-6 right-6 z-10 md:hidden">
+                <Button className="h-14 w-14 rounded-full bg-rose-800 p-0 text-white shadow-lg hover:bg-rose-900">
+                    <Plus className="h-6 w-6" />
                 </Button>
             </Link>
         </>

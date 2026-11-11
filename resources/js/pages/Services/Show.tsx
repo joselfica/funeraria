@@ -1,7 +1,11 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Box, FlaskConical, Package } from 'lucide-react';
+import { 
+    CheckCircle2, Box, FlaskConical, Package, AlertTriangle, Info, 
+    ArrowLeft, Pencil, FileText, Receipt, DollarSign, Calendar, 
+    User, Users, Truck, Plus, X
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,107 +25,44 @@ interface ServiceType { id: number; name: string; }
 interface User { id: number; name: string; }
 
 interface InventoryItem {
-    id: number;
-    code: string;
-    name: string;
-    category: string;
-    material: string | null;
-    stock: number;
-    price: string;
-    pivot?: {
-        quantity: number;
-        unit_price: string;
-        notes: string | null;
-    };
+    id: number; code: string; name: string; category: string; material: string | null;
+    stock: number; price: string; pivot?: { quantity: number; unit_price: string; notes: string | null; };
 }
 
 interface Vehicle {
-    id: number;
-    plate: string;
-    type: string;
-    type_label: string;
-    brand: string | null;
-    model: string | null;
-    status: string;
-    pivot?: {
-        departs_at: string | null;
-        returns_at: string | null;
-        notes: string | null;
-    };
+    id: number; plate: string; type: string; type_label: string; brand: string | null;
+    model: string | null; status: string; pivot?: { departs_at: string | null; returns_at: string | null; notes: string | null; };
 }
 
 interface Payment {
-    id: number;
-    uuid: string;
-    receipt_number: string;
-    amount: string;
-    payment_method: string;
-    payment_method_label: string;
-    reference: string | null;
-    payment_date: string;
-    notes: string | null;
-    receipt_path: string | null;
-    created_at: string;
+    id: number; uuid: string; receipt_number: string; amount: string; payment_method: string;
+    payment_method_label: string; reference: string | null; payment_date: string;
+    notes: string | null; receipt_path: string | null; created_at: string;
 }
 
-interface Employee {
-    id: number;
-    name: string;
-    email: string;
-    roles: Array<{ name: string }>;
-}
+interface Employee { id: number; name: string; email: string; roles: Array<{ name: string }>; }
 
 interface ServiceAssignment {
-    id: number;
-    role_in_service: string;
-    role_label: string;
-    notes: string | null;
+    id: number; role_in_service: string; role_label: string; notes: string | null;
     user: { id: number; name: string; email: string };
 }
 
 interface Service {
-    id: number;
-    uuid: string;
-    code: string;
-    status: string;
-    status_label: string;
-    scheduled_at: string;
-    ends_at: string | null;
-    duration_hours: number;
-    seremi_extension_granted: boolean;
-    seremi_resolution_number: string | null;
-    seremi_resolution_date: string | null;
-    origin_location: string | null;
-    destination_location: string | null;
-    burial_at: string | null;
-    base_price: string;
-    additional_charges: string;
-    discount: string;
-    total_price: string;
-    beneficiary_type: string;
-    beneficiary_label: string;
-    afp_amount: string;
-    family_amount: string;
-    client_notes: string | null;
-    internal_notes: string | null;
-    rejection_reason: string | null;
-    approved_at: string | null;
-    client: Client | null;
-    deceased: Deceased | null;
-    service_type: ServiceType | null;
+    id: number; uuid: string; code: string; status: string; status_label: string;
+    scheduled_at: string; ends_at: string | null; duration_hours: number;
+    seremi_extension_granted: boolean; seremi_resolution_number: string | null;
+    seremi_resolution_date: string | null; origin_location: string | null;
+    destination_location: string | null; burial_at: string | null; base_price: string;
+    additional_charges: string; discount: string; total_price: string;
+    beneficiary_type: string; beneficiary_label: string; afp_amount: string;
+    family_amount: string; client_notes: string | null; internal_notes: string | null;
+    rejection_reason: string | null; approved_at: string | null;
+    client: Client | null; deceased: Deceased | null; service_type: ServiceType | null;
     branch: { name: string; address?: string | null } | null;
-    created_by: User | null;
-    approved_by: User | null;
-    inventory_items: InventoryItem[];
-    vehicles: Vehicle[];
-    payments: Payment[];
-    assignments: ServiceAssignment[];
-    total_paid: number;
-    balance: number;
-    is_fully_paid: boolean;
-    payment_status: string;
-    created_at: string;
-    updated_at: string;
+    created_by: User | null; approved_by: User | null;
+    inventory_items: InventoryItem[]; vehicles: Vehicle[]; payments: Payment[];
+    assignments: ServiceAssignment[]; total_paid: number; balance: number;
+    is_fully_paid: boolean; payment_status: string; created_at: string; updated_at: string;
 }
 
 interface Props {
@@ -129,18 +70,13 @@ interface Props {
     availableItems: InventoryItem[];
     availableVehicles: Vehicle[];
     availableEmployees: Employee[];
-    financials: {
-        total_paid: number;
-        balance: number;
-        is_fully_paid: boolean;
-    };
+    financials: { total_paid: number; balance: number; is_fully_paid: boolean; };
 }
 
 export default function ServicesShow({ service, availableItems, availableVehicles, availableEmployees, financials }: Props) {
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
-    // Estados para asignación
     const [selectedItem, setSelectedItem] = useState('');
     const [itemQuantity, setItemQuantity] = useState('1');
     const [itemNotes, setItemNotes] = useState('');
@@ -148,12 +84,10 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const [selectedVehicle, setSelectedVehicle] = useState('');
     const [vehicleNotes, setVehicleNotes] = useState('');
 
-    // Estados para asignación de empleados
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [employeeRole, setEmployeeRole] = useState('coordinator');
     const [employeeNotes, setEmployeeNotes] = useState('');
 
-    // Estados para pagos
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('efectivo');
@@ -161,824 +95,409 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
     const [paymentNotes, setPaymentNotes] = useState('');
 
-    const handleApprove = () => {
-        if (confirm(`¿Aprobar el servicio ${service.code}?`)) {
-            router.post(`/services/${service.id}/approve`);
-        }
-    };
-
+    const handleApprove = () => { if (confirm(`¿Aprobar el servicio ${service.code}?`)) router.post(`/services/${service.id}/approve`); };
     const handleReject = () => {
-        if (!rejectionReason.trim()) {
-            alert('Debe indicar un motivo de rechazo');
-            return;
-        }
-        router.post(`/services/${service.id}/reject`, {
-            rejection_reason: rejectionReason,
-        });
+        if (!rejectionReason.trim()) return alert('Debe indicar un motivo de rechazo');
+        router.post(`/services/${service.id}/reject`, { rejection_reason: rejectionReason });
         setShowRejectModal(false);
     };
-
     const handleAssignItem = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedItem) return;
-        router.post(`/services/${service.id}/assign-item`, {
-            inventory_item_id: selectedItem,
-            quantity: itemQuantity,
-            notes: itemNotes,
-        }, {
-            onSuccess: () => {
-                setSelectedItem('');
-                setItemQuantity('1');
-                setItemNotes('');
-            },
-        });
+        e.preventDefault(); if (!selectedItem) return;
+        router.post(`/services/${service.id}/assign-item`, { inventory_item_id: selectedItem, quantity: itemQuantity, notes: itemNotes }, { onSuccess: () => { setSelectedItem(''); setItemQuantity('1'); setItemNotes(''); } });
     };
-
-    const handleRemoveItem = (itemId: number, itemName: string) => {
-        if (confirm(`¿Quitar "${itemName}" del servicio? Se devolverá el stock.`)) {
-            router.delete(`/services/${service.id}/items/${itemId}`);
-        }
-    };
-
+    const handleRemoveItem = (itemId: number, itemName: string) => { if (confirm(`¿Quitar "${itemName}" del servicio? Se devolverá el stock.`)) router.delete(`/services/${service.id}/items/${itemId}`); };
     const handleAssignVehicle = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedVehicle) return;
-        router.post(`/services/${service.id}/assign-vehicle`, {
-            vehicle_id: selectedVehicle,
-            notes: vehicleNotes,
-        }, {
-            onSuccess: () => {
-                setSelectedVehicle('');
-                setVehicleNotes('');
-            },
-        });
+        e.preventDefault(); if (!selectedVehicle) return;
+        router.post(`/services/${service.id}/assign-vehicle`, { vehicle_id: selectedVehicle, notes: vehicleNotes }, { onSuccess: () => { setSelectedVehicle(''); setVehicleNotes(''); } });
     };
-
-    const handleRemoveVehicle = (vehicleId: number, plate: string) => {
-        if (confirm(`¿Quitar el vehículo ${plate} del servicio?`)) {
-            router.delete(`/services/${service.id}/vehicles/${vehicleId}`);
-        }
-    };
-
+    const handleRemoveVehicle = (vehicleId: number, plate: string) => { if (confirm(`¿Quitar el vehículo ${plate} del servicio?`)) router.delete(`/services/${service.id}/vehicles/${vehicleId}`); };
     const handleAssignEmployee = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedEmployee) return;
-
-        router.post(`/services/${service.id}/assign-employee`, {
-            user_id: selectedEmployee,
-            role_in_service: employeeRole,
-            notes: employeeNotes,
-        }, {
-            onSuccess: () => {
-                setSelectedEmployee('');
-                setEmployeeRole('coordinator');
-                setEmployeeNotes('');
-            },
-        });
+        e.preventDefault(); if (!selectedEmployee) return;
+        router.post(`/services/${service.id}/assign-employee`, { user_id: selectedEmployee, role_in_service: employeeRole, notes: employeeNotes }, { onSuccess: () => { setSelectedEmployee(''); setEmployeeRole('coordinator'); setEmployeeNotes(''); } });
     };
-
-    const handleRemoveEmployee = (assignmentId: number, name: string) => {
-        if (confirm(`¿Quitar a ${name} del servicio?`)) {
-            router.delete(`/services/${service.id}/assignments/${assignmentId}`);
-        }
-    };
-
+    const handleRemoveEmployee = (assignmentId: number, name: string) => { if (confirm(`¿Quitar a ${name} del servicio?`)) router.delete(`/services/${service.id}/assignments/${assignmentId}`); };
     const handleRegisterPayment = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!paymentAmount) return;
-
-        router.post(`/services/${service.id}/payments`, {
-            amount: paymentAmount,
-            payment_method: paymentMethod,
-            reference: paymentReference || null,
-            payment_date: paymentDate,
-            notes: paymentNotes || null,
-        }, {
-            onSuccess: () => {
-                setShowPaymentModal(false);
-                setPaymentAmount('');
-                setPaymentMethod('efectivo');
-                setPaymentReference('');
-                setPaymentNotes('');
-            },
-        });
+        e.preventDefault(); if (!paymentAmount) return;
+        router.post(`/services/${service.id}/payments`, { amount: paymentAmount, payment_method: paymentMethod, reference: paymentReference || null, payment_date: paymentDate, notes: paymentNotes || null }, { onSuccess: () => { setShowPaymentModal(false); setPaymentAmount(''); setPaymentMethod('efectivo'); setPaymentReference(''); setPaymentNotes(''); } });
     };
 
     const formatDate = (date: string | null) => {
         if (!date) return '—';
-        return new Date(date).toLocaleDateString('es-CL', {
-            year: 'numeric', month: 'long', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
-        });
+        return new Date(date).toLocaleDateString('es-CL', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
+    const formatDateShort = (date: string | null) => {
+        if (!date) return '—';
+        return new Date(date).toLocaleDateString('es-CL', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+    const formatPrice = (price: string | number) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(Number(price));
 
-    const formatPrice = (price: string) =>
-        new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseFloat(price));
-
-    /**
-     * Calcula el color de la barra de progreso según el porcentaje pagado.
-     * 0-24%: Rojo | 25-49%: Naranja | 50-89%: Amarillo | 90-99%: Verde claro | 100%: Esmeralda
-     */
     const getPaymentColor = (percentage: number) => {
         if (percentage >= 100) return 'bg-emerald-500';
         if (percentage >= 90) return 'bg-green-400';
         if (percentage >= 50) return 'bg-yellow-400';
         if (percentage >= 25) return 'bg-orange-500';
-        return 'bg-red-500';
+        return 'bg-rose-500';
     };
-
     const getPaymentText = (percentage: number) => {
-        if (percentage >= 100) return 'text-emerald-500';
-        if (percentage >= 90) return 'text-green-400';
-        if (percentage >= 50) return 'text-yellow-400';
-        if (percentage >= 25) return 'text-orange-500';
-        return 'text-red-500';
-    };
-
-    const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
-        switch (status) {
-            case 'accepted': return 'default';
-            case 'pending': return 'secondary';
-            case 'rejected': return 'destructive';
-            case 'completed': return 'default';
-            case 'cancelled': return 'destructive';
-            default: return 'outline';
-        }
+        if (percentage >= 100) return 'text-emerald-600';
+        if (percentage >= 90) return 'text-green-500';
+        if (percentage >= 50) return 'text-yellow-600';
+        if (percentage >= 25) return 'text-orange-600';
+        return 'text-rose-600';
     };
 
     const canApprove = service.status === 'pending' || service.status === 'in_review' || service.status === 'with_observations';
     const canAssignResources = service.status === 'accepted' || service.status === 'in_progress';
 
+    const total = parseFloat(service.total_price) || 0;
+    const paid = financials.total_paid || 0;
+    const percentage = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
+
     return (
         <>
             <Head title={service.code} />
 
-            <div className="p-6 max-w-5xl">
-                <div className="mb-6 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">{service.code}</h1>
-                        <p className="text-muted-foreground mt-1 font-mono text-sm">{service.uuid}</p>
+            <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
+                
+                {/* HEADER */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <Link href="/services"><Button variant="outline" size="icon" className="shrink-0 mt-1"><ArrowLeft className="h-4 w-4" /></Button></Link>
+                        <div>
+                            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 flex-wrap">
+                                {service.code}
+                                <Badge variant={service.status === 'accepted' ? 'default' : service.status === 'rejected' || service.status === 'cancelled' ? 'destructive' : 'secondary'} className="text-sm">
+                                    {service.status_label}
+                                </Badge>
+                                {financials.is_fully_paid && <Badge className="bg-emerald-500 text-white"><CheckCircle2 className="h-3 w-3 mr-1"/> Pagado</Badge>}
+                            </h1>
+                            <p className="text-muted-foreground mt-1 font-mono text-xs">{service.uuid}</p>
+                        </div>
                     </div>
-                    <div className="flex gap-2">
-                        <Link href="/services">
-                            <Button variant="outline">Volver</Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Link href={`/services/${service.id}/edit`} className="flex-1 sm:flex-initial">
+                            <Button variant="outline" className="w-full sm:w-auto"><Pencil className="h-4 w-4 mr-1" /> Editar</Button>
                         </Link>
-                        <Link href={`/services/${service.id}/edit`}>
-                            <Button variant="outline">Editar</Button>
-                        </Link>
-
-                        {/* Botón de Contrato (siempre disponible) */}
-                        <a href={`/services/${service.id}/contract`} target="_blank" rel="noopener noreferrer">
-                            <Button variant="outline">Contrato PDF</Button>
+                        <a href={`/services/${service.id}/contract`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
+                            <Button variant="outline" className="w-full sm:w-auto"><FileText className="h-4 w-4 mr-1" /> Contrato</Button>
                         </a>
-
-                        {/* Botón de Paz y Salvo (solo si está pagado) */}
                         {financials.is_fully_paid && (
-                            <a href={`/services/${service.id}/paz-y-salvo`} target="_blank" rel="noopener noreferrer">
-                                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                    Paz y Salvo PDF
-                                </Button>
+                            <a href={`/services/${service.id}/paz-y-salvo`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
+                                <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"><Receipt className="h-4 w-4 mr-1" /> Paz y Salvo</Button>
                             </a>
                         )}
                     </div>
                 </div>
 
-                {/* Estado */}
-                <Card className="mb-4">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Estado del Servicio</CardTitle>
-                        <div className="flex gap-2">
-                            <Badge variant={getStatusVariant(service.status)}>
-                                {service.status_label}
-                            </Badge>
-                            {financials.is_fully_paid && (
-                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1">
-                                    <CheckCircle2 className="w-3 h-3" /> PAGADO 100%
-                                </Badge>
-                            )}
+                {canApprove && (
+                    <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <p className="text-sm text-rose-800 dark:text-rose-300 font-medium">Este servicio está pendiente de aprobación.</p>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <Button onClick={handleApprove} className="flex-1 sm:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white">Aprobar Servicio</Button>
+                            <Button variant="destructive" onClick={() => setShowRejectModal(true)} className="flex-1 sm:flex-initial">Rechazar</Button>
                         </div>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-2">
-                        {service.approved_at && (
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Aprobado/Rechazado:</span>
-                                <span>{formatDate(service.approved_at)}</span>
-                            </div>
-                        )}
-                        {service.approved_by && (
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">Por:</span>
-                                <span>{service.approved_by?.name ?? '—'}</span>
-                            </div>
-                        )}
+                    </div>
+                )}
 
-                        {canApprove && (
-                            <div className="flex gap-2 pt-4 border-t mt-4">
-                                <Button onClick={handleApprove} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                    Aprobar Servicio
-                                </Button>
-                                <Button variant="destructive" onClick={() => setShowRejectModal(true)}>
-                                    Rechazar
-                                </Button>
-                            </div>
-                        )}
-
-                        {service.status === 'rejected' && service.rejection_reason && (
-                            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg mt-4">
-                                <p className="text-destructive font-medium">Servicio rechazado</p>
-                                <p className="text-sm mt-1">Motivo: {service.rejection_reason}</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Cliente y fallecido */}
-                <Card className="mb-4">
-                    <CardHeader>
-                        <CardTitle>Contratante y Fallecido</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
-                            {/* CLIENTE */}
-                            <div>
-                                <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-medium text-sm text-muted-foreground">Cliente</h4>
-                                    {service.client?.id && (
-                                        <Link href={`/clients/${service.client.id}/edit?from=/services/${service.id}`}>
-                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                                Editar
-                                            </Button>
-                                        </Link>
-                                    )}
-                                </div>
-                                <p className="font-medium">{service.client?.name || 'Sin cliente'}</p>
-                                <p className="text-sm text-muted-foreground">{service.client?.rut || '—'}</p>
-                                {service.client?.phone && <p className="text-sm">{service.client.phone}</p>}
-                                {service.client?.email && <p className="text-sm">{service.client.email}</p>}
-                            </div>
-                        
-                            {/* FALLECIDO */}
-                            <div>
-                                <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-medium text-sm text-muted-foreground">Fallecido</h4>
-                                    {service.deceased?.id && (
-                                        <Link href={`/deceased/${service.deceased.id}/edit?from=/services/${service.id}`}>
-                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-                                                Editar
-                                            </Button>
-                                        </Link>
-                                    )}
-                                </div>
-                                <p className="font-medium">{service.deceased?.full_name || 'Sin fallecido'}</p>
-                                {service.deceased?.rut && <p className="text-sm text-muted-foreground">{service.deceased.rut}</p>}
-                                <p className="text-sm">Fallecimiento: {formatDate(service.deceased?.death_date || null)}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Programación */}
-                <Card className="mb-4">
-                    <CardHeader>
-                        <CardTitle>Programación</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <dl className="divide-y">
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Tipo de servicio</dt>
-                                <dd className="col-span-2 font-medium">{service.service_type?.name ?? 'Sin tipo'}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Sucursal</dt>
-                                <dd className="col-span-2">{service.branch?.name ?? 'Sin sucursal'}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Dirección sucursal</dt>
-                                <dd className="col-span-2">{service.branch?.address ?? '—'}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Inicio</dt>
-                                <dd className="col-span-2">{formatDate(service.scheduled_at)}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Fin estimado</dt>
-                                <dd className="col-span-2">{formatDate(service.ends_at)}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Duración</dt>
-                                <dd className="col-span-2">
-                                    {service.duration_hours} horas
-                                    {service.seremi_extension_granted && (
-                                        <Badge variant="secondary" className="ml-2">
-                                            Extensión Seremi
-                                        </Badge>
-                                    )}
-                                </dd>
-                            </div>
-                            {service.seremi_extension_granted && (
-                                <div className="grid grid-cols-3 gap-4 py-3 bg-amber-500/5">
-                                    <dt className="text-sm text-amber-600">Resolución Seremi</dt>
-                                    <dd className="col-span-2 text-amber-600 font-medium">
-                                        N° {service.seremi_resolution_number} — {formatDate(service.seremi_resolution_date)}
-                                    </dd>
-                                </div>
-                            )}
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Lugar de origen</dt>
-                                <dd className="col-span-2">{service.origin_location || '—'}</dd>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Destino</dt>
-                                <dd className="col-span-2">{service.destination_location || '—'}</dd>
-                            </div>
-
-                            {service.burial_at && (
-                                <div className="grid grid-cols-3 gap-4 py-3">
-                                    <dt className="text-sm text-muted-foreground">Entierro / Cremación</dt>
-                                    <dd className="col-span-2">{formatDate(service.burial_at)}</dd>
-                                </div>
-                            )}
-                        </dl>
-                    </CardContent>
-                </Card>
-
-                {/* RECURSOS ASIGNADOS */}
-                <Card className="mb-4">
-                    <CardHeader>
-                        <CardTitle>Recursos Asignados</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {/* ITEMS: Ataúdes y Urnas */}
+                {service.status === 'rejected' && service.rejection_reason && (
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0" />
                         <div>
-                            <h4 className="font-medium mb-2 flex items-center gap-2">
-                                <Package className="h-4 w-4" /> Ataúdes y Urnas Asignados
-                            </h4>
-                            {service.inventory_items && service.inventory_items.length > 0 ? (
-                                <div className="space-y-2 mb-3">
-                                    {service.inventory_items.map((item) => (
-                                        <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                            <div className="flex items-start gap-3">
-                                                <div className="p-2 bg-muted rounded-lg">
-                                                    {item.category === 'ataud'
-                                                        ? <Box className="h-5 w-5 text-primary" />
-                                                        : <FlaskConical className="h-5 w-5 text-primary" />
-                                                    }
+                            <p className="text-rose-800 font-bold">Servicio Rechazado</p>
+                            <p className="text-rose-700 text-sm mt-1">Motivo: {service.rejection_reason}</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    {/* COLUMNA IZQUIERDA */}
+                    <div className="lg:col-span-2 space-y-6">
+                        
+                        {/* CONTRATANTE Y FALLECIDO */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/> Cliente</CardTitle>
+                                    {service.client?.id && <Link href={`/clients/${service.client.id}/edit?from=/services/${service.id}`}><Button variant="ghost" size="sm" className="h-6 px-2 text-xs">Editar</Button></Link>}
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="font-bold text-lg">{service.client?.name || 'Sin cliente'}</p>
+                                    <p className="text-sm text-muted-foreground">{service.client?.rut || '—'}</p>
+                                    {service.client?.phone && <p className="text-sm mt-1">{service.client.phone}</p>}
+                                    {service.client?.email && <p className="text-sm">{service.client.email}</p>}
+                                </CardContent>
+                            </Card>
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/> Fallecido</CardTitle>
+                                    {service.deceased?.id && <Link href={`/deceased/${service.deceased.id}/edit?from=/services/${service.id}`}><Button variant="ghost" size="sm" className="h-6 px-2 text-xs">Editar</Button></Link>}
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="font-bold text-lg">{service.deceased?.full_name || 'Sin fallecido'}</p>
+                                    {service.deceased?.rut && <p className="text-sm text-muted-foreground">{service.deceased.rut}</p>}
+                                    <p className="text-sm mt-1 text-muted-foreground">Fallecimiento: {formatDateShort(service.deceased?.death_date || null)}</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* PROGRAMACIÓN */}
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-3 bg-slate-50 dark:bg-slate-900/40">
+                                <CardTitle className="text-base flex items-center gap-2"><Calendar className="h-5 w-5 text-rose-800" /> Programación del Servicio</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                                    <div><dt className="text-muted-foreground text-xs">Tipo de servicio</dt><dd className="font-medium mt-0.5">{service.service_type?.name ?? 'Sin tipo'}</dd></div>
+                                    <div><dt className="text-muted-foreground text-xs">Sucursal</dt><dd className="font-medium mt-0.5">{service.branch?.name ?? 'Sin sucursal'}</dd></div>
+                                    <div><dt className="text-muted-foreground text-xs">Inicio</dt><dd className="font-medium mt-0.5">{formatDate(service.scheduled_at)}</dd></div>
+                                    <div><dt className="text-muted-foreground text-xs">Fin estimado</dt><dd className="font-medium mt-0.5">{formatDate(service.ends_at)}</dd></div>
+                                    <div><dt className="text-muted-foreground text-xs">Duración</dt><dd className="font-medium mt-0.5">{service.duration_hours} horas {service.seremi_extension_granted && <Badge variant="secondary" className="ml-1 text-[10px]">Ext. Seremi</Badge>}</dd></div>
+                                    <div><dt className="text-muted-foreground text-xs">Lugar de origen</dt><dd className="font-medium mt-0.5">{service.origin_location || '—'}</dd></div>
+                                    <div className="sm:col-span-2"><dt className="text-muted-foreground text-xs">Destino</dt><dd className="font-medium mt-0.5">{service.destination_location || '—'}</dd></div>
+                                    {service.burial_at && <div className="sm:col-span-2"><dt className="text-muted-foreground text-xs">Entierro / Cremación</dt><dd className="font-medium mt-0.5">{formatDate(service.burial_at)}</dd></div>}
+                                </dl>
+                            </CardContent>
+                        </Card>
+
+                        {/* INFORMACIÓN ECONÓMICA */}
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-3 bg-slate-50 dark:bg-slate-900/40">
+                                <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-5 w-5 text-rose-800" /> Información Económica</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                                <dl className="space-y-3 text-sm">
+                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Precio base</dt><dd className="font-medium">{formatPrice(service.base_price)}</dd></div>
+                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Tipo de Beneficiario</dt><dd><Badge variant="secondary">{service.beneficiary_label}</Badge></dd></div>
+                                    
+                                    {['afp', 'ips', 'dipreca', 'capredena'].includes(service.beneficiary_type) && (
+                                        <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-md border border-emerald-100 dark:border-emerald-900">
+                                            <dt className="text-emerald-700 dark:text-emerald-400 font-medium text-xs">Cubierto por institución</dt>
+                                            <dd className="text-emerald-700 dark:text-emerald-400 font-bold">- {formatPrice(service.afp_amount)}</dd>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-950/20 p-2 rounded-md border border-blue-100 dark:border-blue-900">
+                                        <dt className="text-blue-700 dark:text-blue-400 font-medium text-xs">Pagado por la familia</dt>
+                                        <dd className="text-blue-700 dark:text-blue-400 font-bold">{formatPrice(service.family_amount)}</dd>
+                                    </div>
+
+                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Cargos adicionales</dt><dd className="font-medium">{formatPrice(service.additional_charges)}</dd></div>
+                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-emerald-600">- {formatPrice(service.discount)}</dd></div>
+                                    <div className="flex justify-between items-center pt-3 border-t mt-2"><dt className="font-bold text-base">Total a pagar</dt><dd className="font-bold text-xl text-rose-800 dark:text-rose-500">{formatPrice(service.total_price)}</dd></div>
+                                </dl>
+                            </CardContent>
+                        </Card>
+
+                    </div>
+
+                    {/* COLUMNA DERECHA */}
+                    <div className="space-y-6">
+                        
+                        {/* PAGOS Y SALDOS */}
+                        <Card className="shadow-sm border-t-4 border-t-rose-800">
+                            <CardHeader className="pb-3 flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-900/40">
+                                <CardTitle className="text-base flex items-center gap-2"><Receipt className="h-5 w-5 text-rose-800" /> Pagos</CardTitle>
+                                {!financials.is_fully_paid && service.status === 'accepted' && (
+                                    <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+                                        <DialogTrigger asChild><Button size="sm" className="bg-rose-800 hover:bg-rose-900 text-white shadow-sm">Registrar Pago</Button></DialogTrigger>
+                                        <DialogContent className="max-w-md">
+                                            <DialogHeader><DialogTitle>Registrar Pago</DialogTitle></DialogHeader>
+                                            <form onSubmit={handleRegisterPayment} className="space-y-4 pt-4">
+                                                <div>
+                                                    <Label>Monto *</Label>
+                                                    <Input type="number" min="1" max={financials.balance} value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} required className="mt-1" />
+                                                    <div className="flex justify-between items-center mt-1">
+                                                        <p className="text-xs text-muted-foreground">Saldo: {formatPrice(financials.balance)}</p>
+                                                        <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs text-rose-800" onClick={() => setPaymentAmount(String(financials.balance))}>Pagar saldo total</Button>
+                                                    </div>
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium">{item.code} — {item.name}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {item.category === 'ataud' ? 'Ataúd' : 'Urna'} · Cantidad: {item.pivot?.quantity} · Precio: {formatPrice(item.pivot?.unit_price || '0')}
-                                                    </p>
+                                                    <Label>Medio de pago *</Label>
+                                                    <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm mt-1">
+                                                        <option value="efectivo">Efectivo</option>
+                                                        <option value="transferencia">Transferencia</option>
+                                                        <option value="tarjeta_credito">Tarjeta de crédito</option>
+                                                        <option value="tarjeta_debito">Tarjeta de débito</option>
+                                                        <option value="cheque">Cheque</option>
+                                                        <option value="convenio">Convenio / Cuota mortuoria</option>
+                                                    </select>
                                                 </div>
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => handleRemoveItem(item.id, item.name)}
-                                            >
-                                                Quitar
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground mb-3">No hay ataúdes ni urnas asignados</p>
-                            )}
-
-                            {canAssignResources && (
-                                <form onSubmit={handleAssignItem} className="flex gap-2 items-end flex-wrap p-3 bg-muted/50 rounded-lg">
-                                    <div className="flex-1 min-w-[200px]">
-                                        <Label className="text-xs">Item disponible</Label>
-                                        <select
-                                            value={selectedItem}
-                                            onChange={(e) => setSelectedItem(e.target.value)}
-                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            <optgroup label="Ataúdes (cuerpo completo)">
-                                                {availableItems.filter(i => i.category === 'ataud').map((item) => (
-                                                    <option key={item.id} value={item.id}>
-                                                        {item.code} — {item.name} (Stock: {item.stock})
-                                                    </option>
-                                                ))}
-                                            </optgroup>
-                                            <optgroup label="Urnas (cenizas)">
-                                                {availableItems.filter(i => i.category === 'urna').map((item) => (
-                                                    <option key={item.id} value={item.id}>
-                                                        {item.code} — {item.name} (Stock: {item.stock})
-                                                    </option>
-                                                ))}
-                                            </optgroup>
-                                        </select>
+                                                <div><Label>Fecha *</Label><Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} required className="mt-1" /></div>
+                                                <div><Label>Referencia</Label><Input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Opcional" className="mt-1" /></div>
+                                                <div><Label>Notas</Label><textarea value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} rows={2} className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm mt-1" /></div>
+                                                <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setShowPaymentModal(false)}>Cancelar</Button><Button type="submit" className="bg-rose-800 text-white">Guardar Pago</Button></div>
+                                            </form>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
+                            </CardHeader>
+                            <CardContent className="pt-4 space-y-4">
+                                {financials.is_fully_paid && (
+                                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-lg flex items-center gap-3">
+                                        <CheckCircle2 className="w-6 h-6 text-emerald-500 shrink-0" />
+                                        <p className="font-bold text-sm text-emerald-700 dark:text-emerald-400">Servicio Pagado al 100%</p>
                                     </div>
-                                    <div className="w-24">
-                                        <Label className="text-xs">Cantidad</Label>
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            value={itemQuantity}
-                                            onChange={(e) => setItemQuantity(e.target.value)}
-                                            className="mt-1"
-                                        />
-                                    </div>
-                                    <Button type="submit" disabled={!selectedItem}>
-                                        Asignar Item
-                                    </Button>
-                                </form>
-                            )}
-                        </div>
-
-                        {/* VEHÍCULOS */}
-                        <div>
-                            <h4 className="font-medium mb-2">Vehículos</h4>
-                            {service.vehicles && service.vehicles.length > 0 ? (
-                                <div className="space-y-2 mb-3">
-                                    {service.vehicles.map((v) => (
-                                        <div key={v.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                            <div>
-                                                <p className="font-medium">{v.plate} — {v.type_label}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {v.brand || '—'} {v.model || ''}
-                                                </p>
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => handleRemoveVehicle(v.id, v.plate)}
-                                            >
-                                                Quitar
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground mb-3">No hay vehículos asignados</p>
-                            )}
-
-                            {canAssignResources && (
-                                <form onSubmit={handleAssignVehicle} className="flex gap-2 items-end flex-wrap p-3 bg-muted/50 rounded-lg">
-                                    <div className="flex-1 min-w-[200px]">
-                                        <Label className="text-xs">Vehículo disponible</Label>
-                                        <select
-                                            value={selectedVehicle}
-                                            onChange={(e) => setSelectedVehicle(e.target.value)}
-                                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {availableVehicles.map((v) => (
-                                                <option key={v.id} value={v.id}>
-                                                    {v.plate} — {v.type_label} {v.brand && `(${v.brand})`}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <Button type="submit" disabled={!selectedVehicle}>
-                                        Asignar Vehículo
-                                    </Button>
-                                </form>
-                            )}
-                        </div>
-
-                        {!canAssignResources && (
-                            <p className="text-sm text-muted-foreground italic">
-                                ⓘ Los recursos solo se pueden asignar cuando el servicio está aceptado o en ejecución.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* PERSONAL ASIGNADO */}
-                <Card className="mb-4">
-                    <CardHeader>
-                        <CardTitle>Personal Asignado al Servicio</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {/* Lista de asignados */}
-                        {service.assignments && service.assignments.length > 0 ? (
-                            <div className="space-y-2">
-                                {service.assignments.map((assignment) => (
-                                    <div key={assignment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                        <div>
-                                            <p className="font-medium">{assignment.user.name}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {assignment.role_label} · {assignment.user.email}
-                                            </p>
-                                        </div>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            onClick={() => handleRemoveEmployee(assignment.id, assignment.user.name)}
-                                        >
-                                            Quitar
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">
-                                No hay personal asignado a este servicio
-                            </p>
-                        )}
-
-                        {/* Formulario de asignación */}
-                        {canAssignResources && availableEmployees.length > 0 && (
-                            <form onSubmit={handleAssignEmployee} className="flex gap-2 items-end flex-wrap p-3 bg-muted/50 rounded-lg">
-                                <div className="flex-1 min-w-[200px]">
-                                    <Label className="text-xs">Empleado disponible</Label>
-                                    <select
-                                        value={selectedEmployee}
-                                        onChange={(e) => setSelectedEmployee(e.target.value)}
-                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
-                                    >
-                                        <option value="">Seleccionar empleado...</option>
-                                        {availableEmployees.map((emp) => (
-                                            <option key={emp.id} value={emp.id}>
-                                                {emp.name} ({emp.roles.map(r => r.name).join(', ')})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="w-40">
-                                    <Label className="text-xs">Rol</Label>
-                                    <select
-                                        value={employeeRole}
-                                        onChange={(e) => setEmployeeRole(e.target.value)}
-                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm mt-1"
-                                    >
-                                        <option value="coordinator">Coordinador</option>
-                                        <option value="assistant">Asistente</option>
-                                        <option value="driver">Conductor</option>
-                                    </select>
-                                </div>
-                                <Button type="submit" disabled={!selectedEmployee}>
-                                    Asignar
-                                </Button>
-                            </form>
-                        )}
-
-                        {canAssignResources && availableEmployees.length === 0 && (
-                            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
-                                <p className="text-sm text-amber-800 dark:text-amber-200">
-                                    ⚠️ No hay empleados disponibles en la fecha del servicio.
-                                    Todos están de vacaciones, permiso o inactivos.
-                                </p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* Económico */}
-                <Card className="mb-4">
-                    <CardHeader>
-                        <CardTitle>Información Económica</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <dl className="divide-y">
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Precio base</dt>
-                                <dd className="col-span-2">{formatPrice(service.base_price)}</dd>
-                            </div>
-                            
-                            {/* NUEVO: Tipo de beneficiario */}
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Tipo de Beneficiario</dt>
-                                <dd className="col-span-2">
-                                    <Badge variant="secondary">{service.beneficiary_label}</Badge>
-                                </dd>
-                            </div>
-                            
-                            {/* NUEVO: Monto institución previsional */}
-                            {['afp', 'ips', 'dipreca', 'capredena'].includes(service.beneficiary_type) && (
-                                <div className="grid grid-cols-3 gap-4 py-3 bg-emerald-500/5">
-                                    <dt className="text-sm text-emerald-600">Cubierto por institución</dt>
-                                    <dd className="col-span-2 text-emerald-600 font-medium">
-                                        - {formatPrice(service.afp_amount)}
-                                    </dd>
-                                </div>
-                            )}
-                            
-                            {/* NUEVO: Monto familia */}
-                            <div className="grid grid-cols-3 gap-4 py-3 bg-blue-500/5">
-                                <dt className="text-sm text-blue-600">Pagado por la familia</dt>
-                                <dd className="col-span-2 text-blue-600 font-medium">
-                                    {formatPrice(service.family_amount)}
-                                </dd>
-                            </div>
-                            
-                            {/* Resto: cargos, descuento, total */}
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Cargos adicionales</dt>
-                                <dd className="col-span-2">{formatPrice(service.additional_charges)}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3">
-                                <dt className="text-sm text-muted-foreground">Descuento</dt>
-                                <dd className="col-span-2 text-emerald-500">- {formatPrice(service.discount)}</dd>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 py-3 font-bold">
-                                <dt>Total</dt>
-                                <dd className="col-span-2 text-xl">{formatPrice(service.total_price)}</dd>
-                            </div>
-                        </dl>
-                    </CardContent>
-                </Card>
-
-                {/* PAGOS Y SALDOS */}
-                <Card className="mb-4">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Pagos y Saldos</CardTitle>
-                        {!financials.is_fully_paid && service.status === 'accepted' && (
-                            <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm">Registrar Pago</Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Registrar Pago</DialogTitle>
-                                    </DialogHeader>
-                                    <form onSubmit={handleRegisterPayment} className="space-y-4 pt-4">
-                                        <div>
-                                            <Label htmlFor="payment_amount">Monto *</Label>
-                                            <Input
-                                                id="payment_amount"
-                                                type="number"
-                                                min="1"
-                                                max={financials.balance}
-                                                value={paymentAmount}
-                                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                                required
-                                            />
-                                            <div className="flex justify-between items-center mt-2">
-                                                <p className="text-xs text-muted-foreground">
-                                                    Saldo: {formatPrice(String(financials.balance || 0))}
-                                                </p>
-                                                <Button
-                                                    type="button"
-                                                    variant="link"
-                                                    size="sm"
-                                                    className="h-auto p-0 text-xs"
-                                                    onClick={() => setPaymentAmount(String(financials.balance))}
-                                                >
-                                                    Pagar saldo total
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="payment_method">Medio de pago *</Label>
-                                            <select
-                                                id="payment_method"
-                                                value={paymentMethod}
-                                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                                            >
-                                                <option value="efectivo">Efectivo</option>
-                                                <option value="transferencia">Transferencia</option>
-                                                <option value="tarjeta_credito">Tarjeta de crédito</option>
-                                                <option value="tarjeta_debito">Tarjeta de débito</option>
-                                                <option value="cheque">Cheque</option>
-                                                <option value="convenio">Convenio / Cuota mortuoria</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="payment_date">Fecha *</Label>
-                                            <Input
-                                                id="payment_date"
-                                                type="date"
-                                                value={paymentDate}
-                                                onChange={(e) => setPaymentDate(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="payment_reference">Referencia</Label>
-                                            <Input
-                                                id="payment_reference"
-                                                value={paymentReference}
-                                                onChange={(e) => setPaymentReference(e.target.value)}
-                                                placeholder="N° transferencia, etc."
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="payment_notes">Notas</Label>
-                                            <textarea
-                                                id="payment_notes"
-                                                value={paymentNotes}
-                                                onChange={(e) => setPaymentNotes(e.target.value)}
-                                                rows={2}
-                                                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                                            />
-                                        </div>
-                                        <div className="flex justify-end gap-2">
-                                            <Button type="button" variant="outline" onClick={() => setShowPaymentModal(false)}>
-                                                Cancelar
-                                            </Button>
-                                            <Button type="submit">Registrar Pago</Button>
-                                        </div>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {/* Banner verde si está pagado al 100% */}
-                        {financials.is_fully_paid && (
-                            <div className="p-4 bg-emerald-500/10 border-2 border-emerald-500 rounded-lg flex items-center gap-3">
-                                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                                )}
+                                
                                 <div>
-                                    <p className="font-bold text-emerald-500">Servicio Pagado al 100%</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Este servicio no tiene deuda pendiente. Puede descargar el Paz y Salvo.
+                                    <div className="flex justify-between text-xs mb-1.5">
+                                        <span className="font-medium">Progreso de pago</span>
+                                        <span className={`font-bold ${getPaymentText(percentage)}`}>{percentage.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                        <div className={`h-full transition-all duration-500 ease-out ${getPaymentColor(percentage)}`} style={{ width: `${percentage}%` }} />
+                                    </div>
+                                    <p className={`text-[11px] mt-1.5 font-medium ${percentage >= 50 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                        {percentage >= 100 ? 'Servicio totalmente pagado' : percentage >= 50 ? 'Abono mínimo cumplido' : 'Falta abono mínimo (50%)'}
                                     </p>
                                 </div>
-                            </div>
-                        )}
 
-                        {/* Resumen Visual con Barra de Progreso */}
-                        {(() => {
-                            const total = parseFloat(service.total_price) || 0;
-                            const paid = financials.total_paid || 0;
-                            const percentage = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
-
-                            return (
-                                <div className="space-y-4">
-                                    {/* Barra de progreso */}
-                                    <div>
-                                        <div className="flex justify-between text-sm mb-2">
-                                            <span className="font-medium">Progreso de pago</span>
-                                            <span className={`font-bold ${getPaymentText(percentage)}`}>
-                                                {percentage.toFixed(1)}%
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full transition-all duration-500 ease-out ${getPaymentColor(percentage)}`}
-                                                style={{ width: `${percentage}%` }}
-                                            />
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-2">
-                                            {percentage >= 100
-                                                ? '✅ Servicio totalmente pagado'
-                                                : percentage >= 50
-                                                    ? '✅ Abono mínimo cumplido'
-                                                    : '⚠️ Falta abono mínimo (50%)'}
-                                        </p>
-                                    </div>
-
-                                    {/* Números */}
-                                    <div className="grid grid-cols-3 gap-4 p-3 bg-muted/50 rounded-lg">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Total</p>
-                                            <p className="font-bold">{formatPrice(String(total))}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Pagado</p>
-                                            <p className={`font-bold ${getPaymentText(percentage)}`}>
-                                                {formatPrice(String(paid))}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Saldo</p>
-                                            <p className={`font-bold ${financials.balance > 0 ? 'text-destructive' : 'text-emerald-500'}`}>
-                                                {formatPrice(String(financials.balance || 0))}
-                                            </p>
-                                        </div>
-                                    </div>
+                                <div className="grid grid-cols-3 gap-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border">
+                                    <div><p className="text-[10px] text-muted-foreground uppercase font-semibold">Total</p><p className="font-bold text-sm">{formatPrice(total)}</p></div>
+                                    <div><p className="text-[10px] text-muted-foreground uppercase font-semibold">Pagado</p><p className={`font-bold text-sm ${getPaymentText(percentage)}`}>{formatPrice(paid)}</p></div>
+                                    <div><p className="text-[10px] text-muted-foreground uppercase font-semibold">Saldo</p><p className={`font-bold text-sm ${financials.balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{formatPrice(financials.balance || 0)}</p></div>
                                 </div>
-                            );
-                        })()}
 
-                        {/* Lista de pagos */}
-                        {service.payments && service.payments.length > 0 ? (
-                            <div className="space-y-2">
-                                {service.payments.map((p) => (
-                                    <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                        <div>
-                                            <p className="font-medium">{p.receipt_number}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {p.payment_method_label} · {formatDate(p.payment_date)}
-                                            </p>
+                                {/* Lista de pagos */}
+                                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                                    {service.payments && service.payments.length > 0 ? (
+                                        service.payments.map((p) => (
+                                            <div key={p.id} className="flex items-center justify-between p-2.5 border rounded-lg bg-card hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors group">
+                                                <div>
+                                                    <p className="font-medium text-xs">{p.receipt_number}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{p.payment_method_label} · {formatDateShort(p.payment_date)}</p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-xs">{formatPrice(p.amount)}</span>
+                                                    
+                                                    {/* Botón de PDF mejorado */}
+                                                    <a 
+                                                        href={`/payments/${p.id}/pdf`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        title="Descargar comprobante en PDF"
+                                                        className="flex items-center gap-1.5 px-2 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors text-[10px] font-semibold"
+                                                    >
+                                                        <FileText className="h-3.5 w-3.5" />
+                                                        PDF
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground italic text-center py-2">No hay pagos registrados</p>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* RECURSOS ASIGNADOS */}
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-3 bg-slate-50 dark:bg-slate-900/40">
+                                <CardTitle className="text-base flex items-center gap-2"><Package className="h-5 w-5 text-rose-800" /> Recursos Asignados</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4 space-y-5">
+                                
+                                {/* Items */}
+                                <div>
+                                    <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5"><Box className="h-4 w-4 text-rose-800" /> Ataúdes y Urnas</h4>
+                                    {service.inventory_items && service.inventory_items.length > 0 ? (
+                                        <div className="space-y-1.5 mb-2">
+                                            {service.inventory_items.map((item) => (
+                                                <div key={item.id} className="flex items-center justify-between p-2 border rounded-md bg-slate-50 dark:bg-slate-900/50 text-xs">
+                                                    <div><p className="font-medium">{item.code}</p><p className="text-muted-foreground">{item.name} (x{item.pivot?.quantity})</p></div>
+                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600" onClick={() => handleRemoveItem(item.id, item.name)}><X className="h-3 w-3" /></Button>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-bold">{formatPrice(String(p.amount || 0))}</span>
-                                            <a
-                                                href={`/payments/${p.id}/pdf`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                            >
-                                                <Button size="sm" variant="outline">
-                                                    PDF
-                                                </Button>
-                                            </a>
+                                    ) : (<p className="text-xs text-muted-foreground italic mb-2">No hay asignados</p>)}
+
+                                    {canAssignResources && (
+                                        <form onSubmit={handleAssignItem} className="flex gap-1.5 items-end bg-slate-50 dark:bg-slate-900/30 p-2 rounded-md border">
+                                            <div className="flex-1 min-w-0">
+                                                <select value={selectedItem} onChange={(e) => setSelectedItem(e.target.value)} className="h-8 w-full text-xs rounded border-input bg-background px-2">
+                                                    <option value="">Seleccionar...</option>
+                                                    <optgroup label="Ataúdes">{availableItems.filter(i => i.category === 'ataud').map((item) => (<option key={item.id} value={item.id}>{item.code} - {item.name}</option>))}</optgroup>
+                                                    <optgroup label="Urnas">{availableItems.filter(i => i.category === 'urna').map((item) => (<option key={item.id} value={item.id}>{item.code} - {item.name}</option>))}</optgroup>
+                                                </select>
+                                            </div>
+                                            <Input type="number" min="1" value={itemQuantity} onChange={(e) => setItemQuantity(e.target.value)} className="w-12 h-8 text-xs px-1 text-center" />
+                                            <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 text-white" disabled={!selectedItem}><Plus className="h-3 w-3" /></Button>
+                                        </form>
+                                    )}
+                                </div>
+
+                                {/* Vehículos */}
+                                <div>
+                                    <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5"><Truck className="h-4 w-4 text-rose-800" /> Vehículos</h4>
+                                    {service.vehicles && service.vehicles.length > 0 ? (
+                                        <div className="space-y-1.5 mb-2">
+                                            {service.vehicles.map((v) => (
+                                                <div key={v.id} className="flex items-center justify-between p-2 border rounded-md bg-slate-50 dark:bg-slate-900/50 text-xs">
+                                                    <div><p className="font-medium">{v.plate} - {v.type_label}</p></div>
+                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600" onClick={() => handleRemoveVehicle(v.id, v.plate)}><X className="h-3 w-3" /></Button>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">No hay pagos registrados</p>
-                        )}
-                    </CardContent>
-                </Card>
+                                    ) : (<p className="text-xs text-muted-foreground italic mb-2">No hay asignados</p>)}
+
+                                    {canAssignResources && (
+                                        <form onSubmit={handleAssignVehicle} className="flex gap-1.5 items-end bg-slate-50 dark:bg-slate-900/30 p-2 rounded-md border">
+                                            <div className="flex-1 min-w-0">
+                                                <select value={selectedVehicle} onChange={(e) => setSelectedVehicle(e.target.value)} className="h-8 w-full text-xs rounded border-input bg-background px-2">
+                                                    <option value="">Seleccionar...</option>
+                                                    {availableVehicles.map((v) => (<option key={v.id} value={v.id}>{v.plate} - {v.type_label}</option>))}
+                                                </select>
+                                            </div>
+                                            <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 text-white" disabled={!selectedVehicle}><Plus className="h-3 w-3" /></Button>
+                                        </form>
+                                    )}
+                                </div>
+
+                                {/* Personal */}
+                                <div>
+                                    <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5"><Users className="h-4 w-4 text-rose-800" /> Personal</h4>
+                                    {service.assignments && service.assignments.length > 0 ? (
+                                        <div className="space-y-1.5 mb-2">
+                                            {service.assignments.map((a) => (
+                                                <div key={a.id} className="flex items-center justify-between p-2 border rounded-md bg-slate-50 dark:bg-slate-900/50 text-xs">
+                                                    <div><p className="font-medium">{a.user.name}</p><p className="text-muted-foreground">{a.role_label}</p></div>
+                                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600" onClick={() => handleRemoveEmployee(a.id, a.user.name)}><X className="h-3 w-3" /></Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (<p className="text-xs text-muted-foreground italic mb-2">No hay asignados</p>)}
+
+                                    {canAssignResources && (
+                                        <form onSubmit={handleAssignEmployee} className="flex flex-col gap-2 bg-slate-50 dark:bg-slate-900/30 p-2 rounded-md border">
+                                            <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)} className="h-8 w-full text-xs rounded border-input bg-background px-2">
+                                                <option value="">Seleccionar empleado...</option>
+                                                {availableEmployees.map((emp) => (<option key={emp.id} value={emp.id}>{emp.name} ({emp.roles.map(r => r.name).join(', ')})</option>))}
+                                            </select>
+                                            <div className="flex gap-2">
+                                                <select value={employeeRole} onChange={(e) => setEmployeeRole(e.target.value)} className="h-8 flex-1 text-xs rounded border-input bg-background px-2">
+                                                    <option value="coordinator">Coordinador</option>
+                                                    <option value="assistant">Asistente</option>
+                                                    <option value="driver">Conductor</option>
+                                                </select>
+                                                <Button type="submit" size="sm" className="h-8 px-3 bg-rose-800 text-white" disabled={!selectedEmployee}>Asignar</Button>
+                                            </div>
+                                        </form>
+                                    )}
+
+                                    {canAssignResources && availableEmployees.length === 0 && (
+                                        <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg flex items-start gap-2">
+                                            <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0 mt-0.5" />
+                                            <p className="text-[10px] text-amber-800 dark:text-amber-200">No hay empleados disponibles en la fecha del servicio.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                    </div>
+                </div>
 
                 {/* Modal rechazo */}
                 {showRejectModal && createPortal(
@@ -986,21 +505,10 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                         <div className="bg-card p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl border border-border">
                             <h3 className="text-lg font-bold mb-4">Rechazar Servicio</h3>
                             <Label htmlFor="rejection_reason">Motivo del rechazo *</Label>
-                            <textarea
-                                id="rejection_reason"
-                                value={rejectionReason}
-                                onChange={(e) => setRejectionReason(e.target.value)}
-                                rows={4}
-                                placeholder="Explique el motivo del rechazo..."
-                                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm mt-2"
-                            />
+                            <textarea id="rejection_reason" value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={4} placeholder="Explique el motivo del rechazo..." className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm mt-2" />
                             <div className="flex justify-end gap-2 mt-4">
-                                <Button variant="outline" onClick={() => setShowRejectModal(false)}>
-                                    Cancelar
-                                </Button>
-                                <Button variant="destructive" onClick={handleReject}>
-                                    Confirmar Rechazo
-                                </Button>
+                                <Button variant="outline" onClick={() => setShowRejectModal(false)}>Cancelar</Button>
+                                <Button variant="destructive" onClick={handleReject}>Confirmar Rechazo</Button>
                             </div>
                         </div>
                     </div>,
