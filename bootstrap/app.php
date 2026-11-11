@@ -28,9 +28,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
         ]);
+
+        // Invitados (sin sesión) que entran a una ruta protegida reciben 404
+        // en vez de ser redirigidos al login, para no revelar que la ruta existe.
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return null; // las respuestas JSON siguen devolviendo 401
+            }
+
+            abort(404);
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
     })->create();

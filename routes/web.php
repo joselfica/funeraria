@@ -58,7 +58,9 @@ Route::middleware(['auth'])->group(function () {
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     
-    Route::resource('clients', ClientController::class);
+    // Los clientes no se eliminan (auditoría): solo se activan/desactivan
+    Route::post('clients/{client}/toggle-active', [ClientController::class, 'toggleActive'])->name('clients.toggle-active');
+    Route::resource('clients', ClientController::class)->except(['destroy']);
     Route::resource('inventory', InventoryController::class);
     Route::resource('vehicles', VehicleController::class);
     Route::resource('deceased', DeceasedController::class);
