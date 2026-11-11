@@ -211,6 +211,9 @@ class StaffController extends Controller
      */
     public function destroy(\App\Models\User $user)
     {
+        // Protección: nunca eliminar usuarios desde la UI
+        abort(403, 'Por razones de auditoría, los usuarios no se pueden eliminar. Solo desactivar.');
+
         if (! auth()->user()->hasRole('Administrador')) {
             abort(403, 'Solo el Administrador puede eliminar usuarios.');
         }

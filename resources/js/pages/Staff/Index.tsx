@@ -2,7 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, CheckCircle2, XCircle, Calendar, Plus, KeyRound, Trash2, UserX, UserCheck, Ban } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Calendar, Plus, KeyRound, UserX, UserCheck, Ban } from 'lucide-react';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -50,12 +50,6 @@ export default function StaffIndex({ staff }: Props) {
             password: password,
             password_confirmation: confirmation,
         });
-    };
-
-    const handleDelete = (userId: number, userName: string) => {
-        if (confirm(`¿Eliminar el usuario "${userName}"?\n\nEsta acción se puede revertir desde la base de datos, pero el usuario perderá acceso inmediato.`)) {
-            router.delete(`/staff/${userId}`);
-        }
     };
 
     const renderStatus = (emp: Employee) => {
@@ -181,15 +175,6 @@ export default function StaffIndex({ staff }: Props) {
                                     <Link href={`/staff/${emp.id}`}>
                                         <Button variant="outline" size="sm">Gestionar</Button>
                                     </Link>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDelete(emp.id, emp.name)}
-                                        title="Eliminar"
-                                        className="text-destructive hover:text-destructive ml-auto"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -258,15 +243,6 @@ export default function StaffIndex({ staff }: Props) {
                                                 <Link href={`/staff/${emp.id}`}>
                                                     <Button variant="outline" size="sm">Gestionar</Button>
                                                 </Link>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDelete(emp.id, emp.name)}
-                                                    title="Eliminar"
-                                                    className="text-destructive hover:text-destructive"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>

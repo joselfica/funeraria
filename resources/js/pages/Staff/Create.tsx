@@ -74,6 +74,17 @@ export default function StaffCreate({ roles }: Props) {
                     </p>
                 </div>
 
+                {Object.keys(errors).length > 0 && (
+                    <div className="mb-4 p-4 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+                        <p className="font-bold mb-1">Revisa los siguientes campos:</p>
+                        <ul className="list-disc list-inside">
+                            {Object.entries(errors).map(([key, error]) => (
+                                <li key={key}>{error}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="space-y-6">
                     
                     {/* Datos personales */}
@@ -189,34 +200,40 @@ export default function StaffCreate({ roles }: Props) {
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="rut">RUT del Chofer</Label>
+                                        <Label htmlFor="rut">RUT del Chofer *</Label>
                                         <Input
                                             id="rut"
                                             value={data.rut}
                                             onChange={(e) => setData('rut', e.target.value)}
                                             placeholder="12.345.678-9"
+                                            required
                                         />
+                                        {errors.rut && <p className="text-sm text-destructive mt-1">{errors.rut}</p>}
                                     </div>
                                     <div>
-                                        <Label htmlFor="phone">Teléfono</Label>
+                                        <Label htmlFor="phone">Teléfono *</Label>
                                         <Input
                                             id="phone"
                                             value={data.phone}
                                             onChange={(e) => setData('phone', e.target.value)}
                                             placeholder="+56912345678"
+                                            required
                                         />
+                                        {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone}</p>}
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="license_number">Número de licencia</Label>
+                                        <Label htmlFor="license_number">Número de licencia *</Label>
                                         <Input
                                             id="license_number"
                                             value={data.license_number}
                                             onChange={(e) => setData('license_number', e.target.value)}
                                             placeholder="12345678"
+                                            required
                                         />
+                                        {errors.license_number && <p className="text-sm text-destructive mt-1">{errors.license_number}</p>}
                                     </div>
                                     <div>
                                         <Label htmlFor="license_type">Tipo de licencia</Label>
@@ -232,6 +249,7 @@ export default function StaffCreate({ roles }: Props) {
                                             <option value="A4">A4</option>
                                             <option value="A5">A5</option>
                                         </select>
+                                        {errors.license_type && <p className="text-sm text-destructive mt-1">{errors.license_type}</p>}
                                     </div>
                                 </div>
 
@@ -244,6 +262,7 @@ export default function StaffCreate({ roles }: Props) {
                                             onChange={(e) => setData('plate', e.target.value.toUpperCase())}
                                             placeholder="ABCD12"
                                         />
+                                        {errors.plate && <p className="text-sm text-destructive mt-1">{errors.plate}</p>}
                                     </div>
                                     <div>
                                         <Label htmlFor="vehicle_brand">Marca</Label>
@@ -253,6 +272,7 @@ export default function StaffCreate({ roles }: Props) {
                                             onChange={(e) => setData('vehicle_brand', e.target.value)}
                                             placeholder="Mercedes-Benz"
                                         />
+                                        {errors.vehicle_brand && <p className="text-sm text-destructive mt-1">{errors.vehicle_brand}</p>}
                                     </div>
                                     <div>
                                         <Label htmlFor="vehicle_model">Modelo</Label>
@@ -262,6 +282,7 @@ export default function StaffCreate({ roles }: Props) {
                                             onChange={(e) => setData('vehicle_model', e.target.value)}
                                             placeholder="Sprinter"
                                         />
+                                        {errors.vehicle_model && <p className="text-sm text-destructive mt-1">{errors.vehicle_model}</p>}
                                     </div>
                                 </div>
 
@@ -274,6 +295,7 @@ export default function StaffCreate({ roles }: Props) {
                                             onChange={(e) => setData('vehicle_color', e.target.value)}
                                             placeholder="Negro"
                                         />
+                                        {errors.vehicle_color && <p className="text-sm text-destructive mt-1">{errors.vehicle_color}</p>}
                                     </div>
                                     <div className="flex items-end">
                                         <label className="flex items-center gap-2 cursor-pointer">
