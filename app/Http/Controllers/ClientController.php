@@ -132,20 +132,43 @@ class ClientController extends Controller
 
     public function destroy(Client $client)
     {
-        // Verificar que no tenga servicios asociados
-        if ($client->services()->count() > 0) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se puede eliminar: el cliente tiene servicios registrados.',
-            ]);
+        // Protección: nunca eliminar clientes desde la UI
+        abort(403, 'Por razones de auditoría, los clientes no se pueden eliminar. Solo desactivar.');
+    }
+
+    /**
+     * Activar o desactivar un cliente.
+     * 
+     * Los clientes NO se eliminan para preservar el historial de servicios.
+     */
+    public function toggleActive(Client $client)
+    {
+        // Verificar que sea Admin o Encargado
+        if (! auth()->user()->hasAnyRole(['Administrador', 'Encargado'])) {
+            abort(403, 'No tienes permiso para realizar esta acción.');
         }
 
-        $client->delete();
+        // Si se está desactivando, verificar que no tenga servicios en curso
+        if ($client->is_active) {
+            $activeServices = $client->services()
+                ->whereIn('status', ['pending', 'in_review', 'accepted', 'in_progress'])
+                ->count();
 
-        return redirect()->route('clients.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Cliente eliminado.',
-            ]);
+            if ($activeServices > 0) {
+                return back()->with('toast', [
+                    'type' => 'error',
+                    'message' => "No se puede desactivar: el cliente tiene {$activeServices} servicio(s) activo(s).",
+                ]);
+            }
+        }
+
+        $client->update(['is_active' => ! $client->is_active]);
+
+        $action = $client->is_active ? 'activado' : 'desactivado';
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Cliente {$client->name} {$action} correctamente.",
+        ]);
     }
 }
