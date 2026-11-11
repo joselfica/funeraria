@@ -12,19 +12,12 @@ interface Client {
     rut: string;
 }
 
-interface Deceased {
-    id: number;
-    full_name: string;
-    rut: string | null;
-}
-
 interface Props {
     branches: Array<{ id: number; name: string }>;
     serviceTypes: Array<{ id: number; name: string; base_price: string; duration_hours: number }>;
     beneficiaryTypes: Array<{ value: string; label: string }>;
     availableItems: Array<{ id: number; code: string; name: string; category: string; stock: number; price: string }>;
     existingClients: Client[];
-    existingDeceased: Deceased[];
 }
 
 export default function ServicesWizard({
@@ -33,11 +26,9 @@ export default function ServicesWizard({
     beneficiaryTypes,
     availableItems,
     existingClients,
-    existingDeceased,
 }: Props) {
     const [step, setStep] = useState(1);
     const [clientMode, setClientMode] = useState<'existing' | 'new'>('new');
-    const [deceasedMode, setDeceasedMode] = useState<'existing' | 'new'>('new');
 
     const { data, setData, post, processing, errors } = useForm({
         // Cliente
@@ -49,7 +40,6 @@ export default function ServicesWizard({
         client_address: '',
 
         // Fallecido
-        existing_deceased_id: '',
         deceased_full_name: '',
         deceased_rut: '',
         deceased_death_date: '',
@@ -252,93 +242,44 @@ export default function ServicesWizard({
                             {/* PASO 2: FALLECIDO */}
                             {step === 2 && (
                                 <>
-                                    {/* Toggle: Fallecido existente / Nuevo fallecido */}
-        <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit mb-4">
-            <button
-                type="button"
-                onClick={() => setDeceasedMode('existing')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    deceasedMode === 'existing'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-                Fallecido existente
-            </button>
-            <button
-                type="button"
-                onClick={() => setDeceasedMode('new')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    deceasedMode === 'new'
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                }`}
-            >
-                Nuevo fallecido
-            </button>
-        </div>
-
-                                    {/* FALLECIDO EXISTENTE */}
-                                    {deceasedMode === 'existing' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <Label>Seleccionar Fallecido *</Label>
-                                            <select
-                                                value={data.existing_deceased_id}
-                                                onChange={(e) => setData('existing_deceased_id', e.target.value)}
-                                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                                            >
-                                                <option value="">Seleccionar fallecido...</option>
-                                                {existingDeceased.map((d) => (
-                                                    <option key={d.id} value={d.id}>
-                                                        {d.full_name} {d.rut && `— ${d.rut}`}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <Label>Nombre del Fallecido *</Label>
+                                            <Input
+                                                value={data.deceased_full_name}
+                                                onChange={(e) => setData('deceased_full_name', e.target.value)}
+                                                placeholder="Juan Pérez González"
+                                            />
+                                            {errors.deceased_full_name && <p className="text-sm text-destructive mt-1">{errors.deceased_full_name}</p>}
                                         </div>
-                                    )}
-
-                                    {/* FALLECIDO NUEVO */}
-                                    {deceasedMode === 'new' && (
-                                        <>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <Label>Nombre del Fallecido *</Label>
-                                                    <Input
-                                                        value={data.deceased_full_name}
-                                                        onChange={(e) => setData('deceased_full_name', e.target.value)}
-                                                        placeholder="Juan Pérez González"
-                                                    />
-                                                    {errors.deceased_full_name && <p className="text-sm text-destructive mt-1">{errors.deceased_full_name}</p>}
-                                                </div>
-                                                <div>
-                                                    <Label>RUT del Fallecido</Label>
-                                                    <Input
-                                                        value={data.deceased_rut}
-                                                        onChange={(e) => setData('deceased_rut', e.target.value)}
-                                                        placeholder="12.345.678-9"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <Label>Fecha de Fallecimiento *</Label>
-                                                    <Input
-                                                        type="date"
-                                                        value={data.deceased_death_date}
-                                                        onChange={(e) => setData('deceased_death_date', e.target.value)}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <Label>N° Certificado de Defunción</Label>
-                                                    <Input
-                                                        value={data.deceased_death_certificate}
-                                                        onChange={(e) => setData('deceased_death_certificate', e.target.value)}
-                                                        placeholder="CERT-2026-001"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
+                                        <div>
+                                            <Label>RUT del Fallecido</Label>
+                                            <Input
+                                                value={data.deceased_rut}
+                                                onChange={(e) => setData('deceased_rut', e.target.value)}
+                                                placeholder="12.345.678-9"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label>Fecha de Fallecimiento *</Label>
+                                            <Input
+                                                type="date"
+                                                value={data.deceased_death_date}
+                                                onChange={(e) => setData('deceased_death_date', e.target.value)}
+                                            />
+                                            {errors.deceased_death_date && <p className="text-sm text-destructive mt-1">{errors.deceased_death_date}</p>}
+                                        </div>
+                                        <div>
+                                            <Label>N° Certificado de Defunción</Label>
+                                            <Input
+                                                value={data.deceased_death_certificate}
+                                                onChange={(e) => setData('deceased_death_certificate', e.target.value)}
+                                                placeholder="CERT-2026-001"
+                                            />
+                                        </div>
+                                    </div>
                                 </>
                             )}
 

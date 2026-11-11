@@ -630,11 +630,10 @@ class ServiceController extends Controller
             'client_email' => 'nullable|email|max:150',
             'client_address' => 'nullable|string|max:255',
 
-            // Fallecido (existente o nuevo)
-            'existing_deceased_id' => 'nullable|exists:deceased,id',
-            'deceased_full_name' => 'required_without:existing_deceased_id|nullable|string|max:200',
+            // Fallecido
+            'deceased_full_name' => 'required|string|max:200',
             'deceased_rut' => 'nullable|string|max:12|unique:deceased,rut',
-            'deceased_death_date' => 'required_without:existing_deceased_id|nullable|date',
+            'deceased_death_date' => 'required|date',
             'deceased_death_certificate' => 'nullable|string|max:50',
 
             // Servicio
@@ -695,20 +694,14 @@ class ServiceController extends Controller
                 ]);
             }
 
-            // ─────────────────────────────────────────────────────────────
-            // FALLECIDO: nuevo o existente
-            // ─────────────────────────────────────────────────────────────
-            if (! empty($validated['existing_deceased_id'])) {
-                $deceased = \App\Models\Deceased::findOrFail($validated['existing_deceased_id']);
-            } else {
-                $deceased = \App\Models\Deceased::create([
-                    'full_name' => $validated['deceased_full_name'],
-                    'rut' => $validated['deceased_rut'] ?? null,
-                    'death_date' => $validated['deceased_death_date'],
-                    'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
-                    'current_location' => 'Funeraria Cristo Rey',
-                ]);
-            }
+            // 2. Crear Fallecido
+            $deceased = \App\Models\Deceased::create([
+                'full_name' => $validated['deceased_full_name'],
+                'rut' => $validated['deceased_rut'] ?? null,
+                'death_date' => $validated['deceased_death_date'],
+                'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
+                'current_location' => 'Funeraria Cristo Rey',
+            ]);
 
             // 3. Crear Servicio (Estado inicial: accepted)
             $beneficiaryType = \App\Enums\BeneficiaryType::from($validated['beneficiary_type']);

@@ -75,9 +75,8 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
             'availableItems' => \App\Models\InventoryItem::active()
                 ->where('stock', '>', 0)
                 ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
-            // Clientes y fallecidos existentes
+            // Clientes existentes
             'existingClients' => \App\Models\Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
-            'existingDeceased' => \App\Models\Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
         ]);
     })->name('services.wizard');
     
