@@ -5,7 +5,7 @@
     <title>Reporte de Servicios</title>
     <style>
         @page { margin: 20px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 9px; color: #333; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #333; }
         .header { text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 10px; margin-bottom: 15px; }
         .header h1 { font-size: 18px; margin: 0; color: #1e293b; }
         .header p { font-size: 10px; margin: 2px 0; color: #64748b; }

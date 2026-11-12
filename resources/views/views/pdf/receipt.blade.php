@@ -5,7 +5,7 @@
     <title>Comprobante {{ $payment->receipt_number }}</title>
     <style>
         @page { margin: 30px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #333; }
         .header { text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }
         .header h1 { color: #1e293b; font-size: 22px; margin: 0; }
         .header p { color: #64748b; font-size: 11px; margin: 3px 0; }

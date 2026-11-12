@@ -5,7 +5,7 @@
     <title>Certificado de Paz y Salvo - {{ $service->code }}</title>
     <style>
         @page { margin: 40px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; line-height: 1.6; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #333; line-height: 1.6; }
         .header { text-align: center; border-bottom: 3px solid #10b981; padding-bottom: 15px; margin-bottom: 30px; }
         .header .logo { width: 230px; margin-bottom: 6px; }
         .header h1 { color: #1e293b; font-size: 22px; margin: 0; }

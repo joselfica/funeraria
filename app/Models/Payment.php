@@ -60,12 +60,29 @@ class Payment extends Model
     /**
      * Genera el siguiente número de comprobante del año.
      * Formato: PAG-2026-0001
+     *
+     * CORREGIDO: Usa MAX() en lugar de COUNT() para evitar duplicados
+     * cuando hay pagos eliminados (soft delete).
      */
     public static function generateReceiptNumber(): string
     {
         $year = date('Y');
-        $last = self::whereYear('created_at', $year)->count() + 1;
-        return sprintf('PAG-%d-%04d', $year, $last);
+        
+        // Buscar el último número de comprobante del año (incluyendo eliminados)
+        $lastNumber = self::withTrashed()
+            ->whereYear('created_at', $year)
+            ->orderByDesc('receipt_number')
+            ->value('receipt_number');
+
+        if ($lastNumber) {
+            // Extraer el número secuencial (ej: PAG-2026-0042 → 42)
+            $lastSequence = (int) substr($lastNumber, -4);
+            $nextSequence = $lastSequence + 1;
+        } else {
+            $nextSequence = 1;
+        }
+
+        return sprintf('PAG-%d-%04d', $year, $nextSequence);
     }
 
     /**
@@ -86,6 +103,9 @@ class Payment extends Model
 
     /**
      * Accessor: etiqueta legible del medio de pago.
+     *
+     * CORREGIDO: Siempre devuelve un string, incluso si payment_method
+     * es null o tiene un valor desconocido.
      */
     public function getPaymentMethodLabelAttribute(): string
     {
@@ -96,7 +116,8 @@ class Payment extends Model
             'tarjeta_debito' => 'Tarjeta de débito',
             'cheque' => 'Cheque',
             'convenio' => 'Convenio / Cuota mortuoria',
-            default => $this->payment_method,
+            null, '' => 'Sin método',
+            default => ucfirst((string) $this->payment_method),
         };
     }
 

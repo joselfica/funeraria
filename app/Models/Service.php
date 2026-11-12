@@ -12,7 +12,7 @@ class Service extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'uuid', 'code', 'client_id', 'deceased_id', 'service_type_id',
+        'uuid', 'code', 'client_id', 'deceased_id', 'service_type_id', 'branch_id',
         'scheduled_at', 'duration_hours', 'ends_at', 'status', 'body_status',
         'base_price', 'additional_charges', 'discount', 'total_price',
         'created_by', 'approved_by', 'approved_at', 'approval_notes', 'rejection_reason',

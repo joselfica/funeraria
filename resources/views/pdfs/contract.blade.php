@@ -5,7 +5,7 @@
     <title>Contrato - {{ $service->code }}</title>
     <style>
         @page { margin: 32px 40px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #333; line-height: 1.4; }
         .header { text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 14px; }
         .header .logo { width: 210px; margin-bottom: 4px; }
         .header h1 { font-size: 20px; margin: 0; }
