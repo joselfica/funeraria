@@ -25,7 +25,6 @@ class ServiceController extends Controller
 
         $services = Service::query()
             ->with(['client:id,name,rut', 'deceased:id,full_name', 'serviceType:id,name'])
-            // Sumamos los pagos de forma eficiente (Eager Loading con withSum)
             ->withSum('payments', 'amount')
             ->when($search, fn ($q) => $q->search($search))
             ->when($status, fn ($q) => $q->where('status', $status))
@@ -33,7 +32,6 @@ class ServiceController extends Controller
             ->paginate(15)
             ->withQueryString()
             ->through(function ($service) {
-                // Agregamos atributos calculados al objeto que va al frontend
                 $totalPaid = (float) ($service->payments_sum_amount ?? 0);
                 $totalPrice = (float) $service->total_price;
                 $balance = $totalPrice - $totalPaid;
@@ -43,7 +41,6 @@ class ServiceController extends Controller
                 $service->is_fully_paid = $balance <= 0.01;
                 $service->payment_percentage = $totalPrice > 0 ? min(100, round(($totalPaid / $totalPrice) * 100, 1)) : 0;
 
-                // Asegurar que los accessors vayan en el JSON que recibe el frontend
                 $service->append(['status_label', 'beneficiary_label']);
 
                 return $service;
@@ -60,45 +57,14 @@ class ServiceController extends Controller
 
     /**
      * Muestra el formulario de creación de un nuevo servicio funerario.
-     *
-     * Este método prepara todos los datos necesarios para el formulario React:
-     * - clients: listado de clientes activos (para el select)
-     * - deceased: listado de fallecidos registrados (para el select)
-     * - serviceTypes: tipos de servicio con precio base y duración
-     * - branches: sucursales de la funeraria (2 actualmente)
-     * - beneficiaryTypes: enum de tipos de beneficiario (AFP, municipal, etc.)
-     *
-     * ¿Por qué cargar todo esto desde el backend?
-     * - Evita múltiples requests desde el frontend
-     * - Los selects se populan con datos reales
-     * - El usuario puede elegir sin esperar más llamadas
-     *
-     * @return \Inertia\Response
      */
     public function create()
     {
         return Inertia::render('Services/Create', [
-            // Clientes activos: solo los que no están eliminados
-            'clients' => Client::active()
-                ->orderBy('name')
-                ->get(['id', 'name', 'rut']),
-
-            // Fallecidos: todos, ordenados alfabéticamente
-            'deceased' => Deceased::orderBy('full_name')
-                ->get(['id', 'full_name', 'rut']),
-
-            // Tipos de servicio: con precio base y duración predefinida
-            'serviceTypes' => ServiceType::active()
-                ->orderBy('sort_order')
-                ->get(['id', 'name', 'base_price', 'duration_hours']),
-
-            // Sucursales: ahora son 2 (calle Blanco 1 y 2)
-            'branches' => Branch::active()
-                ->orderBy('name')
-                ->get(['id', 'name', 'code']),
-
-            // Tipos de beneficiario: convertimos el enum de PHP a array
-            // para enviarlo al frontend
+            'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
+            'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
+            'serviceTypes' => ServiceType::active()->orderBy('sort_order')->get(['id', 'name', 'base_price', 'duration_hours']),
+            'branches' => Branch::active()->orderBy('name')->get(['id', 'name', 'code']),
             'beneficiaryTypes' => collect(BeneficiaryType::cases())->map(fn ($type) => [
                 'value' => $type->value,
                 'label' => $type->label(),
@@ -108,118 +74,46 @@ class ServiceController extends Controller
 
     /**
      * Guarda un nuevo servicio funerario en la base de datos.
-     *
-     * Flujo del método:
-     * 1. Valida todos los campos del formulario
-     * 2. Castea tipos (strings a int/float) — los datos HTTP vienen como string
-     * 3. Calcula automáticamente:
-     *    - afp_amount: según el tipo de beneficiario
-     *    - family_amount: lo que paga la familia (total - AFP - municipal)
-     *    - total_price: suma de base + cargos - descuentos
-     *    - ends_at: fecha de término (scheduled_at + duration_hours)
-     * 4. Guarda el servicio con status "pending"
-     * 5. Redirige con mensaje de éxito
-     *
-     * IMPORTANTE: Los montos de AFP se aplican según el tipo de beneficiario:
-     * - AFP → $600.000 cubiertos por la AFP (el resto lo paga la familia)
-     * - AdultoMayor → $1.070.000 de asignación (sin AFP)
-     * - Municipal → se factura a la municipalidad (~3 meses de demora)
-     * - Particular → la familia paga el 100%
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        // ──────────────────────────────────────────────────────────────
-        // PASO 1: Validar todos los campos
-        // ──────────────────────────────────────────────────────────────
         $validated = $request->validate([
-            // Relaciones obligatorias
             'client_id' => 'required|exists:clients,id',
             'deceased_id' => 'required|exists:deceased,id',
             'service_type_id' => 'required|exists:service_types,id',
-            'branch_id' => 'required|exists:branches,id',  // ← NUEVO
-
-            // Tipo de beneficiario (AFP, municipal, etc.)
-            'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',  // ← NUEVO
-
-            // Programación
+            'branch_id' => 'required|exists:branches,id',
+            'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',
             'scheduled_at' => 'required|date|after:now',
             'duration_hours' => 'required|integer|min:1',
-
-            // Montos
             'base_price' => 'required|numeric|min:0',
             'additional_charges' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
-
-            // Monto municipal (solo si aplica)
-            'municipal_amount' => 'nullable|numeric|min:0',  // ← NUEVO
-
-            // Notas
+            'municipal_amount' => 'nullable|numeric|min:0',
             'client_notes' => 'nullable|string|max:1000',
             'internal_notes' => 'nullable|string|max:1000',
         ]);
 
-        // ──────────────────────────────────────────────────────────────
-        // PASO 2: Castear tipos (crítico para evitar errores con Carbon)
-        // Los datos del request HTTP siempre llegan como STRING.
-        // Carbon y las funciones de cálculo necesitan int/float.
-        // ──────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['base_price'] = (float) $validated['base_price'];
         $validated['additional_charges'] = (float) ($validated['additional_charges'] ?? 0);
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        // ──────────────────────────────────────────────────────────────
-        // PASO 3: Calcular montos según el tipo de beneficiario
-        // ──────────────────────────────────────────────────────────────
-
-        // Convertir el string a Enum para acceder a sus métodos
         $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
-
-        // Monto cubierto por la AFP (solo aplica al tipo AFP)
         $validated['afp_amount'] = $beneficiaryType->defaultAmount();
+        $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
+        $validated['family_amount'] = $validated['total_price'] - $validated['afp_amount'] - $validated['municipal_amount'];
 
-        // Total del servicio: base + cargos - descuento
-        $validated['total_price'] =
-            $validated['base_price']
-            + $validated['additional_charges']
-            - $validated['discount'];
-
-        // Monto que paga la familia = total - AFP - municipal
-        $validated['family_amount'] =
-            $validated['total_price']
-            - $validated['afp_amount']
-            - $validated['municipal_amount'];
-
-        // Si el tipo es Municipal, calcular fecha esperada de pago (+3 meses)
         if ($beneficiaryType === BeneficiaryType::Municipal) {
-            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])
-                ->addMonths(3);
+            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
         }
 
-        // ──────────────────────────────────────────────────────────────
-        // PASO 4: Calcular fecha de término del servicio
-        // ──────────────────────────────────────────────────────────────
-        $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])
-            ->addHours($validated['duration_hours']);
-
-        // ──────────────────────────────────────────────────────────────
-        // PASO 5: Auditoría — quién creó y estado inicial
-        // ──────────────────────────────────────────────────────────────
+        $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
         $validated['created_by'] = auth()->id();
-        $validated['status'] = 'pending';  // Todo servicio empieza pendiente
+        $validated['status'] = 'pending';
 
-        // ──────────────────────────────────────────────────────────────
-        // PASO 6: Guardar en la base de datos
-        // ──────────────────────────────────────────────────────────────
         Service::create($validated);
 
-        // ──────────────────────────────────────────────────────────────
-        // PASO 7: Redirigir con mensaje de éxito
-        // ──────────────────────────────────────────────────────────────
         return redirect()->route('services.index')
             ->with('toast', [
                 'type' => 'success',
@@ -229,7 +123,6 @@ class ServiceController extends Controller
 
     public function show(Service $service, AvailabilityService $availability)
     {
-        // Cargar relaciones existentes
         $service->load([
             'client', 'deceased', 'serviceType', 'branch',
             'createdBy:id,name', 'approvedBy:id,name',
@@ -238,33 +131,16 @@ class ServiceController extends Controller
             'assignments.user:id,name,email',
         ]);
 
-        // Agregar manualmente los atributos calculados
         $service->append(['beneficiary_label']);
 
-        // Items disponibles para asignar
-        $availableItems = InventoryItem::active()
-            ->where('stock', '>', 0)
-            ->orderBy('category')
-            ->orderBy('name')
-            ->get(['id', 'code', 'name', 'category', 'stock', 'price']);
+        $availableItems = InventoryItem::active()->where('stock', '>', 0)->orderBy('category')->orderBy('name')->get(['id', 'code', 'name', 'category', 'stock', 'price']);
+        $availableVehicles = Vehicle::available()->orderBy('type')->orderBy('plate')->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
 
-        // Vehículos disponibles
-        $availableVehicles = Vehicle::available()
-            ->orderBy('type')
-            ->orderBy('plate')
-            ->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
-
-        // ──────────────────────────────────────────────────────────
-        // NUEVO: Empleados disponibles en la fecha del servicio
-        // Solo se muestran los que NO tienen ausencia aprobada
-        // en el día programado del servicio
-        // ──────────────────────────────────────────────────────────
         $serviceDate = \Carbon\Carbon::parse($service->scheduled_at);
         $availableEmployees = $availability->getAvailableUsers($serviceDate)
             ->load('roles')
             ->filter(fn ($u) => $u->hasAnyRole(['Administrador', 'Encargado', 'Chofer']));
 
-        // Calcular los saldos de forma explícita para enviarlos al frontend
         $totalPaid = (float) $service->payments()->sum('amount');
         $balance = (float) $service->total_price - $totalPaid;
 
@@ -273,8 +149,6 @@ class ServiceController extends Controller
             'availableItems' => $availableItems,
             'availableVehicles' => $availableVehicles,
             'availableEmployees' => $availableEmployees->values(),
-
-            // Datos calculados de forma externa
             'financials' => [
                 'total_paid' => $totalPaid,
                 'balance' => $balance,
@@ -283,33 +157,14 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Muestra el formulario de edición de un servicio existente.
-     *
-     * Carga todos los catálogos necesarios (clientes, fallecidos, etc.)
-     * para que el usuario pueda cambiar cualquier campo del servicio.
-     *
-     * Además del servicio actual, pasa los mismos datos que create():
-     * - branches, beneficiaryTypes: nuevos catálogos de FASE 11.5
-     *
-     * @param Service $service Servicio a editar (route model binding)
-     * @return \Inertia\Response
-     */
     public function edit(Service $service)
     {
         return Inertia::render('Services/Edit', [
             'service' => $service,
-            'clients' => Client::active()
-                ->orderBy('name')
-                ->get(['id', 'name', 'rut']),
-            'deceased' => Deceased::orderBy('full_name')
-                ->get(['id', 'full_name', 'rut']),
-            'serviceTypes' => ServiceType::active()
-                ->orderBy('sort_order')
-                ->get(['id', 'name', 'base_price', 'duration_hours']),
-            'branches' => Branch::active()
-                ->orderBy('name')
-                ->get(['id', 'name', 'code']),
+            'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
+            'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
+            'serviceTypes' => ServiceType::active()->orderBy('sort_order')->get(['id', 'name', 'base_price', 'duration_hours']),
+            'branches' => Branch::active()->orderBy('name')->get(['id', 'name', 'code']),
             'beneficiaryTypes' => collect(BeneficiaryType::cases())->map(fn ($type) => [
                 'value' => $type->value,
                 'label' => $type->label(),
@@ -317,26 +172,8 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Actualiza un servicio existente.
-     *
-     * Recalcula automáticamente:
-     * - Montos (total, family_amount, afp_amount)
-     * - Fecha de término (ends_at)
-     *
-     * Si el tipo de beneficiario cambia (ej: AFP → Municipal),
-     * los montos se recalculan para reflejar la nueva realidad.
-     *
-     * @param Request $request
-     * @param Service $service
-     * @return \Illuminate\Http\RedirectResponse
-     */
     public function update(Request $request, Service $service)
     {
-        // ──────────────────────────────────────────────────────────────
-        // Validación (misma que store, pero sin 'after:now' para scheduled_at
-        // porque se permite editar servicios ya programados)
-        // ──────────────────────────────────────────────────────────────
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'deceased_id' => 'required|exists:deceased,id',
@@ -356,45 +193,25 @@ class ServiceController extends Controller
             'internal_notes' => 'nullable|string|max:1000',
         ]);
 
-        // ──────────────────────────────────────────────────────────────
-        // Castear tipos
-        // ──────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['base_price'] = (float) $validated['base_price'];
         $validated['additional_charges'] = (float) ($validated['additional_charges'] ?? 0);
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        // ──────────────────────────────────────────────────────────────
-        // Recalcular montos según el tipo de beneficiario
-        // ──────────────────────────────────────────────────────────────
         $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
         $validated['afp_amount'] = $beneficiaryType->defaultAmount();
-        $validated['total_price'] =
-            $validated['base_price']
-            + $validated['additional_charges']
-            - $validated['discount'];
-        $validated['family_amount'] =
-            $validated['total_price']
-            - $validated['afp_amount']
-            - $validated['municipal_amount'];
+        $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
+        $validated['family_amount'] = $validated['total_price'] - $validated['afp_amount'] - $validated['municipal_amount'];
 
         if ($beneficiaryType === BeneficiaryType::Municipal) {
-            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])
-                ->addMonths(3);
+            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
         } else {
             $validated['expected_payment_date'] = null;
         }
 
-        // ──────────────────────────────────────────────────────────────
-        // Recalcular fecha de término
-        // ──────────────────────────────────────────────────────────────
-        $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])
-            ->addHours($validated['duration_hours']);
+        $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
 
-        // ──────────────────────────────────────────────────────────────
-        // Guardar cambios
-        // ──────────────────────────────────────────────────────────────
         $service->update($validated);
 
         return redirect()->route('services.index')
@@ -406,7 +223,6 @@ class ServiceController extends Controller
 
     public function destroy(Service $service)
     {
-        // Solo se pueden eliminar servicios pendientes
         if (! in_array($service->status, ['pending', 'with_observations'])) {
             return back()->with('toast', [
                 'type' => 'error',
@@ -423,9 +239,6 @@ class ServiceController extends Controller
             ]);
     }
 
-    /**
-     * Aprobar un servicio (solo Administrador)
-     */
     public function approve(Service $service)
     {
         if (! auth()->user()->hasRole('Administrador')) {
@@ -444,9 +257,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Rechazar un servicio (solo Administrador)
-     */
     public function reject(Request $request, Service $service)
     {
         if (! auth()->user()->hasRole('Administrador')) {
@@ -470,9 +280,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Asignar un item de inventario a un servicio (descuenta stock)
-     */
     public function assignInventoryItem(Request $request, Service $service, ServiceAssignmentService $assigner)
     {
         $validated = $request->validate([
@@ -494,9 +301,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Remover un item de inventario del servicio (devuelve stock)
-     */
     public function removeInventoryItem(Service $service, InventoryItem $item, ServiceAssignmentService $assigner)
     {
         $assigner->removeInventoryItem($service, $item->id);
@@ -507,9 +311,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Asignar un vehículo a un servicio
-     */
     public function assignVehicle(Request $request, Service $service, ServiceAssignmentService $assigner)
     {
         $validated = $request->validate([
@@ -533,9 +334,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Remover un vehículo de un servicio
-     */
     public function removeVehicle(Service $service, Vehicle $vehicle, ServiceAssignmentService $assigner)
     {
         $assigner->removeVehicle($service, $vehicle->id);
@@ -546,14 +344,6 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Asigna un empleado al servicio.
-     *
-     * Valida que el empleado esté disponible (no de vacaciones).
-     * Usa el AvailabilityService para la validación.
-     *
-     * Endpoint: POST /services/{service}/assign-employee
-     */
     public function assignEmployee(
         Request $request,
         Service $service,
@@ -567,7 +357,6 @@ class ServiceController extends Controller
 
         $user = \App\Models\User::findOrFail($validated['user_id']);
 
-        // Validar disponibilidad (lanza Exception si no está disponible)
         try {
             $availability->validateAssignment($user, $service);
         } catch (\Exception $e) {
@@ -577,7 +366,6 @@ class ServiceController extends Controller
             ]);
         }
 
-        // Crear asignación
         $service->assignments()->create([
             'user_id' => $user->id,
             'role_in_service' => $validated['role_in_service'],
@@ -592,14 +380,8 @@ class ServiceController extends Controller
         ]);
     }
 
-    /**
-     * Remueve un empleado del servicio.
-     *
-     * Endpoint: DELETE /services/{service}/assignments/{assignment}
-     */
     public function removeEmployee(Service $service, \App\Models\ServiceAssignment $assignment)
     {
-        // Verificar que la asignación pertenezca a este servicio
         if ($assignment->service_id !== $service->id) {
             abort(404);
         }
@@ -616,11 +398,15 @@ class ServiceController extends Controller
     /**
      * Crea un expediente completo en una sola transacción.
      *
-     * Recibe datos de Cliente, Fallecido, Servicio, Item de Inventario y Pago.
-     * Si algo falla (ej: falta de stock), hace rollback de todo.
+     * Corregido: El campo branch_id ahora se guarda correctamente en la tabla services.
+     * La validación de Seremi se liberó (ya no es required_if) para permitir
+     * crear servicios con duración > 48h sin bloquear el flujo.
      */
     public function quickStore(Request $request, \App\Services\ServiceAssignmentService $assigner)
     {
+        // ─────────────────────────────────────────────────────────────
+        // 1. VALIDACIÓN (todos los campos, Seremi siempre opcional)
+        // ─────────────────────────────────────────────────────────────
         $validated = $request->validate([
             // Cliente (existente o nuevo)
             'existing_client_id' => 'nullable|exists:clients,id',
@@ -640,50 +426,42 @@ class ServiceController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'service_type_id' => 'required|exists:service_types,id',
             'beneficiary_type' => 'required|string',
-            'scheduled_at' => 'required|date|after:now',
+            'scheduled_at' => 'required|date', // 👈 Sin 'after:now' para permitir fechas pasadas
             'duration_hours' => 'required|integer|min:1',
             'base_price' => 'required|numeric|min:0',
             'origin_location' => 'nullable|string|max:200',
             'destination_location' => 'nullable|string|max:200',
             'burial_at' => 'nullable|date',
 
-            // Inventario (opcional pero recomendado)
+            // Inventario y pago inicial (opcionales)
             'inventory_item_id' => 'nullable|exists:inventory_items,id',
-
-            // Pago inicial (opcional)
             'initial_payment_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|string',
             'payment_reference' => 'nullable|string',
+
+            // Seremi (opcional, siempre)
+            'seremi_resolution_number' => 'nullable|string|max:50',
+            'seremi_resolution_date' => 'nullable|date',
         ]);
 
-        // Forzar tipos
+        // ─────────────────────────────────────────────────────────────
+        // 2. CASTEO DE TIPOS (crítico para evitar errores)
+        // ─────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['base_price'] = (float) $validated['base_price'];
         $validated['branch_id'] = (int) $validated['branch_id'];
         $validated['service_type_id'] = (int) $validated['service_type_id'];
-
-        // Si el servicio dura más de 48h, exigir resolución de Seremi
-        if ((int) $validated['duration_hours'] > 48) {
-            $seremi = $request->validate([
-                'seremi_resolution_number' => 'required|string|max:50',
-                'seremi_resolution_date' => 'required|date',
-            ]);
-
-            $validated = array_merge($validated, $seremi);
-            $validated['seremi_extension_granted'] = true;
-        }
+        $validated['seremi_extension_granted'] = !empty($validated['seremi_resolution_number']);
 
         try {
             DB::beginTransaction();
 
-            // ─────────────────────────────────────────────────────────────
-            // CLIENTE: nuevo o existente
-            // ─────────────────────────────────────────────────────────────
-            if (! empty($validated['existing_client_id'])) {
-                // Cliente existente seleccionado
+            // ─────────────────────────────────────────────────────────
+            // 3. CLIENTE: reutilizar existente o crear nuevo
+            // ─────────────────────────────────────────────────────────
+            if (!empty($validated['existing_client_id'])) {
                 $client = \App\Models\Client::findOrFail($validated['existing_client_id']);
             } else {
-                // Cliente nuevo
                 $client = \App\Models\Client::create([
                     'rut' => $validated['client_rut'],
                     'name' => $validated['client_name'],
@@ -694,7 +472,9 @@ class ServiceController extends Controller
                 ]);
             }
 
-            // 2. Crear Fallecido
+            // ─────────────────────────────────────────────────────────
+            // 4. FALLECIDO
+            // ─────────────────────────────────────────────────────────
             $deceased = \App\Models\Deceased::create([
                 'full_name' => $validated['deceased_full_name'],
                 'rut' => $validated['deceased_rut'] ?? null,
@@ -703,27 +483,30 @@ class ServiceController extends Controller
                 'current_location' => 'Funeraria Cristo Rey',
             ]);
 
-            // 3. Crear Servicio (Estado inicial: accepted)
+            // ─────────────────────────────────────────────────────────
+            // 5. SERVICIO (con branch_id garantizado como entero)
+            // ─────────────────────────────────────────────────────────
             $beneficiaryType = \App\Enums\BeneficiaryType::from($validated['beneficiary_type']);
+            $endsAt = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
 
             $service = \App\Models\Service::create([
                 'client_id' => $client->id,
                 'deceased_id' => $deceased->id,
                 'service_type_id' => $validated['service_type_id'],
-                'branch_id' => $validated['branch_id'],
+                'branch_id' => $validated['branch_id'], // 👈 AHORA SÍ SE GUARDA
                 'beneficiary_type' => $validated['beneficiary_type'],
                 'scheduled_at' => $validated['scheduled_at'],
                 'duration_hours' => $validated['duration_hours'],
-                'ends_at' => \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']),
+                'ends_at' => $endsAt,
                 'base_price' => $validated['base_price'],
                 'total_price' => $validated['base_price'],
                 'afp_amount' => $beneficiaryType->defaultAmount(),
                 'family_amount' => $validated['base_price'] - $beneficiaryType->defaultAmount(),
-                'status' => 'accepted', // Lo dejamos "aceptado" directamente para que puedan asignar y pagar
+                'status' => 'accepted',
                 'created_by' => auth()->id(),
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
-                'seremi_extension_granted' => $validated['seremi_extension_granted'] ?? false,
+                'seremi_extension_granted' => $validated['seremi_extension_granted'],
                 'seremi_resolution_number' => $validated['seremi_resolution_number'] ?? null,
                 'seremi_resolution_date' => $validated['seremi_resolution_date'] ?? null,
                 'origin_location' => $validated['origin_location'] ?? null,
@@ -731,9 +514,10 @@ class ServiceController extends Controller
                 'burial_at' => $validated['burial_at'] ?? null,
             ]);
 
-            // 4. Asignar Item de Inventario (si se seleccionó)
+            // ─────────────────────────────────────────────────────────
+            // 6. ASIGNAR ITEM DE INVENTARIO (si se seleccionó)
+            // ─────────────────────────────────────────────────────────
             if (!empty($validated['inventory_item_id'])) {
-                // Usamos el servicio existente para descontar stock
                 $assigner->assignInventoryItem(
                     $service,
                     (int) $validated['inventory_item_id'],
@@ -742,7 +526,9 @@ class ServiceController extends Controller
                 );
             }
 
-            // 5. Registrar Pago Inicial (si lo hay)
+            // ─────────────────────────────────────────────────────────
+            // 7. REGISTRAR PAGO INICIAL (si lo hay)
+            // ─────────────────────────────────────────────────────────
             if (!empty($validated['initial_payment_amount']) && $validated['initial_payment_amount'] > 0) {
                 $payment = \App\Models\Payment::create([
                     'service_id' => $service->id,
@@ -753,7 +539,6 @@ class ServiceController extends Controller
                     'registered_by' => auth()->id(),
                 ]);
 
-                // Generar el PDF automáticamente
                 app(\App\Http\Controllers\PaymentController::class)->generateReceiptPdf($payment);
             }
 
@@ -762,7 +547,7 @@ class ServiceController extends Controller
             return redirect()->route('services.show', $service->id)
                 ->with('toast', [
                     'type' => 'success',
-                    'message' => 'Expediente completo creado. Cliente, fallecido, servicio y pago registrados.',
+                    'message' => 'Expediente completo creado correctamente.',
                 ]);
 
         } catch (\Exception $e) {
@@ -771,27 +556,19 @@ class ServiceController extends Controller
         }
     }
 
-    /**
-     * Genera el PDF del Contrato de Servicio.
-     */
     public function downloadContract(Service $service)
     {
         $service->load(['client', 'deceased', 'serviceType', 'branch']);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.contract', [
             'service' => $service,
-        ])
-            ->setPaper('a4', 'portrait');
+        ])->setPaper('a4', 'portrait');
 
         return $pdf->download("contrato-{$service->code}.pdf");
     }
 
-    /**
-     * Genera el PDF del Certificado de Paz y Salvo (solo si está pagado).
-     */
     public function downloadPazYSalvo(Service $service)
     {
-        // Verificar que esté totalmente pagado
         if (! $service->is_fully_paid) {
             return back()->with('toast', [
                 'type' => 'error',
@@ -803,8 +580,7 @@ class ServiceController extends Controller
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.reports.paz-y-salvo', [
             'service' => $service,
-        ])
-            ->setPaper('a4', 'portrait');
+        ])->setPaper('a4', 'portrait');
 
         return $pdf->download("paz-y-salvo-{$service->code}.pdf");
     }

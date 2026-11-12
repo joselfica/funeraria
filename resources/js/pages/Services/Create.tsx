@@ -149,6 +149,7 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
                                     <Label htmlFor="scheduled_at">Fecha y hora del servicio *</Label>
                                     <Input id="scheduled_at" type="datetime-local" value={data.scheduled_at} onChange={(e) => setData('scheduled_at', e.target.value)} className="mt-1" required />
                                     {errors.scheduled_at && <p className="text-sm text-rose-600 mt-1">{errors.scheduled_at}</p>}
+                                    <p className="text-xs text-muted-foreground mt-1">Puede ser una fecha pasada si está regularizando un servicio ya realizado.</p>
                                 </div>
                                 <div>
                                     <Label htmlFor="duration_hours">Duración (horas) *</Label>

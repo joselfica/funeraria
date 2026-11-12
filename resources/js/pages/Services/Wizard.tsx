@@ -264,9 +264,19 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                         </div>
                                     </div>
 
+                                    {/* 👇 CAMPO LIBERADO: burial_at sin required ni min */}
                                     <div>
                                         <Label htmlFor="burial_at">Fecha y hora del entierro/cremación</Label>
-                                        <Input id="burial_at" type="datetime-local" value={data.burial_at} onChange={(e) => setData('burial_at', e.target.value)} className="mt-1" />
+                                        <Input
+                                            id="burial_at"
+                                            type="datetime-local"
+                                            value={data.burial_at}
+                                            onChange={(e) => setData('burial_at', e.target.value)}
+                                            className="mt-1"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Si el cuerpo queda retenido, puedes dejarlo vacío y completarlo después.
+                                        </p>
                                         {errors.burial_at && <p className="text-sm text-rose-600 mt-1">{errors.burial_at}</p>}
                                     </div>
 
