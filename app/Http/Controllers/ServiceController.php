@@ -137,9 +137,15 @@ class ServiceController extends Controller
         $availableVehicles = Vehicle::available()->orderBy('type')->orderBy('plate')->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
 
         $serviceDate = \Carbon\Carbon::parse($service->scheduled_at);
+        // Personal ya asignado a este servicio (no se ofrece de nuevo)
+        $assignedUserIds = $service->assignments->pluck('user_id');
+
         $availableEmployees = $availability->getAvailableUsers($serviceDate)
             ->load('roles')
-            ->filter(fn ($u) => $u->hasAnyRole(['Administrador', 'Encargado', 'Chofer']));
+            ->filter(fn ($u) => $u->hasAnyRole(['Administrador', 'Encargado', 'Chofer']))
+            // Solo quienes no tienen otro servicio en el mismo horario
+            ->reject(fn ($u) => $assignedUserIds->contains($u->id)
+                || $availability->hasScheduleConflict($u, $service));
 
         $totalPaid = (float) $service->payments()->sum('amount');
         $balance = (float) $service->total_price - $totalPaid;
@@ -402,8 +408,11 @@ class ServiceController extends Controller
      * La validación de Seremi se liberó (ya no es required_if) para permitir
      * crear servicios con duración > 48h sin bloquear el flujo.
      */
-    public function quickStore(Request $request, \App\Services\ServiceAssignmentService $assigner)
-    {
+    public function quickStore(
+        Request $request,
+        \App\Services\ServiceAssignmentService $assigner,
+        AvailabilityService $availability
+    ) {
         // ─────────────────────────────────────────────────────────────
         // 1. VALIDACIÓN (todos los campos, Seremi siempre opcional)
         // ─────────────────────────────────────────────────────────────
@@ -442,6 +451,10 @@ class ServiceController extends Controller
             // Seremi (opcional, siempre)
             'seremi_resolution_number' => 'nullable|string|max:50',
             'seremi_resolution_date' => 'nullable|date',
+
+            // Vehículo y chofer (opcionales)
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'driver_id' => 'nullable|exists:users,id',
         ]);
 
         // ─────────────────────────────────────────────────────────────
@@ -524,6 +537,44 @@ class ServiceController extends Controller
                     1,
                     'Asignado automáticamente en la creación del expediente'
                 );
+            }
+
+            // ─────────────────────────────────────────────────────────
+            // 6.1 ASIGNAR VEHÍCULO (si se seleccionó)
+            // ─────────────────────────────────────────────────────────
+            if (!empty($validated['vehicle_id'])) {
+                $assigner->assignVehicle(
+                    $service,
+                    (int) $validated['vehicle_id'],
+                    null,
+                    null,
+                    'Asignado en la creación del expediente'
+                );
+            }
+
+            // ─────────────────────────────────────────────────────────
+            // 6.2 ASIGNAR CHOFER (si se seleccionó)
+            // ─────────────────────────────────────────────────────────
+            if (!empty($validated['driver_id'])) {
+                $driver = \App\Models\User::findOrFail((int) $validated['driver_id']);
+
+                // Valida: usuario activo, sin ausencia aprobada y sin otro
+                // servicio en el mismo horario. Si falla, se revierte todo el
+                // expediente y el error se muestra en el campo del chofer.
+                try {
+                    $availability->validateAssignment($driver, $service);
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    return back()->withErrors(['driver_id' => $e->getMessage()])->withInput();
+                }
+
+                $service->assignments()->create([
+                    'user_id' => $driver->id,
+                    'role_in_service' => 'driver',
+                    'notes' => 'Asignado en la creación del expediente',
+                    'assigned_by' => auth()->id(),
+                    'assigned_at' => now(),
+                ]);
             }
 
             // ─────────────────────────────────────────────────────────

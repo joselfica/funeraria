@@ -171,7 +171,18 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                 </Badge>
                                 {financials.is_fully_paid && <Badge className="bg-emerald-500 text-white"><CheckCircle2 className="h-3 w-3 mr-1"/> Pagado</Badge>}
                             </h1>
-                            <p className="text-muted-foreground mt-1 font-mono text-xs">{service.uuid}</p>
+                            {/* UUID + fecha de creación + creador */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                <span className="font-mono">{service.uuid}</span>
+                                <span>•</span>
+                                <span>Creado el {formatDate(service.created_at)}</span>
+                                {service.created_by && (
+                                    <>
+                                        <span>•</span>
+                                        <span>Por <strong>{service.created_by.name}</strong></span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -286,6 +297,37 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                     <div className="flex justify-between items-center"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-emerald-600">- {formatPrice(service.discount)}</dd></div>
                                     <div className="flex justify-between items-center pt-3 border-t mt-2"><dt className="font-bold text-base">Total a pagar</dt><dd className="font-bold text-xl text-rose-800 dark:text-rose-500">{formatPrice(service.total_price)}</dd></div>
                                 </dl>
+                            </CardContent>
+                        </Card>
+
+                        {/* METADATOS Y AUDITORÍA */}
+                        <Card className="shadow-sm bg-slate-50/50 dark:bg-slate-900/20">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-sm flex items-center gap-2 text-muted-foreground">
+                                    <Info className="h-4 w-4" /> Información de Auditoría
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-2 space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Creado por:</span>
+                                    <span className="font-medium">{service.created_by?.name || 'Sistema'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Fecha de creación:</span>
+                                    <span className="font-medium">{formatDate(service.created_at)}</span>
+                                </div>
+                                {service.approved_by && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Aprobado por:</span>
+                                        <span className="font-medium">{service.approved_by.name}</span>
+                                    </div>
+                                )}
+                                {service.approved_at && (
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Fecha de aprobación:</span>
+                                        <span className="font-medium">{formatDate(service.approved_at)}</span>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -423,7 +465,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                                 </select>
                                             </div>
                                             <Input type="number" min="1" value={itemQuantity} onChange={(e) => setItemQuantity(e.target.value)} className="w-12 h-8 text-xs px-1 text-center" />
-                                            <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 text-white" disabled={!selectedItem}><Plus className="h-3 w-3" /></Button>
+                                            <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 hover:bg-rose-900 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled={!selectedItem}><Plus className="h-3 w-3" /></Button>
                                         </form>
                                     )}
                                 </div>
@@ -450,7 +492,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                                     {availableVehicles.map((v) => (<option key={v.id} value={v.id}>{v.plate} - {v.type_label}</option>))}
                                                 </select>
                                             </div>
-                                            <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 text-white" disabled={!selectedVehicle}><Plus className="h-3 w-3" /></Button>
+                                            <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 hover:bg-rose-900 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled={!selectedVehicle}><Plus className="h-3 w-3" /></Button>
                                         </form>
                                     )}
                                 </div>
@@ -481,7 +523,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                                     <option value="assistant">Asistente</option>
                                                     <option value="driver">Conductor</option>
                                                 </select>
-                                                <Button type="submit" size="sm" className="h-8 px-3 bg-rose-800 text-white" disabled={!selectedEmployee}>Asignar</Button>
+                                                <Button type="submit" size="sm" className="h-8 px-3 bg-rose-800 hover:bg-rose-900 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled={!selectedEmployee}>Asignar</Button>
                                             </div>
                                         </form>
                                     )}

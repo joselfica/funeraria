@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\EmployeeAbsence;
+use App\Models\Service;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -86,28 +87,63 @@ class AvailabilityService
     }
 
     /**
+     * Verifica si el usuario ya tiene otro servicio asignado que se solape
+     * en el tiempo con el servicio dado.
+     *
+     * Dos rangos se solapan cuando cada uno empieza antes de que termine el
+     * otro. Esto cubre todos los casos (empieza dentro, termina dentro o
+     * engloba al otro). Servicios consecutivos (uno termina justo cuando
+     * empieza el otro) no cuentan como choque.
+     *
+     * Se ignoran el propio servicio (útil al editar) y los rechazados.
+     */
+    public function hasScheduleConflict(User $user, Service $service): bool
+    {
+        $start = Carbon::parse($service->scheduled_at);
+        $end = $service->ends_at
+            ? Carbon::parse($service->ends_at)
+            : $start->copy()->addHours((int) ($service->duration_hours ?: 1));
+
+        return Service::query()
+            ->where('id', '!=', $service->id)
+            ->where('status', '!=', 'rejected')
+            ->whereHas('assignments', fn ($q) => $q->where('user_id', $user->id))
+            ->where('scheduled_at', '<', $end)
+            ->where('ends_at', '>', $start)
+            ->exists();
+    }
+
+    /**
      * Verifica si un usuario puede ser asignado a un servicio.
      *
      * Valida:
-     * - Disponibilidad en la fecha
+     * - Disponibilidad en la fecha (activo y sin ausencia aprobada)
      * - Que no esté ya asignado al mismo servicio
+     * - Que no tenga otro servicio en el mismo horario
      *
      * @throws \Exception Si el usuario no está disponible
      */
     public function validateAssignment(User $user, $service): void
     {
         $serviceDate = Carbon::parse($service->scheduled_at);
-        
+
         if (! $this->isUserAvailable($user, $serviceDate)) {
             throw new \Exception(
                 "El empleado {$user->name} no está disponible en la fecha del servicio."
             );
         }
-        
+
         // Verificar que no esté ya asignado
         if ($service->assignments()->where('user_id', $user->id)->exists()) {
             throw new \Exception(
                 "El empleado {$user->name} ya está asignado a este servicio."
+            );
+        }
+
+        // Verificar choque de agenda con otros servicios
+        if ($this->hasScheduleConflict($user, $service)) {
+            throw new \Exception(
+                "El empleado {$user->name} ya tiene otro servicio asignado en ese horario."
             );
         }
     }

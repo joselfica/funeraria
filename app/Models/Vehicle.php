@@ -86,6 +86,12 @@ class Vehicle extends Model
         };
     }
 
+    /**
+     * Accessor: etiqueta legible del estado del vehículo.
+     *
+     * CORREGIDO: Siempre devuelve un string, incluso si status es null
+     * o tiene un valor desconocido, para evitar TypeError.
+     */
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
@@ -93,7 +99,8 @@ class Vehicle extends Model
             'en_servicio' => 'En servicio',
             'mantenimiento' => 'Mantenimiento',
             'fuera_servicio' => 'Fuera de servicio',
-            default => $this->status,
+            null, '' => 'Sin estado', // Fallback para null o vacío
+            default => ucfirst((string) $this->status),
         };
     }
 

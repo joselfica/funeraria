@@ -79,6 +79,25 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
                 ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
             // Clientes existentes
             'existingClients' => \App\Models\Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
+
+            // Vehículos disponibles y choferes activos para asignar en el expediente
+            'availableVehicles' => \App\Models\Vehicle::available()
+                ->orderBy('type')
+                ->orderBy('plate')
+                ->get(['id', 'plate', 'type', 'brand', 'model'])
+                // Se mapea a arrays simples para no disparar los $appends del modelo
+                // (status_label, needs_maintenance), que dependen de columnas no cargadas.
+                ->map(fn ($v) => [
+                    'id' => $v->id,
+                    'plate' => $v->plate,
+                    'type' => $v->type,
+                    'brand' => $v->brand,
+                    'model' => $v->model,
+                ]),
+            'availableEmployees' => \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'Chofer'))
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     })->name('services.wizard');
     

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, ChevronLeft, ChevronRight, Package, DollarSign, AlertTriangle, Info } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Package, DollarSign, AlertTriangle, Info, Truck, UserCheck } from 'lucide-react';
 
 interface Client {
     id: number;
@@ -18,9 +18,19 @@ interface Props {
     beneficiaryTypes: Array<{ value: string; label: string }>;
     availableItems: Array<{ id: number; code: string; name: string; category: string; stock: number; price: string }>;
     existingClients: Client[];
+    availableVehicles: Array<{ id: number; plate: string; type: string; brand: string | null; model: string | null }>;
+    availableEmployees: Array<{ id: number; name: string }>;
 }
 
-export default function ServicesWizard({ branches, serviceTypes, beneficiaryTypes, availableItems, existingClients }: Props) {
+export default function ServicesWizard({ 
+    branches, 
+    serviceTypes, 
+    beneficiaryTypes, 
+    availableItems, 
+    existingClients,
+    availableVehicles,
+    availableEmployees,
+}: Props) {
     const [step, setStep] = useState(1);
     const [clientMode, setClientMode] = useState<'existing' | 'new'>('new');
 
@@ -45,6 +55,9 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
         destination_location: '',
         burial_at: '',
         inventory_item_id: '',
+        // 🆕 NUEVOS CAMPOS
+        vehicle_id: '',
+        driver_id: '',
         initial_payment_amount: '',
         payment_method: 'efectivo',
         payment_reference: '',
@@ -264,7 +277,6 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                         </div>
                                     </div>
 
-                                    {/* 👇 CAMPO LIBERADO: burial_at sin required ni min */}
                                     <div>
                                         <Label htmlFor="burial_at">Fecha y hora del entierro/cremación</Label>
                                         <Input
@@ -301,6 +313,36 @@ export default function ServicesWizard({ branches, serviceTypes, beneficiaryType
                                         </select>
                                         <p className="text-xs text-muted-foreground mt-1">Si selecciona un item, se descontará del stock inmediatamente.</p>
                                         {errors.inventory_item_id && <p className="text-sm text-rose-600 mt-1">{errors.inventory_item_id}</p>}
+                                    </div>
+
+                                    {/* 🆕 ASIGNAR VEHÍCULO Y CHOFER */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/40">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Truck className="w-4 h-4 text-rose-800" />
+                                                <Label className="text-rose-800 font-bold">Vehículo</Label>
+                                            </div>
+                                            <select value={data.vehicle_id} onChange={e => setData('vehicle_id', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                                <option value="">No asignar ahora</option>
+                                                {availableVehicles.map(v => (
+                                                    <option key={v.id} value={v.id}>{v.plate} - {v.type} {v.brand ? `(${v.brand})` : ''}</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-muted-foreground mt-1">Vehículo disponible para el traslado.</p>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <UserCheck className="w-4 h-4 text-rose-800" />
+                                                <Label className="text-rose-800 font-bold">Chofer</Label>
+                                            </div>
+                                            <select value={data.driver_id} onChange={e => setData('driver_id', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                                <option value="">No asignar ahora</option>
+                                                {availableEmployees.map(emp => (
+                                                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-muted-foreground mt-1">Conductor responsable del servicio.</p>
+                                        </div>
                                     </div>
 
                                     {/* REGISTRAR PAGO */}
