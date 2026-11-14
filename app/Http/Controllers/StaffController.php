@@ -286,17 +286,29 @@ class StaffController extends Controller
             ]);
         }
 
-        // Toggle
-        $user->update(['is_active' => ! $user->is_active]);
+        $activating = ! $user->is_active;
 
-        $action = $user->is_active ? 'activado' : 'desactivado';
-        $detail = $user->is_active
-            ? 'El usuario puede iniciar sesión nuevamente.'
-            : 'Sus sesiones activas fueron cerradas.';
+        // Toggle. Al activar, también se limpian los intentos fallidos y el
+        // bloqueo en la misma operación (un solo UPDATE).
+        $user->update($activating
+            ? [
+                'is_active' => true,
+                'failed_login_attempts' => 0,
+                'locked_until' => null,
+            ]
+            : ['is_active' => false]
+        );
+
+        if ($activating) {
+            return back()->with('toast', [
+                'type' => 'success',
+                'message' => "Usuario {$user->name} reactivado. Ya puede iniciar sesión.",
+            ]);
+        }
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => "Usuario {$user->name} {$action}. {$detail}",
+            'message' => "Usuario {$user->name} desactivado. Sus sesiones fueron cerradas.",
         ]);
     }
 }

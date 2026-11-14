@@ -113,7 +113,9 @@ export default function StaffIndex({ staff }: Props) {
     const renderLockBadge = (emp: Employee) =>
         emp.is_locked ? (
             <Badge variant="destructive" className="text-xs gap-1">
-                <Lock className="h-3 w-3" /> Bloqueado hasta {emp.locked_until}
+                <Lock className="h-3 w-3" />
+                Bloqueado ({emp.failed_login_attempts} {emp.failed_login_attempts === 1 ? 'intento' : 'intentos'})
+                {emp.locked_until && ` hasta ${emp.locked_until}`}
             </Badge>
         ) : null;
 

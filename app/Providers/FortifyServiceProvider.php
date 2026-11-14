@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use Illuminate\Auth\Events\Attempting;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -32,6 +34,18 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+
+        // Chequeo adicional: bloquear intentos de login de usuarios inactivos
+        Event::listen(Attempting::class, function ($event) {
+            $email = $event->credentials['email'] ?? null;
+            $user = \App\Models\User::where('email', $email)->first();
+
+            if ($user && ! $user->is_active) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'email' => 'Tu cuenta está desactivada. Contacta al administrador.',
+                ]);
+            }
+        });
 
         // Bloquear login si el usuario está inactivo
         \Laravel\Fortify\Fortify::authenticateUsing(function (\Illuminate\Http\Request $request) {
