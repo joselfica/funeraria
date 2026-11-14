@@ -4,129 +4,128 @@
     <meta charset="UTF-8">
     <title>Comprobante {{ $payment->receipt_number }}</title>
     <style>
-        @page { margin: 30px; }
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #333; }
-        .header { text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 15px; margin-bottom: 20px; }
-        .header h1 { color: #1e293b; font-size: 22px; margin: 0; }
-        .header p { color: #64748b; font-size: 11px; margin: 3px 0; }
-        .receipt-number { text-align: right; font-size: 14px; font-weight: bold; color: #1e293b; margin-bottom: 15px; }
-        .info-box { background: #f1f5f9; padding: 12px; margin-bottom: 15px; border-radius: 4px; }
-        .info-box h3 { margin: 0 0 8px 0; font-size: 13px; color: #1e293b; }
-        .grid { display: table; width: 100%; }
-        .grid-row { display: table-row; }
-        .grid-label { display: table-cell; width: 40%; padding: 4px 0; color: #64748b; }
-        .grid-value { display: table-cell; width: 60%; padding: 4px 0; font-weight: 600; }
-        .amount-box { background: #ecfdf5; border: 2px solid #10b981; padding: 15px; text-align: center; margin: 20px 0; border-radius: 6px; }
-        .amount-box .label { color: #065f46; font-size: 12px; }
-        .amount-box .amount { color: #10b981; font-size: 26px; font-weight: bold; margin-top: 5px; }
-        .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 10px; }
-        .signature { margin-top: 50px; display: table; width: 100%; }
-        .signature-cell { display: table-cell; width: 50%; text-align: center; padding: 0 20px; }
-        .signature-line { border-top: 1px solid #94a3b8; margin-top: 40px; padding-top: 5px; font-size: 10px; color: #64748b; }
+        /*
+         * COLORES DE LA FUNERARIA (cambiar aquí si el burdeos no coincide):
+         *   Principal ........ #901c1f  (rojo del logo)
+         *   Fondo suave ...... #fdf2f2
+         *   Línea suave ...... #e5b9ba
+         */
+        @page { margin: 32px 38px; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #1f2937; }
+        table { border-collapse: collapse; }
+
+        /* ───── Encabezado ───── */
+        .head { width: 100%; }
+        .head td { vertical-align: top; }
+
+        .brand-text { font-family: 'Times New Roman', Times, serif; font-size: 24px; font-weight: bold; color: #901c1f; }
+        .logo { width: 200px; }
+        .brand-info { font-size: 11px; color: #374151; margin-top: 6px; line-height: 1.5; }
+
+        .badge { border: 1px solid #901c1f; background: #fdf2f2; border-radius: 6px; padding: 9px 14px; text-align: center; font-size: 14px; font-weight: bold; color: #901c1f; line-height: 1.25; }
+        .receipt-meta { text-align: right; margin-top: 8px; font-size: 12px; line-height: 1.5; }
+        .receipt-meta strong { font-size: 13px; }
+
+        /* ───── Secciones ───── */
+        .section-title { margin-top: 22px; padding-bottom: 3px; border-bottom: 1px solid #e5b9ba; font-size: 14px; font-weight: bold; text-transform: uppercase; color: #901c1f; }
+        .rows { width: 100%; margin-top: 8px; }
+        .rows td { padding: 4px 0; }
+        .label { width: 32%; font-weight: bold; color: #111827; }
+
+        /* ───── Monto ───── */
+        .amount { margin-top: 22px; border: 1px solid #901c1f; background: #fdf2f2; border-radius: 6px; padding: 12px; text-align: center; font-size: 19px; font-weight: bold; color: #111827; }
+
+        /* ───── Firmas ───── */
+        .sign { width: 100%; margin-top: 70px; }
+        .sign td { width: 50%; text-align: center; padding: 0 22px; vertical-align: top; }
+        .sign-line { border-top: 1px dotted #6b7280; padding-top: 6px; font-size: 12px; color: #374151; }
+
+        .footer { margin-top: 38px; text-align: center; font-size: 10px; color: #4b5563; line-height: 1.6; }
     </style>
 </head>
 <body>
 
-    {{-- Encabezado --}}
-    <div class="header">
-        <h1>Funeraria Cristo Rey</h1>
-        <p>Servicios Funerarios Integrales</p>
-        <p>RUT: 76.543.210-K | Av. Principal 1234, Santiago</p>
-    </div>
-
-    {{-- Número de comprobante --}}
-    <div class="receipt-number">
-        Comprobante N° {{ $payment->receipt_number }}<br>
-        <span style="font-size: 10px; color: #64748b;">
-            Fecha: {{ $payment->payment_date->format('d/m/Y') }}
-        </span>
-    </div>
-
-    {{-- Datos del servicio --}}
-    <div class="info-box">
-        <h3>Datos del Servicio</h3>
-        <div class="grid">
-            <div class="grid-row">
-                <div class="grid-label">Código de servicio:</div>
-                <div class="grid-value">{{ $service->code }}</div>
-            </div>
-            <div class="grid-row">
-                <div class="grid-label">Tipo de servicio:</div>
-                <div class="grid-value">{{ $service->serviceType->name }}</div>
-            </div>
-            <div class="grid-row">
-                <div class="grid-label">Cliente:</div>
-                <div class="grid-value">{{ $service->client->name }}</div>
-            </div>
-            <div class="grid-row">
-                <div class="grid-label">RUT cliente:</div>
-                <div class="grid-value">{{ $service->client->rut }}</div>
-            </div>
-            <div class="grid-row">
-                <div class="grid-label">Fallecido:</div>
-                <div class="grid-value">{{ $service->deceased->full_name }}</div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Datos del pago --}}
-    <div class="info-box">
-        <h3>Detalle del Pago</h3>
-        <div class="grid">
-            <div class="grid-row">
-                <div class="grid-label">Medio de pago:</div>
-                <div class="grid-value">{{ $payment->payment_method_label }}</div>
-            </div>
-            @if ($payment->reference)
-                <div class="grid-row">
-                    <div class="grid-label">Referencia:</div>
-                    <div class="grid-value">{{ $payment->reference }}</div>
+    {{-- ───────── Encabezado ───────── --}}
+    <table class="head">
+        <tr>
+            <td style="width: 60%;">
+                @php
+                    // Logo embebido en base64 (evita problemas de rutas en dompdf).
+                    // Debe ser liviano: ver public/images/logo-pdf.png (~12 KB).
+                    $logoPath = public_path('images/logo-pdf.png');
+                    $logo = file_exists($logoPath)
+                        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+                        : null;
+                @endphp
+                @if ($logo)
+                    <img src="{{ $logo }}" class="logo" alt="Funeraria Cristo Rey">
+                @else
+                    <div class="brand-text">Funeraria Cristo Rey</div>
+                @endif
+                <div class="brand-info">
+                    Servicios Funerarios Integrales<br>
+                    RUT: 76.543.210-K<br>
+                    Blanco Encalada 142, Temuco, Araucanía<br>
+                    Tel: +56 9 6729 4759 · Atención las 24 horas
                 </div>
-            @endif
-        </div>
-    </div>
-
-    {{-- Monto --}}
-    <div class="amount-box">
-        <div class="label">MONTO ABONADO</div>
-        <div class="amount">$ {{ number_format($payment->amount, 0, ',', '.') }}</div>
-    </div>
-
-    {{-- Estado financiero --}}
-    <div class="info-box">
-        <h3>Estado Financiero del Servicio</h3>
-        <div class="grid">
-            <div class="grid-row">
-                <div class="grid-label">Total del servicio:</div>
-                <div class="grid-value">$ {{ number_format($service->total_price, 0, ',', '.') }}</div>
-            </div>
-            <div class="grid-row">
-                <div class="grid-label">Total abonado:</div>
-                <div class="grid-value">$ {{ number_format($service->total_paid, 0, ',', '.') }}</div>
-            </div>
-            <div class="grid-row">
-                <div class="grid-label">Saldo pendiente:</div>
-                <div class="grid-value" style="color: {{ $service->balance > 0 ? '#dc2626' : '#10b981' }};">
-                    $ {{ number_format($service->balance, 0, ',', '.') }}
+            </td>
+            <td style="width: 40%;">
+                <div class="badge">COMPROBANTE<br>DE ABONO</div>
+                <div class="receipt-meta">
+                    <strong>N° {{ $payment->receipt_number }}</strong><br>
+                    Fecha: {{ $payment->payment_date->format('d/m/Y') }}
                 </div>
-            </div>
-        </div>
-    </div>
+            </td>
+        </tr>
+    </table>
 
-    {{-- Firmas --}}
-    <div class="signature">
-        <div class="signature-cell">
-            <div class="signature-line">Recibí conforme (Cliente)</div>
-        </div>
-        <div class="signature-cell">
-            <div class="signature-line">Funeraria Cristo Rey</div>
-        </div>
-    </div>
+    {{-- ───────── Datos del servicio ───────── --}}
+    <div class="section-title">Datos del servicio</div>
+    <table class="rows">
+        <tr><td class="label">Código de servicio:</td><td>{{ $service->code }}</td></tr>
+        <tr><td class="label">Tipo de servicio:</td><td>{{ $service->serviceType->name }}</td></tr>
+        <tr><td class="label">Cliente:</td><td>{{ $service->client->name }}</td></tr>
+        <tr><td class="label">RUT cliente:</td><td>{{ $service->client->rut }}</td></tr>
+        <tr><td class="label">Fallecido:</td><td>{{ $service->deceased->full_name }}</td></tr>
+    </table>
 
-    {{-- Footer --}}
+    {{-- ───────── Detalle de la transacción ───────── --}}
+    <div class="section-title">Detalle de la transacción</div>
+    <table class="rows">
+        <tr><td class="label">Medio de pago:</td><td>{{ $payment->payment_method_label }}</td></tr>
+        @if ($payment->reference)
+            <tr><td class="label">Referencia:</td><td>{{ $payment->reference }}</td></tr>
+        @endif
+    </table>
+
+    {{-- ───────── Monto ───────── --}}
+    <div class="amount">MONTO ABONADO: $ {{ number_format($payment->amount, 0, ',', '.') }}</div>
+
+    {{-- ───────── Estado financiero ───────── --}}
+    <div class="section-title">Estado financiero del servicio</div>
+    <table class="rows">
+        <tr><td class="label">Total del servicio:</td><td>$ {{ number_format($service->total_price, 0, ',', '.') }}</td></tr>
+        <tr><td class="label">Total acumulado:</td><td>$ {{ number_format($service->total_paid, 0, ',', '.') }}</td></tr>
+        <tr>
+            <td class="label">Saldo pendiente:</td>
+            <td style="font-weight: bold; color: {{ $service->balance > 0 ? '#901c1f' : '#15803d' }};">
+                $ {{ number_format($service->balance, 0, ',', '.') }}
+            </td>
+        </tr>
+    </table>
+
+    {{-- ───────── Firmas ───────── --}}
+    <table class="sign">
+        <tr>
+            <td><div class="sign-line">Recibí conforme<br>(Cliente)</div></td>
+            <td><div class="sign-line">Firma autorizada</div></td>
+        </tr>
+    </table>
+
+    {{-- ───────── Pie ───────── --}}
     <div class="footer">
-        <p>Este comprobante es un documento interno de la funeraria.</p>
-        <p>Generado el {{ now()->format('d/m/Y \a \l\a\s H:i') }} por {{ $payment->registeredBy?->name ?? 'Sistema' }}</p>
+        Este comprobante es un documento interno de la funeraria.<br>
+        Generado el {{ now()->format('d/m/Y \a \l\a\s H:i') }} por {{ $payment->registeredBy?->name ?? 'Sistema' }}
     </div>
 
 </body>

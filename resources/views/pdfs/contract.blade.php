@@ -58,7 +58,8 @@
         @else
             <h1>Funeraria Cristo Rey</h1>
         @endif
-        <p>RUT: 76.543.210-K | Av. Principal 1234, Santiago</p>
+        <p>RUT: 76.543.210-K | Blanco Encalada 142, Temuco, Araucanía</p>
+        <p>Tel: +56 9 6729 4759 | Atención las 24 horas</p>
     </div>
 
     <div class="title">CONTRATO DE SERVICIO FUNERARIO</div>

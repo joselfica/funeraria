@@ -2,9 +2,13 @@
 
 namespace App\Providers;
 
+use App\Listeners\Auth\HandleLoginAttempts;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -26,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
 
         \Carbon\Carbon::setLocale(config('app.locale'));
+
+        // Registrar el listener para ambos eventos de autenticación
+        Event::listen(Failed::class, HandleLoginAttempts::class);
+        Event::listen(Login::class, HandleLoginAttempts::class);
     }
 
     /**

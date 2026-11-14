@@ -53,6 +53,10 @@ class StaffController extends Controller
                 ] : null,
                 'vacation_days_available' => $user->vacation_days_available,
                 'vacation_days_total' => $user->vacation_days_total,
+                // Estado de bloqueo por intentos fallidos de login
+                'failed_login_attempts' => $user->failed_login_attempts ?? 0,
+                'is_locked' => $user->is_locked,
+                'locked_until' => $user->locked_until?->format('d/m/Y H:i'),
             ];
         });
 
@@ -238,6 +242,27 @@ class StaffController extends Controller
                 'type' => 'success',
                 'message' => 'Usuario eliminado correctamente.',
             ]);
+    }
+
+    /**
+     * Desbloquea la cuenta de un empleado (resetea los intentos fallidos).
+     * Solo el Administrador puede desbloquear.
+     */
+    public function unlock(User $user)
+    {
+        if (! auth()->user()->hasRole('Administrador')) {
+            abort(403, 'Solo el Administrador puede desbloquear cuentas.');
+        }
+
+        $user->update([
+            'failed_login_attempts' => 0,
+            'locked_until' => null,
+        ]);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "La cuenta de {$user->name} ha sido desbloqueada.",
+        ]);
     }
 
     /**

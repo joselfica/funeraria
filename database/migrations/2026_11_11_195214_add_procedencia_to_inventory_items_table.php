@@ -1,34 +1,22 @@
 <?php
 
-namespace App\Console\Commands;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
-use Illuminate\Console\Command;
-use App\Models\Branch;
-
-class CleanTestData extends Command
+return new class extends Migration
 {
-    // El nombre con el que llamarás al comando
-    protected $signature = 'app:clean-test-data';
-
-    // La descripción que verás en php artisan list
-    protected $description = 'Elimina sucursales de prueba creadas durante el desarrollo';
-
-    public function handle()
+    public function up(): void
     {
-        // Busca sucursales cuyo código empiece con "suc-" y sean de prueba
-        // (Ajusta esta lógica según tus necesidades)
-        $branches = Branch::whereIn('code', ['suc-03', 'SUC-TEST'])->get();
-
-        if ($branches->isEmpty()) {
-            $this->info('No se encontraron sucursales de prueba para eliminar.');
-            return;
-        }
-
-        foreach ($branches as $branch) {
-            $branch->forceDelete(); // Borra físicamente ignorando el soft delete si lo tuvieras
-            $this->info("Sucursal '{$branch->name}' eliminada.");
-        }
-
-        $this->info('Limpieza completada.');
+        Schema::table('inventory_items', function (Blueprint $table) {
+            $table->string('procedencia')->nullable()->after('material');
+        });
     }
-}
+
+    public function down(): void
+    {
+        Schema::table('inventory_items', function (Blueprint $table) {
+            $table->dropColumn('procedencia');
+        });
+    }
+};

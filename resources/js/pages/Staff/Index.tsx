@@ -2,7 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, CheckCircle2, XCircle, Calendar, Plus, KeyRound, UserX, UserCheck, Ban } from 'lucide-react';
+import { Users, CheckCircle2, XCircle, Calendar, Plus, KeyRound, UserX, UserCheck, Ban, Lock, LockOpen } from 'lucide-react';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -17,6 +17,9 @@ interface Employee {
     vacation_days_available: number;
     vacation_days_total: number;
     is_active: boolean;
+    failed_login_attempts: number;
+    is_locked: boolean;
+    locked_until: string | null;
 }
 
 interface Props {
@@ -31,6 +34,12 @@ export default function StaffIndex({ staff }: Props) {
 
         if (confirm(message)) {
             router.post(`/staff/${userId}/toggle-active`);
+        }
+    };
+
+    const handleUnlock = (userId: number, userName: string) => {
+        if (confirm(`¿Desbloquear la cuenta de "${userName}"?\n\nSe reiniciarán los intentos fallidos de inicio de sesión.`)) {
+            router.post(`/staff/${userId}/unlock`);
         }
     };
 
@@ -101,6 +110,27 @@ export default function StaffIndex({ staff }: Props) {
         </Badge>
     );
 
+    const renderLockBadge = (emp: Employee) =>
+        emp.is_locked ? (
+            <Badge variant="destructive" className="text-xs gap-1">
+                <Lock className="h-3 w-3" /> Bloqueado hasta {emp.locked_until}
+            </Badge>
+        ) : null;
+
+    const renderUnlockButton = (emp: Employee, compact = false) =>
+        emp.is_locked ? (
+            <Button
+                variant={compact ? 'ghost' : 'outline'}
+                size="sm"
+                onClick={() => handleUnlock(emp.id, emp.name)}
+                title="Desbloquear cuenta"
+                className="text-red-600 hover:text-red-700"
+            >
+                <LockOpen className="h-4 w-4" />
+                {!compact && <span className="ml-1">Desbloquear</span>}
+            </Button>
+        ) : null;
+
     return (
         <>
             <Head title="Gestión de Personal" />
@@ -135,6 +165,8 @@ export default function StaffIndex({ staff }: Props) {
                                     {renderAccountBadge(emp)}
                                 </div>
 
+                                {renderLockBadge(emp)}
+
                                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                                     {renderStatus(emp)}
                                     <div className="flex gap-1 flex-wrap">
@@ -165,6 +197,7 @@ export default function StaffIndex({ staff }: Props) {
                                             ? <><UserX className="h-4 w-4 mr-1" /> Desactivar</>
                                             : <><UserCheck className="h-4 w-4 mr-1" /> Activar</>}
                                     </Button>
+                                    {renderUnlockButton(emp)}
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -218,9 +251,17 @@ export default function StaffIndex({ staff }: Props) {
                                             </div>
                                         </TableCell>
                                         <TableCell>{renderVacations(emp)}</TableCell>
-                                        <TableCell>{renderAccountBadge(emp)}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col items-start gap-1">
+                                                {renderAccountBadge(emp)}
+                                                {renderLockBadge(emp)}
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-1">
+                                                {/* Botón de desbloqueo (solo si la cuenta está bloqueada) */}
+                                                {renderUnlockButton(emp, true)}
+
                                                 {/* Botón de activar/desactivar */}
                                                 <Button
                                                     variant="ghost"

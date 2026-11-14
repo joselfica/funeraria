@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "03659878e38fbca6c6f205d73ec30f0f",
+    "content-hash": "01f0d8e472496027fffc291c2df5cf12",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -3662,6 +3662,83 @@
                 "source": "https://github.com/nikic/PHP-Parser/tree/v5.9.0"
             },
             "time": "2026-09-13T18:51:52+00:00"
+        },
+        {
+            "name": "novwyatt/laravel-login-guard",
+            "version": "v0.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/NovWyatt/laravel-login-guard.git",
+                "reference": "b425abde5ee2de0cde0bdbb194fa57f5b217a40c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/NovWyatt/laravel-login-guard/zipball/b425abde5ee2de0cde0bdbb194fa57f5b217a40c",
+                "reference": "b425abde5ee2de0cde0bdbb194fa57f5b217a40c",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/auth": "^12.0|^13.0",
+                "illuminate/cache": "^12.0|^13.0",
+                "illuminate/console": "^12.0|^13.0",
+                "illuminate/contracts": "^12.0|^13.0",
+                "illuminate/database": "^12.0|^13.0",
+                "illuminate/events": "^12.0|^13.0",
+                "illuminate/http": "^12.0|^13.0",
+                "illuminate/notifications": "^12.0|^13.0",
+                "illuminate/support": "^12.0|^13.0",
+                "illuminate/validation": "^12.0|^13.0",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.0",
+                "laravel/pint": "^1.18",
+                "orchestra/testbench": "^10.0|^11.0",
+                "pestphp/pest": "^4.0|^5.0",
+                "pestphp/pest-plugin-laravel": "^4.0|^5.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "LoginGuard": "NovWyatt\\LoginGuard\\Facades\\LoginGuard"
+                    },
+                    "providers": [
+                        "NovWyatt\\LoginGuard\\LoginGuardServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "NovWyatt\\LoginGuard\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "NovWyatt",
+                    "homepage": "https://github.com/NovWyatt"
+                }
+            ],
+            "description": "Brute-force login protection for Laravel: progressive lockouts per IP and username, allow and block lists, events, alerts by mail, Slack or Telegram, and an audit log.",
+            "homepage": "https://github.com/NovWyatt/laravel-login-guard",
+            "keywords": [
+                "brute-force",
+                "fortify",
+                "laravel",
+                "lockout",
+                "login",
+                "security",
+                "throttle"
+            ],
+            "support": {
+                "issues": "https://github.com/NovWyatt/laravel-login-guard/issues",
+                "source": "https://github.com/NovWyatt/laravel-login-guard/tree/v0.1.1"
+            },
+            "time": "2026-10-14T08:30:27+00:00"
         },
         {
             "name": "nunomaduro/termwind",

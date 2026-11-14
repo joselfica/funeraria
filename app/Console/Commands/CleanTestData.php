@@ -2,19 +2,28 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use App\Models\Branch;
 
-#[Signature('app:clean-test-data')]
-#[Description('Command description')]
 class CleanTestData extends Command
 {
-    /**
-     * Execute the console command.
-     */
+    protected $signature = 'app:clean-test-data';
+    protected $description = 'Elimina sucursales de prueba creadas durante el desarrollo';
+
     public function handle()
     {
-        //
+        $branches = Branch::whereIn('code', ['suc-03', 'SUC-TEST'])->get();
+
+        if ($branches->isEmpty()) {
+            $this->info('No se encontraron sucursales de prueba para eliminar.');
+            return;
+        }
+
+        foreach ($branches as $branch) {
+            $branch->forceDelete();
+            $this->info("Sucursal '{$branch->name}' eliminada.");
+        }
+
+        $this->info('Limpieza completada.');
     }
 }

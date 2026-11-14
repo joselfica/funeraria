@@ -27,6 +27,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property bool $is_active
  * @property int $vacation_days_total
  * @property int $vacation_days_used
+ * @property int $failed_login_attempts
+ * @property Carbon|null $locked_until
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -38,6 +40,8 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
     'is_active',
     'vacation_days_total',
     'vacation_days_used',
+    'failed_login_attempts',
+    'locked_until',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
@@ -78,6 +82,8 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'vacation_days_total' => 'integer',
             'vacation_days_used' => 'integer',
+            'failed_login_attempts' => 'integer',
+            'locked_until' => 'datetime',
         ];
     }
 
@@ -129,5 +135,13 @@ class User extends Authenticatable
     public function getVacationDaysAvailableAttribute(): int
     {
         return max(0, $this->vacation_days_total - $this->vacation_days_used);
+    }
+
+    /**
+     * Accessor: ¿la cuenta está actualmente bloqueada?
+     */
+    public function getIsLockedAttribute(): bool
+    {
+        return $this->locked_until && $this->locked_until->isFuture();
     }
 }

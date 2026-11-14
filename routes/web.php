@@ -140,6 +140,7 @@ Route::middleware(['auth', 'role:Administrador'])->group(function () {
         Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
         Route::post('staff/{user}/password', [StaffController::class, 'updatePassword'])->name('staff.update-password');
         Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
+        Route::post('staff/{user}/unlock', [StaffController::class, 'unlock'])->name('staff.unlock');
     });
     
     // ─────────────────────────────────────────────────────────
