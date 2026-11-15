@@ -267,6 +267,22 @@ class ServiceController extends Controller
 
         $service->update($validated);
 
+        // Sincronizar ubicación con el fallecido asociado (solo si el campo vino en el request)
+        if ($service->deceased) {
+            $deceasedUpdate = [];
+
+            if ($request->has('origin_location')) {
+                $deceasedUpdate['death_location'] = $validated['origin_location'] ?? null;
+            }
+            if ($request->has('destination_location')) {
+                $deceasedUpdate['cemetery'] = $validated['destination_location'] ?? null;
+            }
+
+            if (!empty($deceasedUpdate)) {
+                $service->deceased->update($deceasedUpdate);
+            }
+        }
+
         return redirect()->route('services.index')
             ->with('toast', [
                 'type' => 'success',
@@ -541,6 +557,10 @@ class ServiceController extends Controller
                 'death_date' => $validated['deceased_death_date'],
                 'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
                 'current_location' => 'Funeraria Cristo Rey',
+
+                // 👇 NUEVO: Sincronizar ubicación con el servicio
+                'death_location' => $validated['origin_location'] ?? null,       // De dónde se retira el cuerpo
+                'cemetery' => $validated['destination_location'] ?? null,        // A dónde se lleva (cementerio/crematorio)
             ]);
 
             // ─────────────────────────────────────────────────────────

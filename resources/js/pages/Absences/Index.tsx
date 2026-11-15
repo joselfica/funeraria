@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Calendar, Plus, CheckCircle, XCircle, Clock, CalendarDays, User, ArrowRight, Eye, MessageSquare } from 'lucide-react';
+import { Calendar, Plus, CheckCircle, XCircle, Clock, CalendarDays, User, ArrowRight, MessageSquare } from 'lucide-react';
 
 interface Absence {
     id: number;
@@ -57,19 +57,6 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
     const handleFilter = (newStatus: string) => {
         setStatus(newStatus);
         router.get('/absences', { status: newStatus }, { preserveState: true, preserveScroll: true });
-    };
-
-    const handleApprove = (id: number, name: string) => {
-        if (confirm(`¿Aprobar la ausencia de ${name}?`)) {
-            router.post(`/absences/${id}/approve`);
-        }
-    };
-
-    const handleReject = (id: number, name: string) => {
-        const reason = prompt(`Motivo del rechazo para ${name}:`);
-        if (reason) {
-            router.post(`/absences/${id}/reject`, { rejection_reason: reason });
-        }
     };
 
     // starts_at / ends_at son fechas sin hora: se toma solo YYYY-MM-DD para que
@@ -129,40 +116,6 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                 <span className="line-clamp-2">{absence.reason}</span>
             </p>
         ) : null;
-
-    /** Botones de acción. En tarjetas ocupan todo el ancho; en tabla van alineados a la derecha. */
-    const renderActions = (absence: Absence, full = false) => {
-        const canReview = is_admin && absence.status === 'pending';
-
-        return (
-            <div className={`flex items-center gap-2 ${full ? '' : 'justify-end'}`}>
-                {canReview && (
-                    <>
-                        <Button
-                            size="sm"
-                            className={`h-9 bg-emerald-600 text-white hover:bg-emerald-700 ${full ? 'flex-1' : ''}`}
-                            onClick={() => handleApprove(absence.id, absence.user.name)}
-                        >
-                            <CheckCircle className="mr-1 h-4 w-4" /> Aprobar
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className={`h-9 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-900 dark:hover:bg-rose-950/30 ${full ? 'flex-1' : ''}`}
-                            onClick={() => handleReject(absence.id, absence.user.name)}
-                        >
-                            <XCircle className="mr-1 h-4 w-4" /> Rechazar
-                        </Button>
-                    </>
-                )}
-                <Link href={`/absences/${absence.id}`} className={canReview ? '' : full ? 'flex-1' : ''}>
-                    <Button variant="outline" size="sm" className={`h-9 ${canReview ? '' : full ? 'w-full' : ''}`}>
-                        <Eye className="mr-1 h-4 w-4" /> Ver
-                    </Button>
-                </Link>
-            </div>
-        );
-    };
 
     const availablePct =
         vacation_days.total > 0 ? Math.min((vacation_days.available / vacation_days.total) * 100, 100) : 0;
@@ -310,8 +263,6 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                                     </p>
                                     {renderReason(absence)}
                                 </div>
-
-                                <div className="mt-auto border-t pt-4">{renderActions(absence, true)}</div>
                             </div>
                         ))
                     )}
@@ -327,13 +278,12 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                                 <TableHead className="h-12 px-5">Período</TableHead>
                                 <TableHead className="h-12 px-5">Días</TableHead>
                                 <TableHead className="h-12 px-5">Estado</TableHead>
-                                <TableHead className="h-12 px-5 text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {absences.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={is_admin ? 6 : 5} className="py-12 text-center text-muted-foreground">
+                                    <TableCell colSpan={is_admin ? 5 : 4} className="py-12 text-center text-muted-foreground">
                                         <Calendar className="mx-auto mb-2 h-12 w-12 text-slate-300" />
                                         No hay ausencias para mostrar
                                     </TableCell>
@@ -361,7 +311,6 @@ export default function AbsencesIndex({ absences, filters, is_admin, vacation_da
                                             </span>
                                         </TableCell>
                                         <TableCell className="px-5 py-4">{getStatusBadge(absence.status, absence.status_label)}</TableCell>
-                                        <TableCell className="whitespace-nowrap px-5 py-4">{renderActions(absence)}</TableCell>
                                     </TableRow>
                                 ))
                             )}

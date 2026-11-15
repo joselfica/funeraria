@@ -75,6 +75,12 @@ class DeceasedController extends Controller
             $q->orderByDesc('scheduled_at')->limit(10);
         }]);
 
+        // Normalizar fechas para evitar desfase de zona horaria en el frontend.
+        // El frontend recibe "YYYY-MM-DD" en vez de ISO con UTC.
+        $deceased->death_date = $deceased->death_date?->format('Y-m-d');
+        $deceased->birth_date = $deceased->birth_date?->format('Y-m-d');
+        $deceased->death_certificate_date = $deceased->death_certificate_date?->format('Y-m-d');
+
         return Inertia::render('Deceased/Show', [
             'deceased' => $deceased,
         ]);

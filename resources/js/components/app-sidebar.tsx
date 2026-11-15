@@ -1,9 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
 import {
     Briefcase,
     CalendarDays,
     Car,
-    Cross, 
+    Cross,
     DollarSign,
     FileText,
     LayoutGrid,
@@ -23,6 +24,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
@@ -41,6 +43,16 @@ export function AppSidebar() {
         auth?: { user?: { roles?: string[] } };
     }>().props;
 
+    // Cerrar el sidebar móvil al navegar
+    const { setOpenMobile, isMobile } = useSidebar();
+    const { url } = usePage();
+
+    useEffect(() => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    }, [url, isMobile, setOpenMobile]);
+
     const userRoles = auth?.user?.roles ?? [];
     const isAdmin = userRoles.includes('Administrador');
     const isEncargado = userRoles.includes('Encargado');
@@ -53,7 +65,6 @@ export function AppSidebar() {
             href: dashboard(),
             icon: LayoutGrid,
         },
-        // Clientes: Admin y Encargado
         ...((isAdmin || isEncargado)
             ? [
                   {
@@ -63,7 +74,6 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // 👇 NUEVO: Fallecidos (Admin y Encargado)
         ...((isAdmin || isEncargado)
             ? [
                   {
@@ -73,7 +83,6 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // Inventario: Admin, Encargado y Chofer
         ...((isAdmin || isEncargado || isChofer)
             ? [
                   {
@@ -83,7 +92,6 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // Vehículos: Admin y Encargado
         ...((isAdmin || isEncargado)
             ? [
                   {
@@ -93,7 +101,6 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // Servicios: Admin y Encargado (NO Chofer)
         ...(!isChofer && (isAdmin || isEncargado)
             ? [
                   {
@@ -103,7 +110,6 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // Sucursales: Admin y Encargado
         ...((isAdmin || isEncargado)
             ? [
                   {
@@ -113,14 +119,12 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // Ausencias: Todos
         {
             title: 'Mis Ausencias',
             href: '/absences',
             icon: CalendarDays,
             badge: pendingAbsences > 0 ? pendingAbsences : undefined,
         },
-        // Reportes: Admin
         ...(isAdmin
             ? [
                   {
@@ -130,7 +134,6 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        // Personal: Admin
         ...(isAdmin
             ? [
                   {
