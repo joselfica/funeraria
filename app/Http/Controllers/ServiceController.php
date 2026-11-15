@@ -23,11 +23,51 @@ class ServiceController extends Controller
         $search = $request->input('search', '');
         $status = $request->input('status', '');
 
-        $services = Service::query()
-            ->with(['client:id,name,rut', 'deceased:id,full_name', 'serviceType:id,name'])
-            ->withSum('payments', 'amount')
+        // Filtro de pagos: all | pending (con deuda) | paid (totalmente pagados)
+        $paymentFilter = in_array($request->input('payment_filter'), ['pending', 'paid'], true)
+            ? $request->input('payment_filter')
+            : 'all';
+
+        // Subconsulta con el total pagado de cada servicio (ignora pagos eliminados)
+        $paidSql = '(SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.service_id = services.id AND payments.deleted_at IS NULL)';
+
+        // Condiciones de pago reutilizables (deuda pendiente / totalmente pagado)
+        $debtSql = "services.total_price > {$paidSql} + 0.01";
+        $paidCondSql = "services.total_price <= {$paidSql} + 0.01";
+
+        // Consulta base (búsqueda y estado): se reutiliza para contadores, total y listado
+        $base = Service::query()
             ->when($search, fn ($q) => $q->search($search))
-            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($status, fn ($q) => $q->where('status', $status));
+
+        // Contadores de los chips (respetan la búsqueda, no el filtro de pagos)
+        $counts = [
+            'all' => (clone $base)->count(),
+            'pending' => (clone $base)->whereRaw($debtSql)->count(),
+            'paid' => (clone $base)->whereRaw($paidCondSql)->count(),
+        ];
+
+        // Total por cobrar del filtro activo (suma de saldos positivos)
+        $totalDue = (float) (clone $base)
+            ->when($paymentFilter === 'paid', fn ($q) => $q->whereRaw($paidCondSql))
+            ->when($paymentFilter === 'pending', fn ($q) => $q->whereRaw($debtSql))
+            ->selectRaw("COALESCE(SUM(GREATEST(services.total_price - {$paidSql}, 0)), 0) AS due")
+            ->value('due');
+
+        $services = (clone $base)
+            ->with([
+                'client:id,name,rut',
+                'deceased:id,full_name',
+                'serviceType:id,name',
+                // Solo el chofer asignado (para mostrarlo en el listado)
+                'assignments' => fn ($q) => $q->where('role_in_service', 'driver')->with('user:id,name'),
+            ])
+            ->withSum('payments', 'amount')
+            ->when($paymentFilter === 'paid', fn ($q) => $q->whereRaw($paidCondSql))
+            ->when($paymentFilter === 'pending', fn ($q) => $q->whereRaw($debtSql))
+            // Orden: 1) primero los servicios con saldo pendiente (total > pagado),
+            //        2) luego por fecha de programación (más recientes primero)
+            ->orderByRaw("(services.total_price - COALESCE({$paidSql}, 0)) > 0 DESC")
             ->orderByDesc('scheduled_at')
             ->paginate(15)
             ->withQueryString()
@@ -43,6 +83,10 @@ class ServiceController extends Controller
 
                 $service->append(['status_label', 'beneficiary_label']);
 
+                // Chofer asignado (primero, si hay varios) y sin enviar la relación completa
+                $service->driver_name = $service->assignments->first()?->user?->name;
+                $service->unsetRelation('assignments');
+
                 return $service;
             });
 
@@ -51,7 +95,10 @@ class ServiceController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'payment_filter' => $paymentFilter,
             ],
+            'counts' => $counts,
+            'total_due' => $totalDue,
         ]);
     }
 
