@@ -18,6 +18,7 @@ class InventoryItem extends Model
         'name',
         'description',
         'material',
+        'procedencia',
         'dimensions',
         'price',
         'stock',
@@ -93,6 +94,14 @@ class InventoryItem extends Model
     {
         return $query->where('is_seremi_required', true)
             ->whereColumn('stock', '<=', 'stock_minimum');
+    }
+
+    /**
+     * Scope: filtra por procedencia (ciudad de origen: Talca | Santiago)
+     */
+    public function scopeFromProcedencia($query, string $procedencia)
+    {
+        return $query->where('procedencia', $procedencia);
     }
 
     /**
