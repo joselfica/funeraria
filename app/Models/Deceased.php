@@ -14,7 +14,7 @@ class Deceased extends Model
     protected $table = 'deceased';
 
     protected $fillable = [
-        'uuid', 'full_name', 'rut', 'gender', 'birth_date', 'death_date', 'death_time',
+        'uuid', 'full_name', 'rut', 'is_active', 'gender', 'birth_date', 'death_date', 'death_time',
         'death_certificate_number', 'death_certificate_office', 'death_certificate_date',
         'cause_of_death', 'death_location', 'current_location',
         'cemetery', 'niche_location', 'notes',
@@ -25,6 +25,7 @@ class Deceased extends Model
         'death_date' => 'date',
         'death_certificate_date' => 'date',
         'death_time' => 'datetime:H:i',
+        'is_active' => 'boolean',
         'cause_of_death' => 'encrypted', // 🔒 Encriptación automática
     ];
 

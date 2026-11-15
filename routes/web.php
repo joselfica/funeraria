@@ -63,7 +63,9 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::resource('clients', ClientController::class)->except(['destroy']);
     Route::resource('inventory', InventoryController::class);
     Route::resource('vehicles', VehicleController::class);
-    Route::resource('deceased', DeceasedController::class);
+    // Los registros de fallecidos no se eliminan (auditoría): solo se activan/desactivan
+    Route::post('deceased/{deceased}/toggle-active', [DeceasedController::class, 'toggleActive'])->name('deceased.toggle-active');
+    Route::resource('deceased', DeceasedController::class)->except(['destroy']);
     
     // Servicios
     Route::get('services/wizard', function () {

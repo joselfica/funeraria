@@ -11,16 +11,27 @@ class DeceasedController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search', '');
+        $status = $request->input('status', 'all'); // all | active | inactive
 
         $deceased = Deceased::query()
             ->when($search, fn ($q) => $q->search($search))
+            ->when($status === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
             ->orderByDesc('death_date')
             ->paginate(15)
             ->withQueryString();
 
         return Inertia::render('Deceased/Index', [
             'deceased' => $deceased,
-            'filters' => ['search' => $search],
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+            ],
+            'counts' => [
+                'all' => Deceased::count(),
+                'active' => Deceased::where('is_active', true)->count(),
+                'inactive' => Deceased::where('is_active', false)->count(),
+            ],
         ]);
     }
 
@@ -60,7 +71,6 @@ class DeceasedController extends Controller
 
     public function show(Deceased $deceased)
     {
-        // Cargar servicios asociados
         $deceased->load(['services' => function ($q) {
             $q->orderByDesc('scheduled_at')->limit(10);
         }]);
@@ -100,7 +110,6 @@ class DeceasedController extends Controller
 
         $deceased->update($validated);
 
-        // Redirigir según el contexto (solo rutas internas)
         $redirectTo = $request->input('redirect_to');
         if ($redirectTo && str_starts_with($redirectTo, '/') && ! str_starts_with($redirectTo, '//')) {
             return redirect($redirectTo)
@@ -117,22 +126,31 @@ class DeceasedController extends Controller
             ]);
     }
 
+    /**
+     * Los fallecidos NO se eliminan físicamente por razones de auditoría.
+     * Solo se pueden desactivar (soft delete lógico vía is_active).
+     */
     public function destroy(Deceased $deceased)
     {
-        // Verificar que no tenga servicios asociados
-        if ($deceased->services()->count() > 0) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No se puede eliminar: tiene servicios asociados.',
-            ]);
+        abort(403, 'Por razones de auditoría, los fallecidos no se pueden eliminar. Solo desactivar.');
+    }
+
+    /**
+     * Activa o desactiva un fallecido.
+     */
+    public function toggleActive(Deceased $deceased)
+    {
+        if (! auth()->user()->hasAnyRole(['Administrador', 'Encargado'])) {
+            abort(403, 'No tienes permiso para realizar esta acción.');
         }
 
-        $deceased->delete();
+        $deceased->update(['is_active' => ! $deceased->is_active]);
 
-        return redirect()->route('deceased.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Fallecido eliminado correctamente.',
-            ]);
+        $action = $deceased->is_active ? 'activado' : 'desactivado';
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => "Fallecido {$deceased->full_name} {$action} correctamente.",
+        ]);
     }
 }

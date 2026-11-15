@@ -3,6 +3,7 @@ import {
     Briefcase,
     CalendarDays,
     Car,
+    Cross, 
     DollarSign,
     FileText,
     LayoutGrid,
@@ -28,7 +29,6 @@ import type { NavItem } from '@/types';
 
 const footerNavItems: NavItem[] = [
     // Eliminamos los items del Starter Kit
-    // Puedes dejarlo vacío o poner enlaces a tu documentación
 ];
 
 export function AppSidebar() {
@@ -60,6 +60,16 @@ export function AppSidebar() {
                       title: 'Clientes',
                       href: '/clients',
                       icon: Users,
+                  },
+              ]
+            : []),
+        // 👇 NUEVO: Fallecidos (Admin y Encargado)
+        ...((isAdmin || isEncargado)
+            ? [
+                  {
+                      title: 'Fallecidos',
+                      href: '/deceased',
+                      icon: Cross,
                   },
               ]
             : []),
