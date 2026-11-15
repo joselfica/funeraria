@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Eye, FileText, MoreVertical, Pencil, Plus, Receipt, UserCheck } from 'lucide-react';
+import { CheckCircle2, Clock, Eye, FileText, Flower2, MoreVertical, Pencil, Plus, Receipt, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -190,14 +190,15 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
         const { day, month, year, time } = getDateParts(service.scheduled_at);
         return (
             <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-                    <span className="text-[10px] font-semibold uppercase leading-none text-muted-foreground">{month}</span>
-                    <span className="text-lg font-bold leading-tight">{day}</span>
+                {/* Calendario (mismo tamaño y estilo que en Fallecidos) */}
+                <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-100 p-2 dark:bg-slate-800">
+                    <span className="text-xs font-bold uppercase text-rose-800 dark:text-rose-400">{month}</span>
+                    <span className="text-xl font-bold text-slate-800 dark:text-slate-100">{day}</span>
+                    <span className="text-[10px] text-muted-foreground">{year}</span>
                 </div>
-                <div className="text-xs leading-tight text-muted-foreground">
-                    <p className="font-medium text-foreground">{time}</p>
-                    <p>{year}</p>
-                </div>
+                <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                    <Clock className="h-3 w-3" /> {time}
+                </span>
             </div>
         );
     };
@@ -297,11 +298,16 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
 
             <div className="mx-auto max-w-7xl p-4 pb-24 md:p-6">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 md:text-3xl">Servicios Funerarios</h1>
-                        <p className="mt-1 text-sm text-muted-foreground md:text-base">
-                            {services.total} {services.total === 1 ? 'servicio' : 'servicios'}
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <div className="shrink-0 rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
+                            <Flower2 className="h-6 w-6 md:h-8 md:w-8" />
+                        </div>
+                        <div className="min-w-0">
+                            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 sm:text-2xl md:text-3xl">Servicios Funerarios</h1>
+                            <p className="mt-0.5 text-sm text-muted-foreground md:text-base">
+                                {services.total} {services.total === 1 ? 'servicio' : 'servicios'}
+                            </p>
+                        </div>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <Link href="/services/wizard" className="w-full sm:w-auto">
