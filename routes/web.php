@@ -71,7 +71,12 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('services/wizard', function () {
         return \Inertia\Inertia::render('Services/Wizard', [
             'branches' => \App\Models\Branch::active()->get(['id', 'name']),
-            'serviceTypes' => \App\Models\ServiceType::active()->get(['id', 'name', 'base_price', 'duration_hours']),
+            'serviceTypes' => collect(\App\Enums\ServiceTypeEnum::cases())->map(fn ($type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
+                'base_price' => $type->basePrice(),
+                'duration_hours' => $type->durationHours(),
+            ]),
             'beneficiaryTypes' => collect(\App\Enums\BeneficiaryType::cases())->map(fn ($t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

@@ -2,17 +2,23 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info, AlertTriangle } from 'lucide-react';
 
 interface Client { id: number; name: string; rut: string; }
 interface Deceased { id: number; full_name: string; rut: string | null; }
-interface ServiceType { id: number; name: string; base_price: string; duration_hours: number; }
+
+interface ServiceTypeOption {
+    value: string;   // 'con_ataud' | 'con_urna'
+    label: string;
+    base_price: number;
+    duration_hours: number;
+}
 
 interface Props {
     clients: Client[];
     deceased: Deceased[];
-    serviceTypes: ServiceType[];
+    serviceTypes: ServiceTypeOption[];
     branches: Array<{ id: number; name: string; code: string }>;
     beneficiaryTypes: Array<{ value: string; label: string }>;
 }
@@ -20,7 +26,7 @@ interface Props {
 interface FormData {
     client_id: string;
     deceased_id: string;
-    service_type_id: string;
+    service_type: string; // 👈 string en lugar de service_type_id
     branch_id: string;
     beneficiary_type: string;
     scheduled_at: string;
@@ -36,7 +42,7 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
     const { data, setData, post, processing, errors } = useForm<FormData>({
         client_id: '',
         deceased_id: '',
-        service_type_id: '',
+        service_type: '',
         branch_id: '',
         beneficiary_type: 'particular',
         scheduled_at: '',
@@ -49,10 +55,10 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
     });
 
     const handleServiceTypeChange = (value: string) => {
-        setData('service_type_id', value);
-        const selectedType = serviceTypes.find((t) => String(t.id) === value);
+        setData('service_type', value);
+        const selectedType = serviceTypes.find((t) => t.value === value);
         if (selectedType) {
-            setData('base_price', selectedType.base_price);
+            setData('base_price', String(selectedType.base_price));
             setData('duration_hours', String(selectedType.duration_hours));
         }
     };
@@ -137,12 +143,16 @@ export default function ServicesCreate({ clients, deceased, serviceTypes, branch
                         </CardHeader>
                         <CardContent className="space-y-4 pt-6">
                             <div>
-                                <Label htmlFor="service_type_id">Tipo de servicio *</Label>
-                                <select id="service_type_id" value={data.service_type_id} onChange={(e) => handleServiceTypeChange(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm mt-1" required>
+                                <Label htmlFor="service_type">Tipo de servicio *</Label>
+                                <select id="service_type" value={data.service_type} onChange={(e) => handleServiceTypeChange(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm mt-1" required>
                                     <option value="">Seleccionar tipo...</option>
-                                    {serviceTypes.map((t) => (<option key={t.id} value={t.id}>{t.name} - {formatPrice(parseFloat(t.base_price))}</option>))}
+                                    {serviceTypes.map((type) => (
+                                        <option key={type.value} value={type.value}>
+                                            {type.label}
+                                        </option>
+                                    ))}
                                 </select>
-                                {errors.service_type_id && <p className="text-sm text-rose-600 mt-1">{errors.service_type_id}</p>}
+                                {errors.service_type && <p className="text-sm text-rose-600 mt-1">{errors.service_type}</p>}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>

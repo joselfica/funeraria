@@ -105,7 +105,7 @@ class DashboardController extends Controller
             ->get(['id', 'code', 'name', 'category', 'stock', 'stock_minimum']);
 
         // 4. Próximos Servicios (desde mañana hasta 7 días; los de hoy van en $todayServices)
-        $upcomingServices = Service::with(['client:id,name', 'deceased:id,full_name', 'vehicles', 'serviceType:id,name'])
+        $upcomingServices = Service::with(['client:id,name', 'deceased:id,full_name', 'vehicles'])
             ->whereIn('status', ['accepted', 'in_progress'])
             ->where('scheduled_at', '>=', Carbon::tomorrow())
             ->where('scheduled_at', '<=', now()->addDays(7))
@@ -124,7 +124,7 @@ class DashboardController extends Controller
                 'status_label' => $s->status_label,
                 'deceased' => $s->deceased?->full_name,
                 'client' => $s->client?->name,
-                'service_type' => $s->serviceType?->name,
+                'service_type' => $s->service_type_label,
                 'origin_location' => $s->origin_location,
                 'destination_location' => $s->destination_location,
                 'vehicles' => $s->vehicles->pluck('plate')->join(', '),
@@ -195,7 +195,7 @@ class DashboardController extends Controller
         ];
 
         // Servicios del mes actual (para el calendario)
-        $services = Service::with(['client:id,name', 'deceased:id,full_name', 'serviceType:id,name', 'branch:id,name'])
+        $services = Service::with(['client:id,name', 'deceased:id,full_name', 'branch:id,name'])
             ->whereBetween('scheduled_at', [
                 Carbon::now()->startOfMonth()->subMonth(),
                 Carbon::now()->endOfMonth()->addMonth(),
@@ -212,12 +212,12 @@ class DashboardController extends Controller
                 'status_label' => $s->status_label,
                 'client' => $s->client?->name,
                 'deceased' => $s->deceased?->full_name,
-                'service_type' => $s->serviceType?->name,
+                'service_type' => $s->service_type_label,
                 'branch' => $s->branch?->name,
             ]);
 
         // Servicios de HOY (que ocurren hoy o están en progreso)
-        $todayServices = Service::with(['client:id,name', 'deceased:id,full_name', 'serviceType:id,name', 'branch:id,name'])
+        $todayServices = Service::with(['client:id,name', 'deceased:id,full_name', 'branch:id,name'])
             ->whereDate('scheduled_at', Carbon::today())
             ->orderBy('scheduled_at')
             ->get()
@@ -232,7 +232,7 @@ class DashboardController extends Controller
                 'status_label' => $s->status_label,
                 'client' => $s->client?->name,
                 'deceased' => $s->deceased?->full_name,
-                'service_type' => $s->serviceType?->name,
+                'service_type' => $s->service_type_label,
                 'branch' => $s->branch?->name,
             ]);
 

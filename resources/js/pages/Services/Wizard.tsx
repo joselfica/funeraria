@@ -12,9 +12,16 @@ interface Client {
     rut: string;
 }
 
+interface ServiceTypeOption {
+    value: string;   // 'con_ataud' | 'con_urna'
+    label: string;
+    base_price: number;
+    duration_hours: number;
+}
+
 interface Props {
     branches: Array<{ id: number; name: string }>;
-    serviceTypes: Array<{ id: number; name: string; base_price: string; duration_hours: number }>;
+    serviceTypes: ServiceTypeOption[];
     beneficiaryTypes: Array<{ value: string; label: string }>;
     availableItems: Array<{ id: number; code: string; name: string; category: string; stock: number; price: string }>;
     existingClients: Client[];
@@ -22,11 +29,11 @@ interface Props {
     availableEmployees: Array<{ id: number; name: string }>;
 }
 
-export default function ServicesWizard({ 
-    branches, 
-    serviceTypes, 
-    beneficiaryTypes, 
-    availableItems, 
+export default function ServicesWizard({
+    branches,
+    serviceTypes,
+    beneficiaryTypes,
+    availableItems,
     existingClients,
     availableVehicles,
     availableEmployees,
@@ -46,7 +53,7 @@ export default function ServicesWizard({
         deceased_death_date: '',
         deceased_death_certificate: '',
         branch_id: '',
-        service_type_id: '',
+        service_type: '', // 👈 string en lugar de service_type_id
         beneficiary_type: 'particular',
         scheduled_at: '',
         duration_hours: '48',
@@ -55,7 +62,6 @@ export default function ServicesWizard({
         destination_location: '',
         burial_at: '',
         inventory_item_id: '',
-        // 🆕 NUEVOS CAMPOS
         vehicle_id: '',
         driver_id: '',
         initial_payment_amount: '',
@@ -64,10 +70,10 @@ export default function ServicesWizard({
     });
 
     const handleServiceTypeChange = (value: string) => {
-        setData('service_type_id', value);
-        const selected = serviceTypes.find(t => String(t.id) === value);
+        setData('service_type', value);
+        const selected = serviceTypes.find((t) => t.value === value);
         if (selected) {
-            setData('base_price', selected.base_price);
+            setData('base_price', String(selected.base_price));
             setData('duration_hours', String(selected.duration_hours));
         }
     };
@@ -77,8 +83,8 @@ export default function ServicesWizard({
         post('/services/quick-store');
     };
 
-    const nextStep = () => setStep(s => Math.min(s + 1, 3));
-    const prevStep = () => setStep(s => Math.max(s - 1, 1));
+    const nextStep = () => setStep((s) => Math.min(s + 1, 3));
+    const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
     const formatPrice = (value: number) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
@@ -97,7 +103,7 @@ export default function ServicesWizard({
                 <div className="flex items-center justify-between mb-8 relative px-2">
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 dark:bg-slate-800 -z-10" />
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-rose-800 -z-10 transition-all duration-300" style={{ width: `${((step - 1) / 2) * 100}%` }} />
-                    
+
                     {[1, 2, 3].map((i) => (
                         <div key={i} className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${step >= i ? 'bg-rose-800 text-white border-rose-800' : 'bg-background border-slate-300 text-slate-400'}`}>
                             {step > i ? <Check className="w-5 h-5" /> : i}
@@ -129,7 +135,7 @@ export default function ServicesWizard({
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4 min-h-[350px] pt-6">
-                            
+
                             {/* PASO 1: CLIENTE */}
                             {step === 1 && (
                                 <>
@@ -249,11 +255,15 @@ export default function ServicesWizard({
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="md:col-span-2">
                                             <Label>Tipo de Servicio *</Label>
-                                            <select value={data.service_type_id} onChange={e => handleServiceTypeChange(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm mt-1" required>
+                                            <select value={data.service_type} onChange={e => handleServiceTypeChange(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm mt-1" required>
                                                 <option value="">Seleccionar...</option>
-                                                {serviceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                {serviceTypes.map((type) => (
+                                                    <option key={type.value} value={type.value}>
+                                                        {type.label}
+                                                    </option>
+                                                ))}
                                             </select>
-                                            {errors.service_type_id && <p className="text-sm text-rose-600 mt-1">{errors.service_type_id}</p>}
+                                            {errors.service_type && <p className="text-sm text-rose-600 mt-1">{errors.service_type}</p>}
                                         </div>
                                         <div>
                                             <Label>Fecha y Hora *</Label>
@@ -315,7 +325,7 @@ export default function ServicesWizard({
                                         {errors.inventory_item_id && <p className="text-sm text-rose-600 mt-1">{errors.inventory_item_id}</p>}
                                     </div>
 
-                                    {/* 🆕 ASIGNAR VEHÍCULO Y CHOFER */}
+                                    {/* ASIGNAR VEHÍCULO Y CHOFER */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/40">
                                         <div>
                                             <div className="flex items-center gap-2 mb-2">
@@ -383,14 +393,14 @@ export default function ServicesWizard({
                         <Link href="/services" className="w-full sm:w-auto">
                             <Button type="button" variant="ghost" className="w-full sm:w-auto">Cancelar</Button>
                         </Link>
-                        
+
                         <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
                             {step > 1 && (
                                 <Button type="button" variant="outline" onClick={prevStep} className="w-full sm:w-auto">
                                     <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
                                 </Button>
                             )}
-                            
+
                             {step < 3 ? (
                                 <Button type="button" onClick={nextStep} className="w-full sm:w-auto bg-rose-800 hover:bg-rose-900 text-white">
                                     Siguiente <ChevronRight className="w-4 h-4 ml-1" />

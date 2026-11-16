@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ServiceTypeEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +13,7 @@ class Service extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'uuid', 'code', 'client_id', 'deceased_id', 'service_type_id', 'branch_id',
+        'uuid', 'code', 'client_id', 'deceased_id', 'service_type', 'branch_id',
         'scheduled_at', 'duration_hours', 'ends_at', 'status', 'body_status',
         'base_price', 'additional_charges', 'discount', 'total_price',
         'created_by', 'approved_by', 'approved_at', 'approval_notes', 'rejection_reason',
@@ -43,6 +44,7 @@ class Service extends Model
         'seremi_extension_granted' => 'boolean',
         'seremi_resolution_date' => 'date',
         'burial_at' => 'datetime',
+        'service_type' => ServiceTypeEnum::class,
     ];
 
     // 🔒 Ocultar notas internas (solo visibles para Admin)
@@ -55,6 +57,7 @@ class Service extends Model
     protected $appends = [
         'status_label',
         'beneficiary_label',
+        'service_type_label',
     ];
 
     protected static function booted(): void
@@ -87,10 +90,7 @@ class Service extends Model
         return $this->belongsTo(Deceased::class);
     }
 
-    public function serviceType()
-    {
-        return $this->belongsTo(ServiceType::class);
-    }
+    // 👇 Relación serviceType() ELIMINADA (ya no existe la tabla service_types)
 
     public function createdBy()
     {
@@ -146,6 +146,14 @@ class Service extends Model
 
         return \App\Enums\BeneficiaryType::tryFrom($this->beneficiary_type)?->label()
             ?? $this->beneficiary_type;
+    }
+
+    /**
+     * Accessor: nombre legible del tipo de servicio.
+     */
+    public function getServiceTypeLabelAttribute(): string
+    {
+        return $this->service_type?->label() ?? 'Sin tipo';
     }
 
     /**

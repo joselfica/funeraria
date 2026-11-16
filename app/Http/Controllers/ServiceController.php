@@ -3,17 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Enums\BeneficiaryType;
+use App\Enums\ServiceTypeEnum;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Deceased;
 use App\Models\InventoryItem;
 use App\Models\Service;
-use App\Models\ServiceType;
 use App\Models\Vehicle;
 use App\Services\AvailabilityService;
 use App\Services\ServiceAssignmentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ServiceController extends Controller
@@ -58,7 +59,6 @@ class ServiceController extends Controller
             ->with([
                 'client:id,name,rut',
                 'deceased:id,full_name',
-                'serviceType:id,name',
                 // Solo el chofer asignado (para mostrarlo en el listado)
                 'assignments' => fn ($q) => $q->where('role_in_service', 'driver')->with('user:id,name'),
             ])
@@ -81,7 +81,8 @@ class ServiceController extends Controller
                 $service->is_fully_paid = $balance <= 0.01;
                 $service->payment_percentage = $totalPrice > 0 ? min(100, round(($totalPaid / $totalPrice) * 100, 1)) : 0;
 
-                $service->append(['status_label', 'beneficiary_label']);
+                // status_label, beneficiary_label y service_type_label vienen por $appends
+                $service->append(['status_label', 'beneficiary_label', 'service_type_label']);
 
                 // Chofer asignado (primero, si hay varios) y sin enviar la relación completa
                 $service->driver_name = $service->assignments->first()?->user?->name;
@@ -110,7 +111,15 @@ class ServiceController extends Controller
         return Inertia::render('Services/Create', [
             'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
             'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
-            'serviceTypes' => ServiceType::active()->orderBy('sort_order')->get(['id', 'name', 'base_price', 'duration_hours']),
+
+            // 👇 Tipos de servicio desde el Enum
+            'serviceTypes' => collect(ServiceTypeEnum::cases())->map(fn ($type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
+                'base_price' => $type->basePrice(),
+                'duration_hours' => $type->durationHours(),
+            ]),
+
             'branches' => Branch::active()->orderBy('name')->get(['id', 'name', 'code']),
             'beneficiaryTypes' => collect(BeneficiaryType::cases())->map(fn ($type) => [
                 'value' => $type->value,
@@ -127,7 +136,7 @@ class ServiceController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'deceased_id' => 'required|exists:deceased,id',
-            'service_type_id' => 'required|exists:service_types,id',
+            'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'branch_id' => 'required|exists:branches,id',
             'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',
             'scheduled_at' => 'required|date|after:now',
@@ -171,14 +180,14 @@ class ServiceController extends Controller
     public function show(Service $service, AvailabilityService $availability)
     {
         $service->load([
-            'client', 'deceased', 'serviceType', 'branch',
+            'client', 'deceased', 'branch',
             'createdBy:id,name', 'approvedBy:id,name',
             'inventoryItems', 'vehicles',
             'payments',
             'assignments.user:id,name,email',
         ]);
 
-        $service->append(['beneficiary_label']);
+        $service->append(['beneficiary_label', 'service_type_label']);
 
         $availableItems = InventoryItem::active()->where('stock', '>', 0)->orderBy('category')->orderBy('name')->get(['id', 'code', 'name', 'category', 'stock', 'price']);
         $availableVehicles = Vehicle::available()->orderBy('type')->orderBy('plate')->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
@@ -216,7 +225,15 @@ class ServiceController extends Controller
             'service' => $service,
             'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
             'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
-            'serviceTypes' => ServiceType::active()->orderBy('sort_order')->get(['id', 'name', 'base_price', 'duration_hours']),
+
+            // 👇 Tipos de servicio desde el Enum
+            'serviceTypes' => collect(ServiceTypeEnum::cases())->map(fn ($type) => [
+                'value' => $type->value,
+                'label' => $type->label(),
+                'base_price' => $type->basePrice(),
+                'duration_hours' => $type->durationHours(),
+            ]),
+
             'branches' => Branch::active()->orderBy('name')->get(['id', 'name', 'code']),
             'beneficiaryTypes' => collect(BeneficiaryType::cases())->map(fn ($type) => [
                 'value' => $type->value,
@@ -230,7 +247,7 @@ class ServiceController extends Controller
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
             'deceased_id' => 'required|exists:deceased,id',
-            'service_type_id' => 'required|exists:service_types,id',
+            'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'branch_id' => 'required|exists:branches,id',
             'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',
             'scheduled_at' => 'required|date',
@@ -496,11 +513,11 @@ class ServiceController extends Controller
 
             // Servicio
             'branch_id' => 'required|exists:branches,id',
-            'service_type_id' => 'required|exists:service_types,id',
+            'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)], // 👈 Enum
             'beneficiary_type' => 'required|string',
             'scheduled_at' => 'required|date', // 👈 Sin 'after:now' para permitir fechas pasadas
             'duration_hours' => 'required|integer|min:1',
-            'base_price' => 'required|numeric|min:0',
+            'base_price' => 'nullable|numeric|min:0', // 👈 Opcional, se calcula por Enum
             'origin_location' => 'nullable|string|max:200',
             'destination_location' => 'nullable|string|max:200',
             'burial_at' => 'nullable|date',
@@ -521,12 +538,17 @@ class ServiceController extends Controller
         ]);
 
         // ─────────────────────────────────────────────────────────────
-        // 2. CASTEO DE TIPOS (crítico para evitar errores)
+        // 2. CASTEO DE TIPOS + CÁLCULO DESDE EL ENUM
         // ─────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
-        $validated['base_price'] = (float) $validated['base_price'];
         $validated['branch_id'] = (int) $validated['branch_id'];
-        $validated['service_type_id'] = (int) $validated['service_type_id'];
+
+        $serviceType = ServiceTypeEnum::from($validated['service_type']);
+
+        // 👇 El precio base y la duración se toman del Enum
+        $validated['base_price'] = (float) $serviceType->basePrice();
+        $validated['duration_hours'] = (int) $serviceType->durationHours();
+
         $validated['seremi_extension_granted'] = !empty($validated['seremi_resolution_number']);
 
         try {
@@ -572,7 +594,7 @@ class ServiceController extends Controller
             $service = \App\Models\Service::create([
                 'client_id' => $client->id,
                 'deceased_id' => $deceased->id,
-                'service_type_id' => $validated['service_type_id'],
+                'service_type' => $serviceType, // 👈 Enum (se castea a string en el modelo)
                 'branch_id' => $validated['branch_id'], // 👈 AHORA SÍ SE GUARDA
                 'beneficiary_type' => $validated['beneficiary_type'],
                 'scheduled_at' => $validated['scheduled_at'],
@@ -676,7 +698,7 @@ class ServiceController extends Controller
 
     public function downloadContract(Service $service)
     {
-        $service->load(['client', 'deceased', 'serviceType', 'branch']);
+        $service->load(['client', 'deceased', 'branch']);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.contract', [
             'service' => $service,
@@ -694,7 +716,7 @@ class ServiceController extends Controller
             ]);
         }
 
-        $service->load(['client', 'deceased', 'serviceType', 'branch', 'payments']);
+        $service->load(['client', 'deceased', 'branch', 'payments']);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.reports.paz-y-salvo', [
             'service' => $service,

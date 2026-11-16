@@ -114,37 +114,77 @@ class AvailabilityService
     }
 
     /**
-     * Verifica si un usuario puede ser asignado a un servicio.
+     * Valida que el usuario esté disponible para el servicio.
      *
-     * Valida:
-     * - Disponibilidad en la fecha (activo y sin ausencia aprobada)
-     * - Que no esté ya asignado al mismo servicio
-     * - Que no tenga otro servicio en el mismo horario
+     * Reglas:
+     * 1. No debe tener ausencias aprobadas en la fecha.
+     * 2. No debe tener otro servicio asignado en un horario que se solape,
+     *    considerando un margen de seguridad para traslados.
      *
-     * @throws \Exception Si el usuario no está disponible
+     * Se permite múltiples servicios el mismo día siempre que no se solapen
+     * y respeten el margen entre uno y otro.
+     *
+     * @throws \Exception si no está disponible
      */
-    public function validateAssignment(User $user, $service): void
+    public function validateAssignment(User $user, Service $service): void
     {
-        $serviceDate = Carbon::parse($service->scheduled_at);
+        // ─────────────────────────────────────────────────────────
+        // 1. Verificar ausencias aprobadas
+        // ─────────────────────────────────────────────────────────
+        $hasAbsence = $user->absences()
+            ->where('status', 'approved')
+            ->where(function ($q) use ($service) {
+                $q->whereBetween('starts_at', [$service->scheduled_at, $service->ends_at])
+                  ->orWhereBetween('ends_at', [$service->scheduled_at, $service->ends_at])
+                  ->orWhere(function ($sub) use ($service) {
+                      $sub->where('starts_at', '<=', $service->scheduled_at)
+                          ->where('ends_at', '>=', $service->ends_at);
+                  });
+            })
+            ->exists();
 
-        if (! $this->isUserAvailable($user, $serviceDate)) {
-            throw new \Exception(
-                "El empleado {$user->name} no está disponible en la fecha del servicio."
-            );
+        if ($hasAbsence) {
+            throw new \Exception("{$user->name} no está disponible: tiene una ausencia aprobada en esa fecha.");
         }
 
-        // Verificar que no esté ya asignado
-        if ($service->assignments()->where('user_id', $user->id)->exists()) {
-            throw new \Exception(
-                "El empleado {$user->name} ya está asignado a este servicio."
-            );
-        }
+        // ─────────────────────────────────────────────────────────
+        // 2. Verificar choque de horarios con otros servicios
+        // ─────────────────────────────────────────────────────────
 
-        // Verificar choque de agenda con otros servicios
-        if ($this->hasScheduleConflict($user, $service)) {
-            throw new \Exception(
-                "El empleado {$user->name} ya tiene otro servicio asignado en ese horario."
-            );
+        // Calcular el inicio y fin del nuevo servicio
+        $start = Carbon::parse($service->scheduled_at);
+        $end = $service->ends_at
+            ? Carbon::parse($service->ends_at)
+            : $start->copy()->addHours($service->duration_hours);
+
+        // Margen de seguridad para traslados en La Araucanía: 4 horas
+        // (cubre trayectos largos entre comunas: Angol, Villarrica, Pucón, etc.)
+        $bufferHours = 4;
+        $adjustedStart = $start->copy()->subHours($bufferHours);
+        $adjustedEnd = $end->copy()->addHours($bufferHours);
+
+        // Buscar servicios del usuario que se solapen con el rango ajustado
+        $conflict = $user->serviceAssignments()
+            ->whereHas('service', function ($query) use ($adjustedStart, $adjustedEnd, $service) {
+                $query->where('id', '!=', $service->id) // Excluir el servicio actual (en caso de edición)
+                    ->where(function ($q) use ($adjustedStart, $adjustedEnd) {
+                        // Hay conflicto si:
+                        // A) El servicio existente empieza dentro del rango ajustado
+                        // B) El servicio existente termina dentro del rango ajustado
+                        // C) El servicio existente engloba completamente el rango ajustado
+                        $q->whereBetween('scheduled_at', [$adjustedStart, $adjustedEnd])
+                          ->orWhereBetween('ends_at', [$adjustedStart, $adjustedEnd])
+                          ->orWhere(function ($sub) use ($adjustedStart, $adjustedEnd) {
+                              $sub->where('scheduled_at', '<=', $adjustedStart)
+                                  ->where('ends_at', '>=', $adjustedEnd);
+                          });
+                    });
+            })
+            ->exists();
+
+        if ($conflict) {
+            $hours = $bufferHours > 0 ? " (con {$bufferHours}h de margen)" : '';
+            throw new \Exception("{$user->name} ya tiene otro servicio asignado en ese horario{$hours}.");
         }
     }
 }
