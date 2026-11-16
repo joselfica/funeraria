@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Box, FlaskConical, Truck, AlertTriangle, Plus, Eye, Pencil, Trash2, MoreVertical } from 'lucide-react';
+import { Package, Box, FlaskConical, Truck, AlertTriangle, Plus, Eye, Pencil, Trash2, MoreVertical, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Item {
     id: number;
@@ -28,6 +34,17 @@ interface Item {
     is_active: boolean;
     needs_restock: boolean;
     category_description: string;
+    condition: string;
+    condition_label: string;
+    condition_color: string | null;
+    reserved_until: string | null;
+    is_reserved: boolean;
+}
+
+interface ConditionOption {
+    value: string;
+    label: string;
+    color: string; // ej. 'bg-emerald-500'
 }
 
 interface Counts {
@@ -51,14 +68,20 @@ interface Props {
         procedencia: string;
         low_stock: boolean;
     };
-    /** Opcional: si el controlador lo envía, los chips muestran contadores. */
     counts?: Counts;
+    conditions: ConditionOption[];
 }
 
-/**
- * Menú de tres puntos por fila. Se dibuja en un portal con posición fija para
- * que no lo recorte el scroll horizontal de la tabla.
- */
+/** Colores por condición física del item. */
+const conditionColors: Record<string, string> = {
+    nuevo: 'border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100',
+    bueno: 'border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100',
+    con_detalles: 'border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100',
+    danado: 'border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-100',
+    para_reparar: 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100',
+    reservado: 'border-purple-200 bg-purple-100 text-purple-800 hover:bg-purple-100',
+};
+
 function RowMenu({ item, onDelete, large = false }: { item: Item; onDelete: () => void; large?: boolean }) {
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -136,14 +159,13 @@ function RowMenu({ item, onDelete, large = false }: { item: Item; onDelete: () =
     );
 }
 
-export default function InventoryIndex({ items, filters, counts }: Props) {
+export default function InventoryIndex({ items, filters, counts, conditions }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [procedencia, setProcedencia] = useState(filters.procedencia || '');
 
     const activeCategory = filters.category || '';
     const lowStock = !!filters.low_stock;
 
-    /** Aplica filtros conservando los que no cambian. */
     const go = (params: Partial<{ search: string; category: string; procedencia: string; low_stock: boolean }>) => {
         router.get(
             '/inventory',
@@ -166,6 +188,34 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
         if (confirm(`¿Eliminar "${item.name}"?`)) {
             router.delete(`/inventory/${item.id}`);
         }
+    };
+
+    const handleConditionChange = (itemId: number, newCondition: string) => {
+        let reservedUntil: string | null = null;
+
+        // Si el usuario elige "Reservado", pedir fecha límite con prompt.
+        // Si cancela, no se envía el cambio.
+        if (newCondition === 'reservado') {
+            const input = prompt(
+                '¿Hasta cuándo reservar? (formato: YYYY-MM-DD HH:mm)\nEjemplo: 2026-11-20 18:00',
+                '',
+            );
+            if (!input) return; // el usuario canceló
+
+            // Convertir "YYYY-MM-DD HH:mm" a ISO local para el backend
+            const parsed = new Date(input.replace(' ', 'T'));
+            if (isNaN(parsed.getTime())) {
+                alert('Fecha inválida. Usa el formato YYYY-MM-DD HH:mm');
+                return;
+            }
+            reservedUntil = parsed.toISOString().slice(0, 19).replace('T', ' ');
+        }
+
+        router.patch(
+            `/inventory/${itemId}/condition`,
+            { condition: newCondition, reserved_until: reservedUntil },
+            { preserveScroll: true },
+        );
     };
 
     const formatPrice = (price: string) => {
@@ -193,6 +243,46 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
         </Badge>
     );
 
+    /** Selector de condición con DropdownMenu, cambia al instante. */
+    const renderConditionSelector = (item: Item) => (
+        <div className="flex flex-col gap-1">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <button
+                        className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${
+                            conditionColors[item.condition] ?? 'border-slate-200 bg-slate-100 text-slate-700'
+                        }`}
+                    >
+                        {item.condition_label}
+                        <ChevronDown className="h-3 w-3" />
+                    </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                    {conditions.map((c) => (
+                        <DropdownMenuItem
+                            key={c.value}
+                            onClick={() => handleConditionChange(item.id, c.value)}
+                            className="cursor-pointer"
+                        >
+                            <span className={`mr-2 h-2 w-2 rounded-full ${c.color}`} />
+                            {c.label}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            {item.condition === 'reservado' && item.reserved_until && (
+                <span className="text-[10px] font-medium text-purple-700 dark:text-purple-300">
+                    Hasta {new Date(item.reserved_until).toLocaleDateString('es-CL', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                    })}
+                </span>
+            )}
+        </div>
+    );
+
     const renderOrigin = (item: Item) =>
         item.procedencia ? (
             <span className="inline-flex w-fit items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
@@ -204,7 +294,6 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
             </span>
         );
 
-    /** Código y nombre, con etiqueta si el item está inactivo. */
     const renderProduct = (item: Item) => (
         <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -217,7 +306,6 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
         </div>
     );
 
-    /** Stock actual contra el mínimo, con aviso cuando hay que reponer. */
     const renderStock = (item: Item) => (
         <div className="space-y-1">
             <p className={`flex items-baseline gap-1 ${item.needs_restock ? 'font-bold text-red-600' : 'font-semibold text-slate-800 dark:text-slate-100'}`}>
@@ -237,7 +325,6 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
             <Head title="Inventario" />
 
             <div className="mx-auto max-w-7xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
-                {/* Encabezado */}
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                         <div className="shrink-0 rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
@@ -257,7 +344,6 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
                     </Link>
                 </div>
 
-                {/* Chips de categoría + stock bajo */}
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap gap-1.5 rounded-xl bg-slate-100 p-1.5 dark:bg-slate-900" role="tablist">
                         {chips.map((chip) => {
@@ -311,7 +397,6 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
                     </button>
                 </div>
 
-                {/* Búsqueda */}
                 <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-900/40 sm:flex-row sm:items-center">
                     <Input
                         placeholder="Buscar por código, nombre o material..."
@@ -351,7 +436,10 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
                                     {renderCategory(item)}
                                 </div>
 
-                                <div>{renderOrigin(item)}</div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {renderConditionSelector(item)}
+                                    {renderOrigin(item)}
+                                </div>
 
                                 <div className="grid grid-cols-3 gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/40">
                                     <div className="space-y-1">
@@ -388,6 +476,7 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
                             <TableRow>
                                 <TableHead className="h-12 px-5">Producto</TableHead>
                                 <TableHead className="h-12 px-5">Categoría</TableHead>
+                                <TableHead className="h-12 px-5">Condición</TableHead>
                                 <TableHead className="h-12 px-5">Material</TableHead>
                                 <TableHead className="h-12 px-5">Precio</TableHead>
                                 <TableHead className="h-12 px-5">Stock</TableHead>
@@ -397,7 +486,7 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
                         <TableBody>
                             {items.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
                                         <Package className="mx-auto mb-2 h-12 w-12 text-slate-300" />
                                         No hay items para mostrar
                                     </TableCell>
@@ -412,6 +501,7 @@ export default function InventoryIndex({ items, filters, counts }: Props) {
                                                 {renderOrigin(item)}
                                             </div>
                                         </TableCell>
+                                        <TableCell className="px-5 py-4">{renderConditionSelector(item)}</TableCell>
                                         <TableCell className="px-5 py-4 text-sm">{item.material || '—'}</TableCell>
                                         <TableCell className="px-5 py-4 font-semibold">{formatPrice(item.price)}</TableCell>
                                         <TableCell className="px-5 py-4">{renderStock(item)}</TableCell>

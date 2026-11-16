@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ItemCondition;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -27,6 +28,7 @@ class InventoryItem extends Model
         'is_active',
         'size_cm',
         'is_seremi_required',
+        'condition',
     ];
 
     protected $casts = [
@@ -40,6 +42,7 @@ class InventoryItem extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'condition' => ItemCondition::class,
     ];
 
     protected $appends = [
@@ -47,6 +50,7 @@ class InventoryItem extends Model
         'category_icon',
         'category_description',
         'needs_restock',
+        'condition_label',
     ];
 
     protected static function booted(): void
@@ -159,6 +163,15 @@ class InventoryItem extends Model
     public function getNeedsRestockAttribute(): bool
     {
         return ($this->stock ?? 0) <= ($this->stock_minimum ?? 0);
+    }
+
+    /**
+     * Accessor: etiqueta legible de la condición del item.
+     * Devuelve 'Sin condición' si el campo es null.
+     */
+    public function getConditionLabelAttribute(): string
+    {
+        return $this->condition?->label() ?? 'Sin condición';
     }
 
     /**

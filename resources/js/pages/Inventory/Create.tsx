@@ -17,9 +17,14 @@ interface FormData {
     stock_minimum: string;
     is_active: boolean;
     size_cm: string;
+    condition: string;
 }
 
-export default function InventoryCreate() {
+interface Props {
+    conditions: Array<{ value: string; label: string }>;
+}
+
+export default function InventoryCreate({ conditions }: Props) {
     const { data, setData, post, processing, errors } = useForm<FormData>({
         category: 'ataud',
         code: '',
@@ -33,6 +38,7 @@ export default function InventoryCreate() {
         stock_minimum: '0',
         is_active: true,
         size_cm: '',
+        condition: 'nuevo',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -104,6 +110,23 @@ export default function InventoryCreate() {
                                     <Input id="size_cm" type="number" value={data.size_cm} onChange={(e) => setData('size_cm', e.target.value)} placeholder="30, 40, 60, 70..." className="mt-1" />
                                     <p className="text-xs text-muted-foreground mt-1">Las urnas de 30, 40 y 60 cm son obligatorias por la Seremi.</p>
                                 </div>
+                            </div>
+
+                            {/* 👇 NUEVO: Condición física */}
+                            <div>
+                                <Label htmlFor="condition">Condición física *</Label>
+                                <select
+                                    id="condition"
+                                    value={data.condition}
+                                    onChange={(e) => setData('condition', e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm mt-1 focus:ring-2 focus:ring-rose-800/20"
+                                    required
+                                >
+                                    {conditions.map((c) => (
+                                        <option key={c.value} value={c.value}>{c.label}</option>
+                                    ))}
+                                </select>
+                                {errors.condition && <p className="text-sm text-destructive mt-1">{errors.condition}</p>}
                             </div>
 
                             <div>

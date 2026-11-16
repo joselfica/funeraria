@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ItemCondition;
 use App\Models\InventoryItem;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class InventoryController extends Controller
@@ -42,6 +44,12 @@ class InventoryController extends Controller
                 'procedencia' => $procedencia,
                 'low_stock' => $lowStock,
             ],
+            // Opciones para el selector de condición en el listado
+            'conditions' => collect(ItemCondition::cases())->map(fn ($c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+                'color' => $c->color(), // ej. 'bg-emerald-500'
+            ]),
         ]);
     }
 
@@ -50,7 +58,12 @@ class InventoryController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Inventory/Create');
+        return Inertia::render('Inventory/Create', [
+            'conditions' => collect(ItemCondition::cases())->map(fn ($c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+            ]),
+        ]);
     }
 
     /**
@@ -71,6 +84,7 @@ class InventoryController extends Controller
             'stock' => 'required|integer|min:0',
             'stock_minimum' => 'required|integer|min:0',
             'is_active' => 'boolean',
+            'condition' => ['required', Rule::enum(ItemCondition::class)],
         ]);
 
         InventoryItem::create($validated);
@@ -99,6 +113,10 @@ class InventoryController extends Controller
     {
         return Inertia::render('Inventory/Edit', [
             'item' => $inventory,
+            'conditions' => collect(ItemCondition::cases())->map(fn ($c) => [
+                'value' => $c->value,
+                'label' => $c->label(),
+            ]),
         ]);
     }
 
@@ -120,6 +138,7 @@ class InventoryController extends Controller
             'stock' => 'required|integer|min:0',
             'stock_minimum' => 'required|integer|min:0',
             'is_active' => 'boolean',
+            'condition' => ['required', Rule::enum(ItemCondition::class)],
         ]);
 
         $inventory->update($validated);
@@ -129,6 +148,54 @@ class InventoryController extends Controller
                 'type' => 'success',
                 'message' => 'Item actualizado correctamente.',
             ]);
+    }
+
+    /**
+     * Cambia rápidamente la condición física de un item desde el listado.
+     *
+     * Reglas:
+     * - Si la nueva condición es `reservado`, `reserved_until` es obligatorio
+     *   y debe ser una fecha futura. Si no se envía, se devuelve un error
+     *   controlado (toast) sin lanzar ValidationException.
+     * - Si la nueva condición es cualquier otra, `reserved_until` se limpia
+     *   automáticamente (null) para no dejar reservas huérfanas.
+     *
+     * Endpoint ligero: solo valida y actualiza esos dos campos, sin tocar
+     * el resto del item. Devuelve `back()` con un toast de confirmación.
+     */
+    public function updateCondition(Request $request, InventoryItem $inventory)
+    {
+        $validated = $request->validate([
+            'condition' => ['required', Rule::enum(ItemCondition::class)],
+            'reserved_until' => 'nullable|date|after:now',
+        ]);
+
+        $isReserved = $validated['condition'] === ItemCondition::RESERVADO->value;
+
+        // Si es reservado, exigir la fecha. Se devuelve toast de error en
+        // lugar de ValidationException para no romper la navegación de Inertia.
+        if ($isReserved && empty($validated['reserved_until'])) {
+            return back()->with('toast', [
+                'type' => 'error',
+                'message' => 'Debes indicar hasta cuándo estará reservado el item.',
+            ]);
+        }
+
+        $inventory->update([
+            'condition' => $validated['condition'],
+            'reserved_until' => $isReserved ? $validated['reserved_until'] : null,
+        ]);
+
+        // Tolerante a null: si por alguna razón reserved_until no quedó
+        // seteado (p. ej. race condition), no intentamos formatearlo.
+        $message = $isReserved && $inventory->reserved_until
+            ? "Item reservado hasta {$inventory->reserved_until->format('d/m/Y H:i')}."
+            : 'Condición actualizada correctamente.';
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => $message,
+        ]);
     }
 
     /**

@@ -22,11 +22,21 @@ interface Item {
     needs_restock: boolean;
     category_label: string;
     is_seremi_required: boolean;
+    condition: string;
+    condition_label: string;
 }
 
 interface Props {
     item: Item;
 }
+
+/** Colores por condición física del item. */
+const conditionColors: Record<string, string> = {
+    nuevo: 'border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100',
+    usado: 'border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100',
+    reacondicionado: 'border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100',
+    dañado: 'border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-100',
+};
 
 export default function InventoryShow({ item }: Props) {
     const formatPrice = (price: string) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseFloat(price));
@@ -68,6 +78,9 @@ export default function InventoryShow({ item }: Props) {
                             <Badge className={item.is_active ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600'}>
                                 {item.is_active ? <CheckCircle2 className="h-3 w-3 mr-1" /> : null} {item.is_active ? 'Activo' : 'Inactivo'}
                             </Badge>
+                            <Badge className={conditionColors[item.condition] ?? 'border-slate-200 bg-slate-100 text-slate-700'}>
+                                {item.condition_label}
+                            </Badge>
                             {item.is_seremi_required && (
                                 <Badge className="bg-amber-100 text-amber-800 border-amber-200">Obligatorio Seremi</Badge>
                             )}
@@ -83,6 +96,12 @@ export default function InventoryShow({ item }: Props) {
                             </div>
                             <div><p className="text-sm text-muted-foreground">Medidas</p><p className="font-medium">{item.dimensions || '—'}</p></div>
                             <div><p className="text-sm text-muted-foreground">Tamaño</p><p className="font-medium">{item.size_cm ? `${item.size_cm} cm` : '—'}</p></div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Condición física</p>
+                                <Badge className={`mt-1 ${conditionColors[item.condition] ?? 'border-slate-200 bg-slate-100 text-slate-700'}`}>
+                                    {item.condition_label}
+                                </Badge>
+                            </div>
                             <div><p className="text-sm text-muted-foreground">Precio</p><p className="font-bold text-lg text-slate-800 dark:text-slate-100">{formatPrice(item.price)}</p></div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Stock</p>

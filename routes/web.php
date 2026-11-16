@@ -62,6 +62,8 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::post('clients/{client}/toggle-active', [ClientController::class, 'toggleActive'])->name('clients.toggle-active');
     Route::resource('clients', ClientController::class)->except(['destroy']);
     Route::resource('inventory', InventoryController::class);
+    // Cambio rápido de condición física desde el listado
+    Route::patch('inventory/{inventory}/condition', [InventoryController::class, 'updateCondition'])->name('inventory.condition');
     Route::resource('vehicles', VehicleController::class);
     // Los registros de fallecidos no se eliminan (auditoría): solo se activan/desactivan
     Route::post('deceased/{deceased}/toggle-active', [DeceasedController::class, 'toggleActive'])->name('deceased.toggle-active');
