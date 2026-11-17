@@ -2,10 +2,11 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { Calendar, Plus, CheckCircle, XCircle, Clock, CalendarDays, User, ArrowRight, MessageSquare } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { 
+    CalendarPlus, CheckCircle2, XCircle, Clock, CalendarDays, User, 
+    ArrowRight
+} from 'lucide-react';
 
 interface Absence {
     id: number;
@@ -19,14 +20,6 @@ interface Absence {
     business_days: number;
     reason: string | null;
     user: { id: number; name: string; email: string };
-    approved_by: { name: string } | null;
-}
-
-interface Counts {
-    all: number;
-    pending: number;
-    approved: number;
-    rejected: number;
 }
 
 interface Props {
@@ -40,297 +33,275 @@ interface Props {
     filters: { status: string };
     is_admin: boolean;
     vacation_days: { total: number; used: number; available: number };
-    /** Opcional: si el controlador lo envía, los chips muestran contadores. */
-    counts?: Counts;
 }
 
-export default function AbsencesIndex({ absences, filters, is_admin, vacation_days, counts }: Props) {
+export default function AbsencesIndex({ absences, filters, is_admin, vacation_days }: Props) {
     const [status, setStatus] = useState(filters.status || '');
-
-    const chips: Array<{ key: string; label: string; dot: string | null; count?: number }> = [
-        { key: '', label: 'Todas', dot: null, count: counts?.all },
-        { key: 'pending', label: 'Pendientes', dot: 'bg-amber-400', count: counts?.pending },
-        { key: 'approved', label: 'Aprobadas', dot: 'bg-emerald-500', count: counts?.approved },
-        { key: 'rejected', label: 'Rechazadas', dot: 'bg-rose-500', count: counts?.rejected },
-    ];
 
     const handleFilter = (newStatus: string) => {
         setStatus(newStatus);
-        router.get('/absences', { status: newStatus }, { preserveState: true, preserveScroll: true });
+        router.get('/absences', { status: newStatus }, { preserveState: true, replace: true });
     };
 
-    // starts_at / ends_at son fechas sin hora: se toma solo YYYY-MM-DD para que
-    // la zona horaria del navegador no las corra un día.
-    const parseDate = (date: string) => {
-        const [y, m, d] = date.slice(0, 10).split('-').map(Number);
-        return new Date(y, m - 1, d);
+    const handleApprove = (id: number, name: string) => {
+        if (confirm(`¿Aprobar la ausencia de ${name}?`)) {
+            router.post(`/absences/${id}/approve`, {}, { preserveScroll: true });
+        }
     };
 
-    // Calendario (mismo tamaño y estilo que en Servicios y Fallecidos)
+    const handleReject = (id: number, name: string) => {
+        const reason = prompt(`Motivo del rechazo para ${name}:`);
+        if (reason) {
+            router.post(`/absences/${id}/reject`, { rejection_reason: reason }, { preserveScroll: true });
+        }
+    };
+
+    // Formato de fecha tipo "calendario" (igual que en Servicios/Fallecidos)
     const renderDate = (date: string) => {
-        const d = parseDate(date);
+        const d = new Date(date);
         return (
             <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-100 p-2 dark:bg-slate-800">
                 <span className="text-xs font-bold uppercase text-rose-800 dark:text-rose-400">
                     {d.toLocaleDateString('es-CL', { month: 'short' }).replace('.', '')}
                 </span>
-                <span className="text-xl font-bold text-slate-800 dark:text-slate-100">{d.getDate()}</span>
-                <span className="text-[10px] text-muted-foreground">{d.getFullYear()}</span>
+                <span className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                    {d.getDate()}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                    {d.getFullYear()}
+                </span>
             </div>
         );
     };
 
-    // Insignias suaves, igual que en Fallecidos
-    const getStatusBadge = (st: string, label: string) => {
-        switch (st) {
+    const getStatusBadge = (status: string, label: string) => {
+        switch (status) {
             case 'approved':
-                return (
-                    <Badge className="w-fit border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                        <CheckCircle className="mr-1 h-3 w-3" /> {label}
-                    </Badge>
-                );
+                return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200"><CheckCircle2 className="h-3 w-3 mr-1" /> {label}</Badge>;
             case 'pending':
-                return (
-                    <Badge className="w-fit border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
-                        <Clock className="mr-1 h-3 w-3" /> {label}
-                    </Badge>
-                );
+                return <Badge className="bg-amber-100 text-amber-800 border-amber-200"><Clock className="h-3 w-3 mr-1" /> {label}</Badge>;
             case 'rejected':
-                return (
-                    <Badge className="w-fit border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-100">
-                        <XCircle className="mr-1 h-3 w-3" /> {label}
-                    </Badge>
-                );
+                return <Badge className="bg-rose-100 text-rose-800 border-rose-200"><XCircle className="h-3 w-3 mr-1" /> {label}</Badge>;
             default:
-                return <Badge variant="outline" className="w-fit">{label}</Badge>;
+                return <Badge variant="outline">{label}</Badge>;
         }
     };
 
-    const formatDays = (days: number) => `${days} ${days === 1 ? 'día hábil' : 'días hábiles'}`;
-
-    /** Motivo de la solicitud, en una etiqueta discreta. */
-    const renderReason = (absence: Absence) =>
-        absence.reason ? (
-            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
-                <span className="line-clamp-2">{absence.reason}</span>
-            </p>
-        ) : null;
-
-    const availablePct =
-        vacation_days.total > 0 ? Math.min((vacation_days.available / vacation_days.total) * 100, 100) : 0;
+    const tabs = [
+        { key: '', label: 'Todas', dot: null },
+        { key: 'pending', label: 'Pendientes', dot: 'bg-amber-500' },
+        { key: 'approved', label: 'Aprobadas', dot: 'bg-emerald-500' },
+        { key: 'rejected', label: 'Rechazadas', dot: 'bg-rose-500' },
+    ];
 
     return (
         <>
-            <Head title="Ausencias" />
+            <Head title="Gestión de Ausencias" />
 
-            <div className="mx-auto max-w-7xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
-                {/* Encabezado */}
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="shrink-0 rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
-                            <Calendar className="h-6 w-6 md:h-8 md:w-8" />
-                        </div>
-                        <div className="min-w-0">
-                            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 md:text-3xl">
-                                Gestión de Ausencias
-                            </h1>
-                            <p className="mt-1 text-sm text-muted-foreground md:text-base">
-                                {is_admin
-                                    ? 'Administra las solicitudes de vacaciones y permisos del personal'
-                                    : 'Tus solicitudes de vacaciones y permisos'}
-                            </p>
-                        </div>
+            <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+                
+                {/* HEADER */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <div className="p-2 bg-rose-100 text-rose-800 rounded-lg">
+                                <CalendarDays className="h-6 w-6 md:h-8 md:w-8" />
+                            </div>
+                            Gestión de Ausencias
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-sm md:text-base">
+                            {is_admin ? 'Administra las solicitudes de vacaciones y permisos del personal' : 'Tus solicitudes de vacaciones y permisos'}
+                        </p>
                     </div>
                     <Link href="/absences/create" className="w-full sm:w-auto">
-                        <Button className="h-10 w-full bg-rose-800 text-white shadow-md hover:bg-rose-900 sm:w-auto">
-                            <Plus className="mr-1 h-4 w-4" /> Solicitar Ausencia
+                        <Button className="w-full sm:w-auto bg-rose-800 hover:bg-rose-900 text-white shadow-md">
+                            <CalendarPlus className="h-4 w-4 mr-2" /> Solicitar Ausencia
                         </Button>
                     </Link>
                 </div>
 
-                {/* Vacaciones disponibles (solo empleado) */}
+                {/* TARJETA DE VACACIONES (solo empleado) */}
                 {!is_admin && (
-                    <div className="rounded-xl border bg-card p-5 shadow-sm">
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <p className="text-sm text-muted-foreground">Tus vacaciones disponibles</p>
-                                <p className="mt-1 text-2xl font-bold text-emerald-600">
-                                    {vacation_days.available}
-                                    <span className="ml-1 text-base font-medium text-muted-foreground">
-                                        / {vacation_days.total} días
-                                    </span>
-                                </p>
-                            </div>
-                            <div className="w-full space-y-2 sm:max-w-xs">
-                                <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>{vacation_days.used} usados</span>
-                                    <span>{availablePct.toFixed(0)}% disponible</span>
+                    <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 shadow-sm">
+                        <CardContent className="p-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-sm font-medium text-emerald-800">Tus vacaciones disponibles</p>
+                                    <p className="text-3xl font-extrabold text-emerald-600 mt-1">
+                                        {vacation_days.available} <span className="text-lg font-medium text-emerald-600/70">/ {vacation_days.total} días</span>
+                                    </p>
                                 </div>
-                                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                                    <div
-                                        className="h-full rounded-full bg-emerald-500"
-                                        style={{ width: `${availablePct}%` }}
-                                    />
+                                <div className="flex gap-4 text-sm bg-white/50 p-3 rounded-xl">
+                                    <div><p className="text-muted-foreground text-xs uppercase font-semibold">Usados</p><p className="font-bold">{vacation_days.used}</p></div>
+                                    <div className="w-px bg-border"></div>
+                                    <div><p className="text-muted-foreground text-xs uppercase font-semibold">Restantes</p><p className="font-bold text-emerald-600">{vacation_days.available}</p></div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
                 )}
 
-                {/* Chips de estado (con aviso de pendientes para el admin) */}
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap gap-1.5 rounded-xl bg-slate-100 p-1.5 dark:bg-slate-900" role="tablist">
-                        {chips.map((chip) => {
-                            const active = status === chip.key;
-                            return (
-                                <button
-                                    key={chip.key || 'all'}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={active}
-                                    onClick={() => handleFilter(chip.key)}
-                                    className={`flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-                                        active
-                                            ? 'bg-rose-800 text-white shadow-sm'
-                                            : 'text-muted-foreground hover:bg-white/70 hover:text-foreground dark:hover:bg-slate-800'
-                                    }`}
-                                >
-                                    {chip.dot && <span className={`h-2 w-2 rounded-full ${chip.dot}`} />}
-                                    {chip.label}
-                                    {chip.count !== undefined && (
-                                        <span
-                                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                                active ? 'bg-white/20 text-white' : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                            }`}
-                                        >
-                                            {chip.count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {is_admin && counts && counts.pending > 0 && (
-                        <div className="flex items-baseline justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-900 dark:bg-amber-950/30">
-                            <span className="text-xs font-medium text-amber-800 dark:text-amber-300">Por revisar</span>
-                            <span className="text-lg font-bold text-amber-800 dark:text-amber-400">
-                                {counts.pending} {counts.pending === 1 ? 'solicitud' : 'solicitudes'}
-                            </span>
-                        </div>
-                    )}
+                {/* TABS DE ESTADO */}
+                <div className="inline-flex w-full gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-900 sm:w-auto">
+                    {tabs.map((tab) => {
+                        const active = status === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => handleFilter(tab.key)}
+                                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${
+                                    active ? 'bg-rose-800 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {tab.dot && <span className={`h-2 w-2 rounded-full ${tab.dot}`} />}
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* ───────── TARJETAS (móvil y tablet) ───────── */}
-                <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+                {/* VISTA MÓVIL (Tarjetas) */}
+                <div className="space-y-3 md:hidden">
                     {absences.data.length === 0 ? (
-                        <div className="rounded-xl border bg-card py-10 text-center text-muted-foreground sm:col-span-2">
-                            <Calendar className="mx-auto mb-2 h-12 w-12 text-slate-300" />
-                            No hay ausencias para mostrar
+                        <div className="text-center py-8 text-muted-foreground border rounded-lg bg-card">
+                            No hay ausencias registradas
                         </div>
                     ) : (
                         absences.data.map((absence) => (
-                            <div key={absence.id} className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        {is_admin && (
-                                            <p className="mb-1 flex items-center gap-1 text-sm text-muted-foreground">
-                                                <User className="h-3 w-3" /> {absence.user.name}
-                                            </p>
-                                        )}
-                                        <p className="font-bold text-slate-800 dark:text-slate-100">{absence.type_label}</p>
+                            <div key={absence.id} className="border rounded-xl bg-card p-4 space-y-3 shadow-sm">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div>
+                                        <p className="font-medium">{absence.user.name}</p>
+                                        <p className="text-sm text-muted-foreground">{absence.type_label}</p>
                                     </div>
                                     {getStatusBadge(absence.status, absence.status_label)}
                                 </div>
 
-                                <div className="flex items-center justify-center gap-4 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/40">
-                                    <div className="flex flex-col items-center gap-1.5">
-                                        {renderDate(absence.starts_at)}
-                                        <span className="text-xs text-muted-foreground">Desde</span>
-                                    </div>
-                                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                    <div className="flex flex-col items-center gap-1.5">
-                                        {renderDate(absence.ends_at)}
-                                        <span className="text-xs text-muted-foreground">Hasta</span>
-                                    </div>
+                                <div className="flex items-center gap-2">
+                                    {renderDate(absence.starts_at)}
+                                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                    {renderDate(absence.ends_at)}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                        <CalendarDays className="h-4 w-4" />
-                                        <span><strong className="text-foreground">{formatDays(absence.business_days)}</strong></span>
-                                    </p>
-                                    {renderReason(absence)}
+                                <div className="text-sm text-muted-foreground">
+                                    <strong className="text-slate-800">{absence.business_days}</strong> días hábiles
                                 </div>
+
+                                {/* ACCIONES EN MÓVIL */}
+                                {is_admin && absence.status === 'pending' && (
+                                    <div className="flex gap-2 pt-3 border-t">
+                                        <Button 
+                                            size="sm" 
+                                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                            onClick={() => handleApprove(absence.id, absence.user.name)}
+                                        >
+                                            <CheckCircle2 className="h-4 w-4 mr-1" /> Aprobar
+                                        </Button>
+                                        <Button 
+                                            size="sm" 
+                                            variant="destructive" 
+                                            className="flex-1" 
+                                            onClick={() => handleReject(absence.id, absence.user.name)}
+                                        >
+                                            <XCircle className="h-4 w-4 mr-1" /> Rechazar
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         ))
                     )}
                 </div>
 
-                {/* ───────── TABLA (escritorio) ───────── */}
-                <div className="hidden overflow-x-auto rounded-xl border bg-card shadow-sm lg:block">
-                    <Table>
-                        <TableHeader className="bg-slate-50 dark:bg-slate-900/40">
-                            <TableRow>
-                                {is_admin && <TableHead className="h-12 px-5">Empleado</TableHead>}
-                                <TableHead className="h-12 px-5">Tipo</TableHead>
-                                <TableHead className="h-12 px-5">Período</TableHead>
-                                <TableHead className="h-12 px-5">Días</TableHead>
-                                <TableHead className="h-12 px-5">Estado</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {absences.data.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={is_admin ? 5 : 4} className="py-12 text-center text-muted-foreground">
-                                        <Calendar className="mx-auto mb-2 h-12 w-12 text-slate-300" />
-                                        No hay ausencias para mostrar
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                absences.data.map((absence) => (
-                                    <TableRow key={absence.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30">
-                                        {is_admin && (
-                                            <TableCell className="px-5 py-4 font-medium">{absence.user.name}</TableCell>
-                                        )}
-                                        <TableCell className="px-5 py-4">
-                                            <p className="font-medium">{absence.type_label}</p>
-                                            <div className="mt-1 max-w-[220px]">{renderReason(absence)}</div>
-                                        </TableCell>
-                                        <TableCell className="px-5 py-4">
-                                            <div className="flex items-center gap-3">
-                                                {renderDate(absence.starts_at)}
-                                                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                {renderDate(absence.ends_at)}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="px-5 py-4">
-                                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                                                {absence.business_days}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="px-5 py-4">{getStatusBadge(absence.status, absence.status_label)}</TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                {/* VISTA DESKTOP (Tabla) */}
+                <div className="hidden md:block overflow-hidden rounded-xl border bg-card shadow-sm">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 dark:bg-slate-900/40 border-b">
+                                <tr>
+                                    {is_admin && <th className="text-left font-semibold p-3 pl-4">Empleado</th>}
+                                    <th className="text-left font-semibold p-3">Tipo</th>
+                                    <th className="text-left font-semibold p-3">Período</th>
+                                    <th className="text-left font-semibold p-3">Días</th>
+                                    <th className="text-left font-semibold p-3">Estado</th>
+                                    <th className="text-right font-semibold p-3 pr-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {absences.data.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={is_admin ? 6 : 5} className="text-center py-12 text-muted-foreground">
+                                            No hay ausencias registradas
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    absences.data.map((absence) => (
+                                        <tr key={absence.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/30">
+                                            {is_admin && (
+                                                <td className="p-3 pl-4 font-medium">
+                                                    {absence.user.name}
+                                                </td>
+                                            )}
+                                            <td className="p-3">{absence.type_label}</td>
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-2">
+                                                    {renderDate(absence.starts_at)}
+                                                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                                    {renderDate(absence.ends_at)}
+                                                </div>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-bold rounded-full h-7 w-7 text-xs">
+                                                    {absence.business_days}
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                {getStatusBadge(absence.status, absence.status_label)}
+                                            </td>
+                                            <td className="p-3 pr-4">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {is_admin && absence.status === 'pending' ? (
+                                                        <>
+                                                            <Button 
+                                                                size="sm" 
+                                                                className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                                                onClick={() => handleApprove(absence.id, absence.user.name)}
+                                                            >
+                                                                <CheckCircle2 className="h-4 w-4 mr-1" /> Aprobar
+                                                            </Button>
+                                                            <Button 
+                                                                size="sm" 
+                                                                variant="destructive" 
+                                                                className="h-8" 
+                                                                onClick={() => handleReject(absence.id, absence.user.name)}
+                                                            >
+                                                                <XCircle className="h-4 w-4 mr-1" /> Rechazar
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground italic">
+                                                            {absence.status === 'pending' ? 'Pendiente de revisión' : 'Sin acciones'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                {/* Paginación */}
+                {/* PAGINACIÓN */}
                 {absences.last_page > 1 && (
-                    <div className="flex flex-wrap justify-center gap-1.5 pt-2">
+                    <div className="mt-4 flex flex-wrap justify-center gap-1">
                         {absences.links.map((link, i) => (
                             <Link
                                 key={i}
                                 href={link.url || '#'}
-                                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                                    link.active
-                                        ? 'border-rose-800 bg-rose-800 text-white'
-                                        : link.url
-                                          ? 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                                          : 'opacity-50'
+                                className={`rounded-lg border px-3 py-1 text-sm ${
+                                    link.active ? 'bg-rose-800 text-white border-rose-800' : link.url ? 'hover:bg-slate-100' : 'opacity-50'
                                 }`}
                                 dangerouslySetInnerHTML={{ __html: link.label }}
                             />

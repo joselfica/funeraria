@@ -50,7 +50,7 @@
             @foreach ($services as $service)
                 <tr>
                     <td>{{ $service->code }}</td>
-                    <td>{{ $service->serviceType->name }}</td>
+                    <td>{{ $service->service_type_label }}</td>
                     <td>{{ $service->client->name }}</td>
                     <td>{{ $service->deceased->full_name }}</td>
                     <td>{{ $service->scheduled_at->format('d/m/Y') }}</td>

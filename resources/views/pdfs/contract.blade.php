@@ -88,7 +88,7 @@
         <div class="section-title">3. DETALLES DEL SERVICIO</div>
         <div class="grid">
             <div class="row"><div class="cell-label">Código:</div><div class="cell-value">{{ $service->code }}</div></div>
-            <div class="row"><div class="cell-label">Tipo de Servicio:</div><div class="cell-value">{{ $service->serviceType->name }}</div></div>
+            <div class="row"><div class="cell-label">Tipo de Servicio:</div><div class="cell-value">{{ $service->service_type_label ?? '—' }}</div></div>
             <div class="row"><div class="cell-label">Sucursal:</div><div class="cell-value">{{ $service->branch->name ?? 'No asignada' }}</div></div>
             <div class="row"><div class="cell-label">Fecha de Inicio:</div><div class="cell-value">{{ \Carbon\Carbon::parse($service->scheduled_at)->format('d/m/Y H:i') }}</div></div>
             <div class="row"><div class="cell-label">Duración:</div><div class="cell-value">{{ $service->duration_hours }} horas</div></div>

@@ -106,8 +106,12 @@ class PaymentController extends Controller
      */
     public function generateReceiptPdf(Payment $payment): void
     {
-        // Cargar relaciones necesarias para el PDF
-        $payment->load(['service.client', 'service.deceased', 'service.serviceType']);
+        // Cargar relaciones necesarias para el PDF.
+        // NOTA: `service.serviceType` fue eliminado porque la relación
+        // `serviceType()` ya no existe en el modelo Service (migró a
+        // `service_type` como enum string). Cargarla lanzaría
+        // RelationNotFoundException.
+        $payment->load(['service.client', 'service.deceased']);
 
         // Generar PDF desde vista Blade
         $pdf = Pdf::loadView('pdfs.receipt', [

@@ -37,10 +37,14 @@ class ReportController extends Controller
 
     /**
      * Reporte de Servicios en PDF.
+     *
+     * Nota: ya no se hace eager load de `serviceType` porque la relación
+     * fue eliminada del modelo Service (migró a `service_type` enum string).
+     * El nombre legible se obtiene con `service_type_label` en la vista.
      */
     public function servicesPdf(Request $request)
     {
-        $services = Service::with(['client', 'deceased', 'serviceType', 'branch'])
+        $services = Service::with(['client', 'deceased', 'branch'])
             ->when($request->from, fn ($q) => $q->where('scheduled_at', '>=', $request->from))
             ->when($request->to, fn ($q) => $q->where('scheduled_at', '<=', $request->to))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))

@@ -166,11 +166,14 @@ export default function StaffCreate({ roles }: Props) {
                                         required
                                     >
                                         <option value="">Seleccionar rol...</option>
-                                        {roles.map((r) => (
-                                            <option key={r.id} value={r.name}>
-                                                {r.name}
-                                            </option>
-                                        ))}
+                                        {/* 👇 Filtramos para que el rol "Cliente" no se pueda asignar desde el personal */}
+                                        {roles
+                                            .filter((r) => r.name !== 'Cliente')
+                                            .map((r) => (
+                                                <option key={r.id} value={r.name}>
+                                                    {r.name}
+                                                </option>
+                                            ))}
                                     </select>
                                     {errors.role && <p className="text-sm text-destructive mt-1">{errors.role}</p>}
                                 </div>

@@ -9,6 +9,10 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 
 /**
  * Exportación de servicios a Excel.
+ *
+ * Nota: ya no se hace eager load de `serviceType` porque la relación
+ * fue eliminada del modelo Service (migró a `service_type` enum string).
+ * El nombre legible se obtiene con `service_type_label` en el mapeo.
  */
 class ServicesExport implements FromQuery, WithHeadings, WithMapping
 {
@@ -20,7 +24,7 @@ class ServicesExport implements FromQuery, WithHeadings, WithMapping
 
     public function query(): \Illuminate\Database\Eloquent\Builder
     {
-        return Service::with(['client', 'deceased', 'serviceType', 'branch'])
+        return Service::with(['client', 'deceased', 'branch'])
             ->when($this->from, fn ($q) => $q->where('scheduled_at', '>=', $this->from))
             ->when($this->to, fn ($q) => $q->where('scheduled_at', '<=', $this->to))
             ->when($this->status, fn ($q) => $q->where('status', $this->status))
@@ -36,7 +40,7 @@ class ServicesExport implements FromQuery, WithHeadings, WithMapping
     {
         return [
             $service->code,
-            $service->serviceType->name,
+            $service->service_type_label,
             $service->branch->name ?? '—',
             $service->client->name,
             $service->deceased->full_name,
