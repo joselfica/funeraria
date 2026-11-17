@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Box, FlaskConical, Truck, AlertTriangle, Plus, Eye, Pencil, Trash2, MoreVertical, ChevronDown } from 'lucide-react';
+import { Package, Box, FlaskConical, Truck, AlertTriangle, Plus, Eye, Pencil, Trash2, MoreVertical, ChevronDown, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +28,7 @@ interface Item {
     name: string;
     material: string | null;
     procedencia: string | null;
-    price: string;
+    price: string | number;
     stock: number;
     stock_minimum: number;
     is_active: boolean;
@@ -62,9 +62,11 @@ interface Props {
         total: number;
         links: Array<{ url: string | null; label: string; active: boolean }>;
     };
+    category: 'ataud' | 'urna';
     filters: {
         search: string;
-        category: string;
+        condition: string;
+        category?: string;
         procedencia: string;
         low_stock: boolean;
     };
@@ -159,19 +161,22 @@ function RowMenu({ item, onDelete, large = false }: { item: Item; onDelete: () =
     );
 }
 
-export default function InventoryIndex({ items, filters, counts, conditions }: Props) {
+export default function InventoryIndex({ items, category, filters, counts, conditions }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [procedencia, setProcedencia] = useState(filters.procedencia || '');
+    const [condition, setCondition] = useState(filters.condition || '');
 
-    const activeCategory = filters.category || '';
     const lowStock = !!filters.low_stock;
+    const isAtaud = category === 'ataud';
+    const categoryTitle = isAtaud ? 'Catálogo de Ataúdes' : 'Catálogo de Urnas';
+    const baseUrl = `/inventory/${category}`;
 
-    const go = (params: Partial<{ search: string; category: string; procedencia: string; low_stock: boolean }>) => {
+    const go = (params: Partial<{ search: string; condition: string; procedencia: string; low_stock: boolean }>) => {
         router.get(
-            '/inventory',
+            baseUrl,
             {
                 search: params.search ?? filters.search,
-                category: params.category ?? activeCategory,
+                condition: params.condition ?? filters.condition,
                 procedencia: params.procedencia ?? filters.procedencia,
                 low_stock: params.low_stock ?? lowStock,
             },
@@ -181,7 +186,7 @@ export default function InventoryIndex({ items, filters, counts, conditions }: P
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        go({ search, procedencia });
+        go({ search, condition, procedencia });
     };
 
     const handleDelete = (item: Item) => {
@@ -218,8 +223,8 @@ export default function InventoryIndex({ items, filters, counts, conditions }: P
         );
     };
 
-    const formatPrice = (price: string) => {
-        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(parseFloat(price));
+    const formatPrice = (price: string | number) => {
+        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(Number(price));
     };
 
     const getCategoryIcon = (category: string) => {
@@ -229,12 +234,6 @@ export default function InventoryIndex({ items, filters, counts, conditions }: P
             default: return <Package className="h-3.5 w-3.5" />;
         }
     };
-
-    const chips: Array<{ key: string; label: string; dot: string | null; count?: number }> = [
-        { key: '', label: 'Todos', dot: null, count: counts?.all },
-        { key: 'ataud', label: 'Ataúdes', dot: 'bg-rose-700', count: counts?.ataud },
-        { key: 'urna', label: 'Urnas', dot: 'bg-slate-500', count: counts?.urna },
-    ];
 
     const renderCategory = (item: Item) => (
         <Badge className={`flex w-fit items-center gap-1.5 ${item.category === 'ataud' ? 'bg-rose-800 text-white hover:bg-rose-900' : 'bg-slate-700 text-white hover:bg-slate-800'}`}>
@@ -322,61 +321,34 @@ export default function InventoryIndex({ items, filters, counts, conditions }: P
 
     return (
         <>
-            <Head title="Inventario" />
+            <Head title={categoryTitle} />
 
             <div className="mx-auto max-w-7xl space-y-6 p-4 pb-12 sm:p-6 lg:p-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
+                        <Link href="/inventory" aria-label="Volver al Hub de inventario">
+                            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0">
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
+                        </Link>
                         <div className="shrink-0 rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
-                            <Package className="h-6 w-6 md:h-8 md:w-8" />
+                            {isAtaud ? <Box className="h-6 w-6 md:h-8 md:w-8" /> : <FlaskConical className="h-6 w-6 md:h-8 md:w-8" />}
                         </div>
                         <div className="min-w-0">
-                            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 md:text-3xl">Inventario</h1>
+                            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 md:text-3xl">{categoryTitle}</h1>
                             <p className="mt-1 text-sm text-muted-foreground md:text-base">
-                                {items.total} {items.total === 1 ? 'item' : 'items'}
+                                Total: {items.total} {items.total === 1 ? 'registro' : 'registros'}
                             </p>
                         </div>
                     </div>
-                    <Link href="/inventory/create" className="w-full sm:w-auto">
+                    <Link href={`/inventory/create/${category}`} className="w-full sm:w-auto">
                         <Button className="h-10 w-full bg-rose-800 text-white shadow-md hover:bg-rose-900 sm:w-auto">
-                            <Plus className="mr-1 h-4 w-4" /> Nuevo Item
+                            <Plus className="mr-1 h-4 w-4" /> {isAtaud ? 'Nuevo Ataúd' : 'Nueva Urna'}
                         </Button>
                     </Link>
                 </div>
 
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap gap-1.5 rounded-xl bg-slate-100 p-1.5 dark:bg-slate-900" role="tablist">
-                        {chips.map((chip) => {
-                            const active = activeCategory === chip.key;
-                            return (
-                                <button
-                                    key={chip.key || 'all'}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={active}
-                                    onClick={() => go({ category: chip.key })}
-                                    className={`flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-                                        active
-                                            ? 'bg-rose-800 text-white shadow-sm'
-                                            : 'text-muted-foreground hover:bg-white/70 hover:text-foreground dark:hover:bg-slate-800'
-                                    }`}
-                                >
-                                    {chip.dot && <span className={`h-2 w-2 rounded-full ${chip.dot}`} />}
-                                    {chip.label}
-                                    {chip.count !== undefined && (
-                                        <span
-                                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                                active ? 'bg-white/20 text-white' : 'bg-white text-slate-600 dark:bg-slate-800 dark:text-slate-300'
-                                            }`}
-                                        >
-                                            {chip.count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
+                <div className="flex">
                     <button
                         type="button"
                         aria-pressed={lowStock}
@@ -412,6 +384,16 @@ export default function InventoryIndex({ items, filters, counts, conditions }: P
                         <option value="">Todas las procedencias</option>
                         <option value="Talca">Talca</option>
                         <option value="Santiago">Santiago</option>
+                    </select>
+                    <select
+                        value={condition}
+                        onChange={(e) => setCondition(e.target.value)}
+                        className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm dark:bg-slate-950 sm:w-auto"
+                    >
+                        <option value="">Todas las condiciones</option>
+                        {conditions.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
                     </select>
                     <Button type="submit" variant="secondary" className="h-10 w-full sm:w-auto">
                         Buscar

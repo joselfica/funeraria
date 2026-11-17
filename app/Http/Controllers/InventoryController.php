@@ -11,24 +11,66 @@ use Inertia\Inertia;
 class InventoryController extends Controller
 {
     /**
+     * Hub de inventario: tarjetas de resumen por categoría (ataúdes / urnas).
+     *
+     * - total: stock total de items activos de la categoría.
+     * - disponibles: stock de items activos en condición `nuevo` o `bueno`.
+     */
+    public function hub()
+    {
+        $stats = [];
+
+        foreach (['ataud' => 'ataudes', 'urna' => 'urnas'] as $category => $key) {
+            // Cada consulta parte de un builder nuevo y agrupa el OR dentro de
+            // un closure, para no perder los filtros de categoría y activo.
+            $base = fn () => InventoryItem::active()->where('category', $category);
+
+            $stats[$key] = [
+                'total' => (int) $base()->sum('stock'),
+                'disponibles' => (int) $base()
+                    ->whereIn('condition', ['nuevo', 'bueno'])
+                    ->sum('stock'),
+            ];
+        }
+
+        return Inertia::render('Inventory/Hub', [
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
      * Muestra el listado de inventario con filtros aplicables.
+     *
+     * Si la ruta trae `{category}` (ataud | urna) funciona como catálogo de esa
+     * categoría y solo muestra items activos. Sin categoría, mantiene el listado
+     * general anterior.
      *
      * Filtros soportados:
      * - search: búsqueda por código, nombre o material.
-     * - category: filtra por categoría (ataud | urna).
+     * - condition: filtra por condición física.
+     * - category: (solo listado general) filtra por categoría.
      * - low_stock: filtra solo items con stock bajo.
      * - procedencia: filtra por ciudad de origen (Talca | Santiago).
      */
-    public function index(Request $request)
+    public function index(Request $request, ?string $category = null)
     {
+        $fromCatalog = $category !== null;
+
+        if ($fromCatalog && ! in_array($category, ['ataud', 'urna'], true)) {
+            abort(404);
+        }
+
+        $category ??= $request->input('category', '');
         $search = $request->input('search', '');
-        $category = $request->input('category', '');
+        $condition = $request->input('condition', '');
         $procedencia = $request->input('procedencia', '');
         $lowStock = $request->boolean('low_stock', false);
 
         $items = InventoryItem::query()
-            ->when($search, fn ($q) => $q->search($search))
+            ->when($fromCatalog, fn ($q) => $q->active())
             ->when($category, fn ($q) => $q->where('category', $category))
+            ->when($search, fn ($q) => $q->search($search)) // agrupa el OR internamente
+            ->when($condition, fn ($q) => $q->where('condition', $condition))
             ->when($procedencia, fn ($q) => $q->fromProcedencia($procedencia))
             ->when($lowStock, fn ($q) => $q->lowStock())
             ->orderBy('category')
@@ -38,8 +80,10 @@ class InventoryController extends Controller
 
         return Inertia::render('Inventory/Index', [
             'items' => $items,
+            'category' => $category ?: null,
             'filters' => [
                 'search' => $search,
+                'condition' => $condition,
                 'category' => $category,
                 'procedencia' => $procedencia,
                 'low_stock' => $lowStock,
@@ -55,10 +99,13 @@ class InventoryController extends Controller
 
     /**
      * Muestra el formulario para crear un nuevo item de inventario.
+     * La categoría llega por la ruta (inventory/create/{category}) y sirve
+     * para preseleccionarla en el formulario.
      */
-    public function create()
+    public function create(?string $category = null)
     {
         return Inertia::render('Inventory/Create', [
+            'category' => in_array($category, ['ataud', 'urna'], true) ? $category : null,
             'conditions' => collect(ItemCondition::cases())->map(fn ($c) => [
                 'value' => $c->value,
                 'label' => $c->label(),
@@ -87,9 +134,9 @@ class InventoryController extends Controller
             'condition' => ['required', Rule::enum(ItemCondition::class)],
         ]);
 
-        InventoryItem::create($validated);
+        $item = InventoryItem::create($validated);
 
-        return redirect()->route('inventory.index')
+        return redirect()->route('inventory.index', $item->category)
             ->with('toast', [
                 'type' => 'success',
                 'message' => 'Item creado correctamente.',
@@ -143,7 +190,7 @@ class InventoryController extends Controller
 
         $inventory->update($validated);
 
-        return redirect()->route('inventory.index')
+        return redirect()->route('inventory.index', $inventory->category)
             ->with('toast', [
                 'type' => 'success',
                 'message' => 'Item actualizado correctamente.',
@@ -203,9 +250,10 @@ class InventoryController extends Controller
      */
     public function destroy(InventoryItem $inventory)
     {
+        $category = $inventory->category;
         $inventory->delete();
 
-        return redirect()->route('inventory.index')
+        return redirect()->route('inventory.index', $category)
             ->with('toast', [
                 'type' => 'success',
                 'message' => 'Item eliminado correctamente.',

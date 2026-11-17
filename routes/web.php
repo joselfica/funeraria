@@ -65,7 +65,17 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     // Los clientes no se eliminan (auditoría): solo se activan/desactivan
     Route::post('clients/{client}/toggle-active', [ClientController::class, 'toggleActive'])->name('clients.toggle-active');
     Route::resource('clients', ClientController::class)->except(['destroy']);
-    Route::resource('inventory', InventoryController::class);
+    // Inventario: Hub, catálogo por categoría y CRUD.
+    // OJO con el orden: las rutas específicas van ANTES del resource, si no
+    // 'inventory/ataud' o 'inventory/create/urna' serían capturadas como {inventory}.
+    Route::get('inventory', [InventoryController::class, 'hub'])->name('inventory.hub');
+    Route::get('inventory/create/{category}', [InventoryController::class, 'create'])
+        ->whereIn('category', ['ataud', 'urna'])
+        ->name('inventory.create');
+    Route::get('inventory/{category}', [InventoryController::class, 'index'])
+        ->whereIn('category', ['ataud', 'urna'])
+        ->name('inventory.index');
+    Route::resource('inventory', InventoryController::class)->except(['index', 'create']);
     // Cambio rápido de condición física desde el listado
     Route::patch('inventory/{inventory}/condition', [InventoryController::class, 'updateCondition'])->name('inventory.condition');
     Route::resource('vehicles', VehicleController::class);
