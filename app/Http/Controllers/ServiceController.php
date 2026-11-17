@@ -545,9 +545,10 @@ class ServiceController extends Controller
 
         $serviceType = ServiceTypeEnum::from($validated['service_type']);
 
-        // 👇 El precio base y la duración se toman del Enum
+        // 👇 El precio base se toma del Enum (el usuario no lo edita en el Wizard)
         $validated['base_price'] = (float) $serviceType->basePrice();
-        $validated['duration_hours'] = (int) $serviceType->durationHours();
+
+        // 👈 NOTA: La duración se mantiene la que envió el usuario (ahora es editable).
 
         $validated['seremi_extension_granted'] = !empty($validated['seremi_resolution_number']);
 

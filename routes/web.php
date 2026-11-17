@@ -4,6 +4,7 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeceasedController;
+use App\Http\Controllers\DriverController;
 use App\Http\Controllers\EmployeeAbsenceController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PaymentController;
@@ -40,6 +41,9 @@ Route::middleware(['auth'])->group(function () {
         // Admin y Encargado van al dashboard normal
         return app(DashboardController::class)->index();
     })->name('dashboard');
+    
+    // Detalle del servicio para el chofer
+    Route::get('driver/services/{service}', [DriverController::class, 'showService'])->name('driver.service.show');
     
     Route::prefix('portal')->group(function () {
         Route::get('/', [PortalController::class, 'index'])->name('portal.index');

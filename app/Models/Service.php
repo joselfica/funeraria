@@ -90,8 +90,6 @@ class Service extends Model
         return $this->belongsTo(Deceased::class);
     }
 
-    // 👇 Relación serviceType() ELIMINADA (ya no existe la tabla service_types)
-
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -257,5 +255,14 @@ class Service extends Model
     public function branch()
     {
         return $this->belongsTo(\App\Models\Branch::class);
+    }
+
+    /**
+     * Le dice a Laravel que use la columna 'uuid' para el Route Model Binding
+     * en lugar del 'id' por defecto.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 }

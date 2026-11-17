@@ -13,7 +13,7 @@ interface Client {
 }
 
 interface ServiceTypeOption {
-    value: string;   // 'con_ataud' | 'con_urna'
+    value: string;
     label: string;
     base_price: number;
     duration_hours: number;
@@ -53,7 +53,7 @@ export default function ServicesWizard({
         deceased_death_date: '',
         deceased_death_certificate: '',
         branch_id: '',
-        service_type: '', // 👈 string en lugar de service_type_id
+        service_type: '',
         beneficiary_type: 'particular',
         scheduled_at: '',
         duration_hours: '48',
@@ -74,7 +74,10 @@ export default function ServicesWizard({
         const selected = serviceTypes.find((t) => t.value === value);
         if (selected) {
             setData('base_price', String(selected.base_price));
-            setData('duration_hours', String(selected.duration_hours));
+            // Solo actualizar la duración si no ha sido modificada manualmente
+            if (data.duration_hours === '48' || data.duration_hours === '') {
+                setData('duration_hours', String(selected.duration_hours));
+            }
         }
     };
 
@@ -266,10 +269,27 @@ export default function ServicesWizard({
                                             {errors.service_type && <p className="text-sm text-rose-600 mt-1">{errors.service_type}</p>}
                                         </div>
                                         <div>
-                                            <Label>Fecha y Hora *</Label>
+                                            <Label>Fecha y Hora de Inicio *</Label>
                                             <Input type="datetime-local" value={data.scheduled_at} onChange={e => setData('scheduled_at', e.target.value)} className="mt-1" required />
                                             {errors.scheduled_at && <p className="text-sm text-rose-600 mt-1">{errors.scheduled_at}</p>}
                                         </div>
+                                    </div>
+
+                                    {/* 👇 NUEVO: Duración editable */}
+                                    <div>
+                                        <Label htmlFor="duration_hours">Duración del servicio (horas) *</Label>
+                                        <Input
+                                            id="duration_hours"
+                                            type="number"
+                                            min="1"
+                                            value={data.duration_hours}
+                                            onChange={(e) => setData('duration_hours', e.target.value)}
+                                            className="mt-1"
+                                            required
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Puedes ajustar la duración si el servicio es más corto o más largo.
+                                        </p>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

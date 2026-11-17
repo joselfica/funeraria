@@ -15,30 +15,53 @@ use Inertia\Inertia;
  */
 class DriverController extends Controller
 {
+    /**
+     * Dashboard principal del chofer.
+     */
     public function index(Request $request)
     {
         $user = $request->user();
         $today = Carbon::today();
         $nextWeek = Carbon::today()->addDays(7);
 
-        // Servicios de hoy donde el chofer está asignado
-        $todayServices = Service::with(['client:id,name,phone', 'deceased:id,full_name', 'serviceType:id,name', 'branch:id,name,address'])
+        // Servicios activos HOY donde el chofer está asignado.
+        $todayServices = Service::with([
+                'client:id,name,phone', 
+                'deceased:id,full_name', 
+                'branch:id,name' 
+            ])
             ->whereHas('assignments', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
             })
-            ->whereDate('scheduled_at', $today)
+            ->where(function ($q) use ($today) {
+                $endOfDay = $today->copy()->endOfDay();
+                $startOfDay = $today->copy()->startOfDay();
+
+                $q->whereBetween('scheduled_at', [$startOfDay, $endOfDay]) // Inician hoy
+                  ->orWhereBetween('ends_at', [$startOfDay, $endOfDay])     // Terminan hoy
+                  ->orWhere(function ($inner) use ($startOfDay, $endOfDay) {
+                      // Están en curso hoy
+                      $inner->where('scheduled_at', '<', $startOfDay)
+                            ->where('ends_at', '>', $endOfDay);
+                  });
+            })
             ->orderBy('scheduled_at')
-            ->get();
+            ->get()
+            ->each(fn ($service) => $service->append(['service_type_label', 'status_label']));
 
         // Próximos servicios (próximos 7 días)
-        $upcomingServices = Service::with(['client:id,name', 'deceased:id,full_name', 'serviceType:id,name'])
+        $upcomingServices = Service::with([
+                'client:id,name', 
+                'deceased:id,full_name'
+            ])
             ->whereHas('assignments', function ($q) use ($user) {
                 $q->where('user_id', $user->id);
             })
             ->whereDate('scheduled_at', '>', $today)
             ->whereDate('scheduled_at', '<=', $nextWeek)
             ->orderBy('scheduled_at')
-            ->get();
+            ->get()
+            ->each(fn ($service) => $service->append(['service_type_label', 'status_label']));
 
         // Items con stock bajo (para que el chofer informe)
         $lowStockItems = InventoryItem::active()
@@ -51,6 +74,34 @@ class DriverController extends Controller
             'todayServices' => $todayServices,
             'upcomingServices' => $upcomingServices,
             'lowStockItems' => $lowStockItems,
+        ]);
+    }
+
+    /**
+     * Muestra el detalle de un servicio asignado al chofer.
+     */
+    public function showService(Service $service)
+    {
+        $user = auth()->user();
+
+        // Verificar que el servicio esté asignado al chofer
+        $isAssigned = $service->assignments()
+            ->where('user_id', $user->id)
+            ->where('role_in_service', 'driver')
+            ->exists();
+
+        if (! $isAssigned) {
+            abort(403, 'No tienes permiso para ver este servicio.');
+        }
+
+        // Cargar relaciones necesarias (sin serviceType, que ya no existe)
+        $service->load(['client', 'deceased', 'branch']);
+
+        // Agregar atributos calculados al JSON
+        $service->append(['service_type_label', 'status_label', 'beneficiary_label']);
+
+        return Inertia::render('Driver/ServiceShow', [
+            'service' => $service,
         ]);
     }
 }
