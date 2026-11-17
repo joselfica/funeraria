@@ -29,7 +29,8 @@ interface Service {
     driver_name: string | null;
     client: { id: number; name: string; rut: string } | null;
     deceased: { id: number; full_name: string } | null;
-    service_type: { id: number; name: string } | null;
+    service_type: string;
+    service_type_label: string | null;
 }
 
 type PaymentFilter = 'all' | 'pending' | 'paid';
@@ -109,17 +110,17 @@ function RowMenu({ service }: { service: Service }) {
                             className="fixed z-[9999] w-48 rounded-lg border bg-card p-1 shadow-lg"
                             style={{ top: pos.top, right: pos.right }}
                         >
-                            <Link href={`/services/${service.id}`} className={itemClass}>
+                            <Link href={`/services/${service.uuid}`} className={itemClass}>
                                 <Eye className="h-4 w-4" /> Ver detalle
                             </Link>
-                            <Link href={`/services/${service.id}/edit`} className={itemClass}>
+                            <Link href={`/services/${service.uuid}/edit`} className={itemClass}>
                                 <Pencil className="h-4 w-4" /> Editar
                             </Link>
-                            <a href={`/services/${service.id}/contract`} target="_blank" rel="noopener noreferrer" className={itemClass}>
+                            <a href={`/services/${service.uuid}/contract`} target="_blank" rel="noopener noreferrer" className={itemClass}>
                                 <FileText className="h-4 w-4" /> Contrato (PDF)
                             </a>
                             {service.is_fully_paid && (
-                                <a href={`/services/${service.id}/paz-y-salvo`} target="_blank" rel="noopener noreferrer" className={itemClass}>
+                                <a href={`/services/${service.uuid}/paz-y-salvo`} target="_blank" rel="noopener noreferrer" className={itemClass}>
                                     <Receipt className="h-4 w-4" /> Paz y salvo
                                 </a>
                             )}
@@ -244,7 +245,7 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
 
         if (service.status === 'pending') {
             return (
-                <Link href={`/services/${service.id}`}>
+                <Link href={`/services/${service.uuid}`}>
                     <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-700">
                         Aprobar
                     </Button>
@@ -253,7 +254,7 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
         }
         if (service.status === 'accepted' && balance > 0.01) {
             return (
-                <Link href={`/services/${service.id}`}>
+                <Link href={`/services/${service.uuid}`}>
                     <Button size="sm" className="h-8 bg-rose-800 text-white hover:bg-rose-900">
                         Cobrar
                     </Button>
@@ -261,7 +262,7 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
             );
         }
         return (
-            <Link href={`/services/${service.id}`}>
+            <Link href={`/services/${service.uuid}`}>
                 <Button variant="outline" size="sm" className="h-8">
                     <Eye className="mr-1 h-4 w-4" /> Ver
                 </Button>
@@ -392,7 +393,7 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
                                 <div>
                                     <p className="font-medium text-slate-800 dark:text-slate-100">{service.client?.name || 'Sin cliente'}</p>
                                     <p className="text-sm text-muted-foreground">
-                                        {service.deceased?.full_name || 'Sin fallecido'} · {service.service_type?.name || 'Sin tipo'}
+                                        {service.deceased?.full_name || 'Sin fallecido'} · {service.service_type_label || 'Sin tipo'}
                                     </p>
                                 </div>
                                 <div>{renderDriver(service)}</div>
@@ -436,7 +437,7 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
                                             <p className="text-sm text-muted-foreground">{service.deceased?.full_name || 'Sin fallecido'}</p>
                                         </TableCell>
                                         <TableCell>
-                                            <p className="mb-1 text-sm">{service.service_type?.name || 'Sin tipo'}</p>
+                                            <p className="mb-1 text-sm">{service.service_type_label || 'Sin tipo'}</p>
                                             {renderDriver(service)}
                                         </TableCell>
                                         <TableCell>{renderPayment(service)}</TableCell>

@@ -114,6 +114,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
+                'uuid' => $s->uuid,
                 'code' => $s->code,
                 'scheduled_at' => $s->scheduled_at->toIso8601String(),
                 'scheduled_date' => $s->scheduled_at->translatedFormat('D d M'),
@@ -157,6 +158,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
+                'uuid' => $s->uuid,
                 'code' => $s->code,
                 'client' => $s->client?->name,
                 'deceased' => $s->deceased?->full_name,
@@ -204,6 +206,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
+                'uuid' => $s->uuid,
                 'code' => $s->code,
                 'title' => "{$s->code} — {$s->deceased?->full_name}",
                 'start' => $s->scheduled_at->toIso8601String(),
@@ -223,6 +226,7 @@ class DashboardController extends Controller
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
+                'uuid' => $s->uuid,
                 'code' => $s->code,
                 'scheduled_at' => $s->scheduled_at->toIso8601String(),
                 'time' => $s->scheduled_at->format('H:i'),
@@ -261,6 +265,7 @@ class DashboardController extends Controller
 
                 return [
                     'id' => $s->id,
+                    'uuid' => $s->uuid,
                     'code' => $s->code,
                     'client' => $s->client?->name,
                     'deceased' => $s->deceased?->full_name,
@@ -300,6 +305,7 @@ class DashboardController extends Controller
 
                 return [
                     'id' => $s->id,
+                    'uuid' => $s->uuid,
                     'code' => $s->code,
                     'client' => $s->client?->name,
                     'deceased' => $s->deceased?->full_name,

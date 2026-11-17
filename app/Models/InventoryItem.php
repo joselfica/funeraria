@@ -32,7 +32,7 @@ class InventoryItem extends Model
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price' => 'integer',
         'stock' => 'integer',
         'stock_minimum' => 'integer',
         'photos' => 'array',

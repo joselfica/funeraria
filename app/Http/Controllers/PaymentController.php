@@ -49,7 +49,7 @@ class PaymentController extends Controller
         // Generar comprobante PDF
         $this->generateReceiptPdf($payment);
 
-        return redirect()->route('services.show', $service->id)
+        return redirect()->route('services.show', $service->uuid)
             ->with('toast', [
                 'type' => 'success',
                 'message' => "Pago registrado. Comprobante: {$payment->receipt_number}",

@@ -8,7 +8,7 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-    Search, Eye, Pencil, MoreVertical, Plus, Cross, CheckCircle2, AlertTriangle, FileText,
+    Search, Eye, Pencil, MoreVertical, Cross, CheckCircle2, AlertTriangle, FileText,
 } from 'lucide-react';
 
 interface Deceased {
@@ -49,7 +49,6 @@ const parseDate = (date: string) => {
     return new Date(y, m - 1, d);
 };
 
-// Menú simplificado: solo Ver y Editar
 function RowMenu({ item, large = false }: { item: Deceased; large?: boolean }) {
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -175,7 +174,7 @@ export default function DeceasedIndex({ deceased, filters, counts }: Props) {
 
             <div className="mx-auto max-w-7xl p-4 pb-24 md:p-6">
                 
-                {/* Encabezado */}
+                {/* Encabezado (SIN botón de Nuevo Registro) */}
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                         <div className="shrink-0 rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
@@ -189,13 +188,6 @@ export default function DeceasedIndex({ deceased, filters, counts }: Props) {
                                 {counts?.active ?? 0} activos de {counts?.all ?? deceased.total} registrados
                             </p>
                         </div>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                        <Link href="/deceased/create" className="w-full sm:w-auto">
-                            <Button className="w-full bg-rose-800 text-white shadow-md hover:bg-rose-900 sm:w-auto">
-                                <Plus className="mr-1 h-4 w-4" /> Nuevo Registro
-                            </Button>
-                        </Link>
                     </div>
                 </div>
 

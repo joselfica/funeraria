@@ -131,7 +131,7 @@ export default function InventoryCreate({ conditions }: Props) {
 
                             <div>
                                 <Label htmlFor="price">Precio (CLP) *</Label>
-                                <Input id="price" type="number" step="0.01" value={data.price} onChange={(e) => setData('price', e.target.value)} className="mt-1" required />
+                                <Input id="price" type="number" step="1" value={data.price} onChange={(e) => setData('price', e.target.value)} className="mt-1" required />
                                 {errors.price && <p className="text-sm text-destructive mt-1">{errors.price}</p>}
                             </div>
 

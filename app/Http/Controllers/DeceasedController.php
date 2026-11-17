@@ -44,7 +44,7 @@ class DeceasedController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:200',
-            'rut' => 'nullable|string|max:12|unique:deceased,rut',
+            'rut' => 'required|string|max:12|unique:deceased,rut',
             'gender' => 'nullable|in:M,F,otro',
             'birth_date' => 'nullable|date|before:death_date',
             'death_date' => 'required|date|before_or_equal:today',
@@ -98,7 +98,7 @@ class DeceasedController extends Controller
     {
         $validated = $request->validate([
             'full_name' => 'required|string|max:200',
-            'rut' => 'nullable|string|max:12|unique:deceased,rut,' . $deceased->id,
+            'rut' => 'required|string|max:12|unique:deceased,rut,' . $deceased->id,
             'gender' => 'nullable|in:M,F,otro',
             'birth_date' => 'nullable|date',
             'death_date' => 'required|date',

@@ -21,7 +21,6 @@ import {
 
 interface Client { id: number; name: string; rut: string; email: string | null; phone: string | null; }
 interface Deceased { id: number; full_name: string; rut: string | null; death_date: string; }
-interface ServiceType { id: number; name: string; }
 interface User { id: number; name: string; }
 
 interface InventoryItem {
@@ -57,7 +56,7 @@ interface Service {
     beneficiary_type: string; beneficiary_label: string; afp_amount: string;
     family_amount: string; client_notes: string | null; internal_notes: string | null;
     rejection_reason: string | null; approved_at: string | null;
-    client: Client | null; deceased: Deceased | null; service_type: ServiceType | null;
+    client: Client | null; deceased: Deceased | null; service_type: string; service_type_label: string;
     branch: { name: string; address?: string | null } | null;
     created_by: User | null; approved_by: User | null;
     inventory_items: InventoryItem[]; vehicles: Vehicle[]; payments: Payment[];
@@ -95,30 +94,30 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
     const [paymentNotes, setPaymentNotes] = useState('');
 
-    const handleApprove = () => { if (confirm(`¿Aprobar el servicio ${service.code}?`)) router.post(`/services/${service.id}/approve`); };
+    const handleApprove = () => { if (confirm(`¿Aprobar el servicio ${service.code}?`)) router.post(`/services/${service.uuid}/approve`); };
     const handleReject = () => {
         if (!rejectionReason.trim()) return alert('Debe indicar un motivo de rechazo');
-        router.post(`/services/${service.id}/reject`, { rejection_reason: rejectionReason });
+        router.post(`/services/${service.uuid}/reject`, { rejection_reason: rejectionReason });
         setShowRejectModal(false);
     };
     const handleAssignItem = (e: React.FormEvent) => {
         e.preventDefault(); if (!selectedItem) return;
-        router.post(`/services/${service.id}/assign-item`, { inventory_item_id: selectedItem, quantity: itemQuantity, notes: itemNotes }, { onSuccess: () => { setSelectedItem(''); setItemQuantity('1'); setItemNotes(''); } });
+        router.post(`/services/${service.uuid}/assign-item`, { inventory_item_id: selectedItem, quantity: itemQuantity, notes: itemNotes }, { onSuccess: () => { setSelectedItem(''); setItemQuantity('1'); setItemNotes(''); } });
     };
-    const handleRemoveItem = (itemId: number, itemName: string) => { if (confirm(`¿Quitar "${itemName}" del servicio? Se devolverá el stock.`)) router.delete(`/services/${service.id}/items/${itemId}`); };
+    const handleRemoveItem = (itemId: number, itemName: string) => { if (confirm(`¿Quitar "${itemName}" del servicio? Se devolverá el stock.`)) router.delete(`/services/${service.uuid}/items/${itemId}`); };
     const handleAssignVehicle = (e: React.FormEvent) => {
         e.preventDefault(); if (!selectedVehicle) return;
-        router.post(`/services/${service.id}/assign-vehicle`, { vehicle_id: selectedVehicle, notes: vehicleNotes }, { onSuccess: () => { setSelectedVehicle(''); setVehicleNotes(''); } });
+        router.post(`/services/${service.uuid}/assign-vehicle`, { vehicle_id: selectedVehicle, notes: vehicleNotes }, { onSuccess: () => { setSelectedVehicle(''); setVehicleNotes(''); } });
     };
-    const handleRemoveVehicle = (vehicleId: number, plate: string) => { if (confirm(`¿Quitar el vehículo ${plate} del servicio?`)) router.delete(`/services/${service.id}/vehicles/${vehicleId}`); };
+    const handleRemoveVehicle = (vehicleId: number, plate: string) => { if (confirm(`¿Quitar el vehículo ${plate} del servicio?`)) router.delete(`/services/${service.uuid}/vehicles/${vehicleId}`); };
     const handleAssignEmployee = (e: React.FormEvent) => {
         e.preventDefault(); if (!selectedEmployee) return;
-        router.post(`/services/${service.id}/assign-employee`, { user_id: selectedEmployee, role_in_service: employeeRole, notes: employeeNotes }, { onSuccess: () => { setSelectedEmployee(''); setEmployeeRole('coordinator'); setEmployeeNotes(''); } });
+        router.post(`/services/${service.uuid}/assign-employee`, { user_id: selectedEmployee, role_in_service: employeeRole, notes: employeeNotes }, { onSuccess: () => { setSelectedEmployee(''); setEmployeeRole('coordinator'); setEmployeeNotes(''); } });
     };
-    const handleRemoveEmployee = (assignmentId: number, name: string) => { if (confirm(`¿Quitar a ${name} del servicio?`)) router.delete(`/services/${service.id}/assignments/${assignmentId}`); };
+    const handleRemoveEmployee = (assignmentId: number, name: string) => { if (confirm(`¿Quitar a ${name} del servicio?`)) router.delete(`/services/${service.uuid}/assignments/${assignmentId}`); };
     const handleRegisterPayment = (e: React.FormEvent) => {
         e.preventDefault(); if (!paymentAmount) return;
-        router.post(`/services/${service.id}/payments`, { amount: paymentAmount, payment_method: paymentMethod, reference: paymentReference || null, payment_date: paymentDate, notes: paymentNotes || null }, { onSuccess: () => { setShowPaymentModal(false); setPaymentAmount(''); setPaymentMethod('efectivo'); setPaymentReference(''); setPaymentNotes(''); } });
+        router.post(`/services/${service.uuid}/payments`, { amount: paymentAmount, payment_method: paymentMethod, reference: paymentReference || null, payment_date: paymentDate, notes: paymentNotes || null }, { onSuccess: () => { setShowPaymentModal(false); setPaymentAmount(''); setPaymentMethod('efectivo'); setPaymentReference(''); setPaymentNotes(''); } });
     };
 
     const formatDate = (date: string | null) => {
@@ -186,14 +185,14 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Link href={`/services/${service.id}/edit`} className="flex-1 sm:flex-initial">
+                        <Link href={`/services/${service.uuid}/edit`} className="flex-1 sm:flex-initial">
                             <Button variant="outline" className="w-full sm:w-auto"><Pencil className="h-4 w-4 mr-1" /> Editar</Button>
                         </Link>
-                        <a href={`/services/${service.id}/contract`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
+                        <a href={`/services/${service.uuid}/contract`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
                             <Button variant="outline" className="w-full sm:w-auto"><FileText className="h-4 w-4 mr-1" /> Contrato</Button>
                         </a>
                         {financials.is_fully_paid && (
-                            <a href={`/services/${service.id}/paz-y-salvo`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
+                            <a href={`/services/${service.uuid}/paz-y-salvo`} target="_blank" rel="noopener noreferrer" className="flex-1 sm:flex-initial">
                                 <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"><Receipt className="h-4 w-4 mr-1" /> Paz y Salvo</Button>
                             </a>
                         )}
@@ -230,7 +229,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                             <Card className="shadow-sm">
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2"><User className="h-4 w-4"/> Cliente</CardTitle>
-                                    {service.client?.id && <Link href={`/clients/${service.client.id}/edit?from=/services/${service.id}`}><Button variant="ghost" size="sm" className="h-6 px-2 text-xs">Editar</Button></Link>}
+                                    {service.client?.id && <Link href={`/clients/${service.client.id}/edit?from=/services/${service.uuid}`}><Button variant="ghost" size="sm" className="h-6 px-2 text-xs">Editar</Button></Link>}
                                 </CardHeader>
                                 <CardContent>
                                     <p className="font-bold text-lg">{service.client?.name || 'Sin cliente'}</p>
@@ -242,7 +241,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                             <Card className="shadow-sm">
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                                     <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Users className="h-4 w-4"/> Fallecido</CardTitle>
-                                    {service.deceased?.id && <Link href={`/deceased/${service.deceased.id}/edit?from=/services/${service.id}`}><Button variant="ghost" size="sm" className="h-6 px-2 text-xs">Editar</Button></Link>}
+                                    {service.deceased?.id && <Link href={`/deceased/${service.deceased.id}/edit?from=/services/${service.uuid}`}><Button variant="ghost" size="sm" className="h-6 px-2 text-xs">Editar</Button></Link>}
                                 </CardHeader>
                                 <CardContent>
                                     <p className="font-bold text-lg">{service.deceased?.full_name || 'Sin fallecido'}</p>
@@ -259,7 +258,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                             </CardHeader>
                             <CardContent className="pt-4">
                                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                                    <div><dt className="text-muted-foreground text-xs">Tipo de servicio</dt><dd className="font-medium mt-0.5">{service.service_type?.name ?? 'Sin tipo'}</dd></div>
+                                    <div><dt className="text-muted-foreground text-xs">Tipo de servicio</dt><dd className="font-medium mt-0.5">{service.service_type_label ?? 'Sin tipo'}</dd></div>
                                     <div><dt className="text-muted-foreground text-xs">Sucursal</dt><dd className="font-medium mt-0.5">{service.branch?.name ?? 'Sin sucursal'}</dd></div>
                                     <div><dt className="text-muted-foreground text-xs">Inicio</dt><dd className="font-medium mt-0.5">{formatDate(service.scheduled_at)}</dd></div>
                                     <div><dt className="text-muted-foreground text-xs">Fin estimado</dt><dd className="font-medium mt-0.5">{formatDate(service.ends_at)}</dd></div>

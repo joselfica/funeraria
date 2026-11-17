@@ -20,6 +20,7 @@ interface Client {
 
 interface ClientService {
     id: number;
+    uuid: string;
     code: string;
     scheduled_at: string;
     scheduled_date: string;
@@ -144,7 +145,7 @@ export default function ClientsShow({ client, services, stats }: Props) {
                         ) : (
                             <div className="space-y-3">
                                 {services.map((service) => (
-                                    <Link key={service.id} href={`/services/${service.id}`} className="block rounded-xl border p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:border-rose-200 dark:hover:border-rose-900">
+                                    <Link key={service.id} href={`/services/${service.uuid}`} className="block rounded-xl border p-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/40 hover:border-rose-200 dark:hover:border-rose-900">
                                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-2 flex-wrap">

@@ -5,6 +5,7 @@ import { router } from '@inertiajs/react';
 
 interface CalendarService {
     id: number;
+    uuid: string;
     code: string;
     title: string;
     start: string;
@@ -32,6 +33,7 @@ export default function ServicesCalendar({ services }: Props) {
         backgroundColor: getEventColor(service.status),
         borderColor: getEventColor(service.status),
         extendedProps: {
+            uuid: service.uuid,
             status: service.status,
             status_label: service.status_label,
             client: service.client,
@@ -42,8 +44,8 @@ export default function ServicesCalendar({ services }: Props) {
     }));
 
     const handleEventClick = (info: any) => {
-        const serviceId = info.event.id;
-        router.visit(`/services/${serviceId}`);
+        const serviceUuid = info.event.extendedProps.uuid;
+        router.visit(`/services/${serviceUuid}`);
     };
 
     return (

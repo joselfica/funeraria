@@ -207,8 +207,15 @@ export default function ServicesWizard({
                                             {errors.deceased_full_name && <p className="text-sm text-rose-600 mt-1">{errors.deceased_full_name}</p>}
                                         </div>
                                         <div>
-                                            <Label>RUT del Fallecido</Label>
-                                            <Input value={data.deceased_rut} onChange={(e) => setData('deceased_rut', e.target.value)} placeholder="12.345.678-9" className="mt-1" />
+                                            <Label>RUT del Fallecido *</Label>
+                                            <Input
+                                                value={data.deceased_rut}
+                                                onChange={(e) => setData('deceased_rut', e.target.value)}
+                                                placeholder="12.345.678-9"
+                                                className="mt-1"
+                                                required
+                                            />
+                                            {errors.deceased_rut && <p className="text-sm text-rose-600 mt-1">{errors.deceased_rut}</p>}
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 interface Client { id: number; name: string; rut: string; }
 interface Deceased { id: number; full_name: string; rut: string | null; }
 interface ServiceTypeOption {
-    value: string;   // 'con_ataud' | 'con_urna'
+    value: string;   // 'ataud' | 'urna'
     label: string;
     base_price: number;
     duration_hours: number;
@@ -106,7 +106,7 @@ export default function ServicesEdit({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(`/services/${service.id}`);
+        put(`/services/${service.uuid}`);
     };
 
     const total = (parseFloat(data.base_price) || 0) + (parseFloat(data.additional_charges) || 0) - (parseFloat(data.discount) || 0);

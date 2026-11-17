@@ -507,7 +507,7 @@ class ServiceController extends Controller
 
             // Fallecido
             'deceased_full_name' => 'required|string|max:200',
-            'deceased_rut' => 'nullable|string|max:12|unique:deceased,rut',
+            'deceased_rut' => 'required|string|max:12|unique:deceased,rut',
             'deceased_death_date' => 'required|date',
             'deceased_death_certificate' => 'nullable|string|max:50',
 
@@ -545,10 +545,9 @@ class ServiceController extends Controller
 
         $serviceType = ServiceTypeEnum::from($validated['service_type']);
 
-        // 👇 El precio base se toma del Enum (el usuario no lo edita en el Wizard)
+        // 👇 El precio base y la duración se toman del Enum
         $validated['base_price'] = (float) $serviceType->basePrice();
-
-        // 👈 NOTA: La duración se mantiene la que envió el usuario (ahora es editable).
+        $validated['duration_hours'] = (int) $serviceType->durationHours();
 
         $validated['seremi_extension_granted'] = !empty($validated['seremi_resolution_number']);
 
@@ -685,7 +684,7 @@ class ServiceController extends Controller
 
             DB::commit();
 
-            return redirect()->route('services.show', $service->id)
+            return redirect()->route('services.show', $service->uuid)
                 ->with('toast', [
                     'type' => 'success',
                     'message' => 'Expediente completo creado correctamente.',

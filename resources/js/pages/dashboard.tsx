@@ -50,6 +50,7 @@ interface LowStockItem {
 
 interface UpcomingService {
     id: number;
+    uuid: string;
     code: string;
     scheduled_at: string;
     scheduled_date: string;
@@ -82,6 +83,7 @@ interface Alerts {
 
 interface CalendarService {
     id: number;
+    uuid: string;
     code: string;
     title: string;
     start: string;
@@ -96,6 +98,7 @@ interface CalendarService {
 
 interface TodayService {
     id: number;
+    uuid: string;
     code: string;
     scheduled_at: string;
     time: string;
@@ -111,6 +114,7 @@ interface TodayService {
 
 interface RecentService {
     id: number;
+    uuid: string;
     code: string;
     client: string | null;
     deceased: string | null;
@@ -128,6 +132,7 @@ interface Indicators {
 
 interface Debtor {
     id: number;
+    uuid: string;
     code: string;
     client: string | null;
     deceased: string | null;
@@ -146,6 +151,7 @@ interface Receivables {
 
 interface MunicipalPayment {
     id: number;
+    uuid: string;
     code: string;
     client: string | null;
     deceased: string | null;
@@ -402,6 +408,7 @@ export default function Dashboard({
     const nextServices = [
         ...today_services.map((s) => ({
             id: s.id,
+            uuid: s.uuid,
             code: s.code,
             day: s.day,
             month: s.month,
@@ -415,6 +422,7 @@ export default function Dashboard({
         })),
         ...upcoming_services.map((s) => ({
             id: s.id,
+            uuid: s.uuid,
             code: s.code,
             day: s.day,
             month: s.month,
@@ -604,7 +612,7 @@ export default function Dashboard({
                                 {nextServices.map((s) => (
                                     <Link
                                         key={`${s.id}-${s.isToday ? 'hoy' : 'prox'}`}
-                                        href={`/services/${s.id}`}
+                                        href={`/services/${s.uuid}`}
                                         className="flex items-center gap-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/40"
                                     >
                                         <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
@@ -668,7 +676,7 @@ export default function Dashboard({
                                                     </TableCell>
                                                     <TableCell className="px-4 py-2.5 text-right">
                                                         <Link
-                                                            href={`/services/${s.id}`}
+                                                            href={`/services/${s.uuid}`}
                                                             title="Ver detalle"
                                                             className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
                                                         >
@@ -684,7 +692,7 @@ export default function Dashboard({
                                 {/* Lista (< sm) */}
                                 <div className="-my-1 divide-y sm:hidden">
                                     {recent_services.map((s) => (
-                                        <Link key={s.id} href={`/services/${s.id}`} className="flex items-center justify-between gap-3 py-2.5">
+                                        <Link key={s.id} href={`/services/${s.uuid}`} className="flex items-center justify-between gap-3 py-2.5">
                                             <div className="min-w-0">
                                                 <p className="truncate text-sm font-medium">{s.client}</p>
                                                 <p className="truncate text-xs text-muted-foreground">
@@ -758,7 +766,7 @@ export default function Dashboard({
                                     {receivables.top_debtors.map((debtor, index) => (
                                         <Link
                                             key={debtor.id}
-                                            href={`/services/${debtor.id}`}
+                                            href={`/services/${debtor.uuid}`}
                                             className="flex items-center justify-between rounded-lg border bg-background px-2.5 py-2 transition-colors hover:bg-muted/50"
                                         >
                                             <div className="flex min-w-0 items-center gap-2">
@@ -800,7 +808,7 @@ export default function Dashboard({
                                     {municipal_payments.map((payment) => (
                                         <Link
                                             key={payment.id}
-                                            href={`/services/${payment.id}`}
+                                            href={`/services/${payment.uuid}`}
                                             className={`flex items-center justify-between rounded-lg border px-2.5 py-2 transition-colors hover:bg-muted/50 ${
                                                 payment.is_overdue
                                                     ? 'border-red-300 bg-red-50 dark:bg-red-950/20'
