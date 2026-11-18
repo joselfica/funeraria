@@ -12,22 +12,41 @@ class InventoryController extends Controller
 {
     public function hub()
     {
-        $stats = [];
-
-        foreach (['ataud' => 'ataudes', 'urna' => 'urnas'] as $category => $key) {
-            $base = fn () => InventoryItem::active()->where('category', $category);
-
-            $stats[$key] = [
-                'total' => (int) $base()->count(),
-                'disponibles' => (int) $base()
-                    ->where('condition', ItemCondition::DISPONIBLE->value)
-                    ->count(),
-            ];
-        }
-
         return Inertia::render('Inventory/Hub', [
-            'stats' => $stats,
+            'stats' => [
+                'ataudes' => $this->categoryStats('ataud'),
+                'urnas' => $this->categoryStats('urna'),
+            ],
         ]);
+    }
+
+    /**
+     * Unidades activas de una categoría, contadas por estado.
+     *
+     * Cada fila de inventario es una unidad física. El stock que ve el equipo
+     * (disponibles + reservados + en reparación) excluye las vendidas, que se
+     * devuelven aparte para mostrarlas sin sumarlas al stock.
+     *
+     * @return array{disponibles: int, reservados: int, en_reparacion: int, vendidos: int}
+     */
+    private function categoryStats(string $category): array
+    {
+        $counts = InventoryItem::active()
+            ->where('category', $category)
+            ->select('condition')
+            ->selectRaw('COUNT(*) AS total')
+            ->groupBy('condition')
+            ->toBase()
+            ->pluck('total', 'condition');
+
+        $count = fn (ItemCondition $condition): int => (int) ($counts[$condition->value] ?? 0);
+
+        return [
+            'disponibles' => $count(ItemCondition::DISPONIBLE),
+            'reservados' => $count(ItemCondition::RESERVADO),
+            'en_reparacion' => $count(ItemCondition::EN_REPARACION),
+            'vendidos' => $count(ItemCondition::NO_DISPONIBLE),
+        ];
     }
 
     public function index(Request $request, ?string $category = null)

@@ -23,6 +23,7 @@ class InventoryItem extends Model
         'dimensions',
         'price',
         'condition',
+        'reserved_until',
         'alert_threshold',
         'stock_minimum', // Se mantiene por compatibilidad con datos viejos
         'photos',
@@ -40,6 +41,7 @@ class InventoryItem extends Model
         'size_cm' => 'integer',
         'is_seremi_required' => 'boolean',
         'condition' => ItemCondition::class,
+        'reserved_until' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -119,19 +121,19 @@ class InventoryItem extends Model
     }
 
     /**
-     * Scope: solo items disponibles (nuevos o en buen estado)
+     * Scope: solo items con condición DISPONIBLE
      */
     public function scopeAvailable($query)
     {
-        return $query->whereIn('condition', ['nuevo', 'bueno']);
+        return $query->where('condition', ItemCondition::DISPONIBLE->value);
     }
 
     /**
      * Scope: unidades que se pueden asignar ahora a un servicio.
      *
      * Activas y con una condición que ItemCondition::isAvailable() considera
-     * disponible (nuevo, bueno, con_detalles). Las reservadas, dañadas o para
-     * reparar quedan fuera.
+     * disponible (hoy solo DISPONIBLE). Las reservadas, en reparación o
+     * vendidas quedan fuera.
      */
     public function scopeAssignable($query)
     {
@@ -147,7 +149,7 @@ class InventoryItem extends Model
      * Scope: urnas obligatorias por Seremi que están bajo el umbral de alerta.
      *
      * Nota: como ahora cada fila es una unidad física, el "stock" se calcula
-     * contando cuántas unidades disponibles (nuevo/bueno) hay para el mismo
+     * contando cuántas unidades disponibles hay para el mismo
      * nombre. El scope usa un subquery para hacerlo eficientemente en SQL.
      */
     public function scopeSeremiCritical($query)
@@ -158,8 +160,8 @@ class InventoryItem extends Model
                 FROM inventory_items AS i2 
                 WHERE i2.name = inventory_items.name 
                   AND i2.is_active = true 
-                  AND i2.condition IN (\'nuevo\', \'bueno\')
-            ) <= inventory_items.alert_threshold');
+                  AND i2.condition = ?
+            ) <= inventory_items.alert_threshold', [ItemCondition::DISPONIBLE->value]);
     }
 
     /**
@@ -243,7 +245,7 @@ class InventoryItem extends Model
      * Accessor: stock dinámico.
      *
      * Cuenta cuántas unidades con el mismo nombre están activas y disponibles
-     * (condición 'nuevo' o 'bueno'). No confundir con `total_stock`, que
+     * (condición 'disponible'). No confundir con `total_stock`, que
      * cuenta todas las unidades sin importar su condición.
      *
      * ⚠️ Este accessor hace una consulta a la BD cada vez que se llama.
@@ -253,7 +255,7 @@ class InventoryItem extends Model
     {
         return self::where('name', $this->name)
             ->where('is_active', true)
-            ->whereIn('condition', ['nuevo', 'bueno'])
+            ->where('condition', ItemCondition::DISPONIBLE->value)
             ->count();
     }
 
