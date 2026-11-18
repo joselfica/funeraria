@@ -37,8 +37,9 @@
                 <th>Código</th>
                 <th>Nombre</th>
                 <th>Categoría</th>
-                <th>Stock</th>
-                <th>Mínimo</th>
+                <th>Condición</th>
+                <th>Disponibles</th>
+                <th>Alerta</th>
                 <th>Precio</th>
                 <th>Valor Total</th>
             </tr>
@@ -49,10 +50,11 @@
                     <td>{{ $item->code }}</td>
                     <td>{{ $item->name }}</td>
                     <td>{{ $item->category_label }}</td>
-                    <td class="{{ $item->needs_restock ? 'critical' : '' }}">{{ $item->stock }}</td>
-                    <td>{{ $item->stock_minimum }}</td>
+                    <td>{{ $item->condition_label }}</td>
+                    <td class="{{ $item->is_low_stock ? 'critical' : '' }}">{{ $item->available_stock }}</td>
+                    <td>{{ $item->alert_threshold }}</td>
                     <td>${{ number_format($item->price, 0, ',', '.') }}</td>
-                    <td>${{ number_format($item->stock * $item->price, 0, ',', '.') }}</td>
+                    <td>${{ number_format($item->available_stock * $item->price, 0, ',', '.') }}</td>
                 </tr>
             @endforeach
         </tbody>

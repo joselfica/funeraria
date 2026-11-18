@@ -6,15 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 
 interface FormData {
     category: 'ataud' | 'urna';
-    code: string;
     name: string;
     description: string;
     material: string;
     procedencia: string;
     dimensions: string;
     price: string;
-    stock: string;
-    stock_minimum: string;
+    alert_threshold: string;
     is_active: boolean;
     size_cm: string;
     condition: string;
@@ -22,23 +20,22 @@ interface FormData {
 
 interface Props {
     conditions: Array<{ value: string; label: string }>;
+    category?: 'ataud' | 'urna' | null;
 }
 
-export default function InventoryCreate({ conditions }: Props) {
+export default function InventoryCreate({ conditions, category }: Props) {
     const { data, setData, post, processing, errors } = useForm<FormData>({
-        category: 'ataud',
-        code: '',
+        category: category || 'ataud',
         name: '',
         description: '',
         material: '',
         procedencia: '',
         dimensions: '',
         price: '0',
-        stock: '0',
-        stock_minimum: '0',
+        alert_threshold: '2',
         is_active: true,
         size_cm: '',
-        condition: 'nuevo',
+        condition: conditions.length > 0 ? conditions[0].value : 'disponible', // <-- CORREGIDO AQUÍ
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -72,9 +69,9 @@ export default function InventoryCreate({ conditions }: Props) {
                                     {errors.category && <p className="text-sm text-destructive mt-1">{errors.category}</p>}
                                 </div>
                                 <div>
-                                    <Label htmlFor="code">Código (SKU) *</Label>
-                                    <Input id="code" value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="ATA-001" className="mt-1" required />
-                                    {errors.code && <p className="text-sm text-destructive mt-1">{errors.code}</p>}
+                                    <Label htmlFor="code">Código (SKU)</Label>
+                                    <Input id="code" value={data.category === 'ataud' ? 'ATA-### (automático)' : 'URN-### (automático)'} className="mt-1" disabled readOnly />
+                                    <p className="text-xs text-muted-foreground mt-1">Se asigna al guardar: el siguiente número libre de la categoría.</p>
                                 </div>
                             </div>
 
@@ -95,7 +92,7 @@ export default function InventoryCreate({ conditions }: Props) {
                             </div>
 
                             <div>
-                                <Label htmlFor="name">Nombre *</Label>
+                                <Label htmlFor="name">Nombre del Modelo *</Label>
                                 <Input id="name" value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Ataúd Roble Clásico" className="mt-1" required />
                                 {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
                             </div>
@@ -112,9 +109,8 @@ export default function InventoryCreate({ conditions }: Props) {
                                 </div>
                             </div>
 
-                            {/* 👇 NUEVO: Condición física */}
                             <div>
-                                <Label htmlFor="condition">Condición física *</Label>
+                                <Label htmlFor="condition">Estado inicial *</Label>
                                 <select
                                     id="condition"
                                     value={data.condition}
@@ -130,21 +126,28 @@ export default function InventoryCreate({ conditions }: Props) {
                             </div>
 
                             <div>
-                                <Label htmlFor="price">Precio (CLP) *</Label>
+                                <Label htmlFor="price">Precio Unitario (CLP) *</Label>
                                 <Input id="price" type="number" step="1" value={data.price} onChange={(e) => setData('price', e.target.value)} className="mt-1" required />
                                 {errors.price && <p className="text-sm text-destructive mt-1">{errors.price}</p>}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Alerta (cada unidad se registra de a una) */}
+                            <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800">
                                 <div>
-                                    <Label htmlFor="stock">Stock actual *</Label>
-                                    <Input id="stock" type="number" value={data.stock} onChange={(e) => setData('stock', e.target.value)} className="mt-1" required />
-                                    {errors.stock && <p className="text-sm text-destructive mt-1">{errors.stock}</p>}
-                                </div>
-                                <div>
-                                    <Label htmlFor="stock_minimum">Stock mínimo *</Label>
-                                    <Input id="stock_minimum" type="number" value={data.stock_minimum} onChange={(e) => setData('stock_minimum', e.target.value)} className="mt-1" required />
-                                    {errors.stock_minimum && <p className="text-sm text-destructive mt-1">{errors.stock_minimum}</p>}
+                                    <Label htmlFor="alert_threshold">Alerta de stock bajo *</Label>
+                                    <Input
+                                        id="alert_threshold"
+                                        type="number"
+                                        min="1"
+                                        value={data.alert_threshold}
+                                        onChange={(e) => setData('alert_threshold', e.target.value)}
+                                        className="mt-1 bg-white dark:bg-slate-950"
+                                        required
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Avisar cuando queden {data.alert_threshold || 0} unidades o menos disponibles.
+                                    </p>
+                                    {errors.alert_threshold && <p className="text-sm text-destructive mt-1">{errors.alert_threshold}</p>}
                                 </div>
                             </div>
 

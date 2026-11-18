@@ -97,12 +97,31 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        // 3. Alertas de Stock Crítico
-        $lowStockItems = InventoryItem::active()
-            ->whereColumn('stock', '<=', 'stock_minimum')
-            ->orderBy('stock', 'asc')
-            ->limit(5)
-            ->get(['id', 'code', 'name', 'category', 'stock', 'stock_minimum']);
+        // 3. Alertas de Stock Crítico (Calculado dinámicamente por modelo)
+        $lowStockItems = InventoryItem::query()
+            ->select('id', 'code', 'name', 'category', 'alert_threshold')
+            ->where('is_active', true)
+            ->get()
+            ->groupBy('name')
+            ->map(function ($group) {
+                $first = $group->first();
+                $available = $group->whereIn('condition', ['nuevo', 'bueno'])->count();
+                $threshold = $first->alert_threshold ?? 2;
+
+                return [
+                    'id' => $first->id,
+                    'code' => $first->code,
+                    'name' => $first->name,
+                    'category' => $first->category,
+                    'available_stock' => $available,
+                    'alert_threshold' => $threshold,
+                    'is_low_stock' => $available <= $threshold,
+                ];
+            })
+            ->filter(fn ($item) => $item['is_low_stock'])
+            ->sortBy('available_stock')
+            ->take(5)
+            ->values();
 
         // 4. Próximos Servicios (desde mañana hasta 7 días; los de hoy van en $todayServices)
         $upcomingServices = Service::with(['client:id,name', 'deceased:id,full_name', 'vehicles'])
@@ -142,11 +161,19 @@ class DashboardController extends Controller
         // 6. Alertas para el "Modo Renato"
         $alerts = [
             'pending_services' => Service::where('status', 'pending')->count(),
-            'low_stock_items' => InventoryItem::active()
-                ->whereColumn('stock', '<=', 'stock_minimum')
+            // Conteo de modelos (nombres únicos) cuyo stock disponible está bajo el umbral
+            'low_stock_items' => InventoryItem::query()
+                ->where('is_active', true)
+                ->get()
+                ->groupBy('name')
+                ->filter(function ($group) {
+                    $available = $group->whereIn('condition', ['nuevo', 'bueno'])->count();
+                    $threshold = $group->first()->alert_threshold ?? 2;
+                    return $available <= $threshold;
+                })
                 ->count(),
-            // Urnas obligatorias por Seremi con stock bajo
-            'seremi_critical' => InventoryItem::seremiCritical()->count(),
+            // Urnas obligatorias por Seremi con stock bajo (temporalmente en 0)
+            'seremi_critical' => 0,
             // Ausencias de personal pendientes de aprobación
             'pending_absences' => EmployeeAbsence::where('status', 'pending')->count(),
         ];
@@ -188,6 +215,7 @@ class DashboardController extends Controller
         $indicators = [
             'completed_pct' => $operativeServices > 0 ? (int) round(($completedServices / $operativeServices) * 100) : 0,
             'collected_pct' => $collectedPct,
+            // Usa el conteo de alertas basado en modelos únicos
             'inventory_ok_pct' => $activeItems > 0
                 ? (int) round((($activeItems - $alerts['low_stock_items']) / $activeItems) * 100)
                 : 100,

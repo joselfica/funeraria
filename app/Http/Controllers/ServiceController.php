@@ -189,7 +189,18 @@ class ServiceController extends Controller
 
         $service->append(['beneficiary_label', 'service_type_label']);
 
-        $availableItems = InventoryItem::active()->where('stock', '>', 0)->orderBy('category')->orderBy('name')->get(['id', 'code', 'name', 'category', 'stock', 'price']);
+        // Unidades asignables; se mapea a arrays para no disparar los $appends del modelo
+        $availableItems = InventoryItem::assignable()
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'category', 'price'])
+            ->map(fn ($i) => [
+                'id' => $i->id,
+                'code' => $i->code,
+                'name' => $i->name,
+                'category' => $i->category,
+                'price' => $i->price,
+            ]);
         $availableVehicles = Vehicle::available()->orderBy('type')->orderBy('plate')->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
 
         $serviceDate = \Carbon\Carbon::parse($service->scheduled_at);
@@ -370,20 +381,20 @@ class ServiceController extends Controller
     {
         $validated = $request->validate([
             'inventory_item_id' => 'required|exists:inventory_items,id',
-            'quantity' => 'required|integer|min:1',
             'notes' => 'nullable|string|max:500',
         ]);
 
+        // Cada fila de inventario es una unidad física: la cantidad siempre es 1
         $assigner->assignInventoryItem(
             $service,
             (int) $validated['inventory_item_id'],
-            (int) $validated['quantity'],
+            1,
             $validated['notes'] ?? null
         );
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => 'Item asignado y stock actualizado.',
+            'message' => 'Unidad asignada al servicio.',
         ]);
     }
 
@@ -393,7 +404,7 @@ class ServiceController extends Controller
 
         return back()->with('toast', [
             'type' => 'success',
-            'message' => 'Item removido y stock devuelto.',
+            'message' => 'Unidad removida y disponible nuevamente.',
         ]);
     }
 
@@ -690,6 +701,10 @@ class ServiceController extends Controller
                     'message' => 'Expediente completo creado correctamente.',
                 ]);
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Errores de asignación (p. ej. unidad ya no disponible): se muestran en su campo
+            DB::rollBack();
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Error al crear el expediente: ' . $e->getMessage()])->withInput();

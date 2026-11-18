@@ -24,32 +24,32 @@ Route::inertia('/', 'welcome')->name('home');
 // TODOS LOS USUARIOS LOGUEADOS
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth'])->group(function () {
-    
+
     Route::get('dashboard', function () {
         $user = auth()->user();
-        
+
         // Cliente va al portal
         if ($user->hasRole('Cliente')) {
             return redirect()->route('portal.index');
         }
-        
+
         // Chofer va a su itinerario
         if ($user->hasRole('Chofer')) {
             return app(\App\Http\Controllers\DriverController::class)->index(request());
         }
-        
+
         // Admin y Encargado van al dashboard normal
         return app(DashboardController::class)->index();
     })->name('dashboard');
-    
+
     // Detalle del servicio para el chofer
     Route::get('driver/services/{service}', [DriverController::class, 'showService'])->name('driver.service.show');
-    
+
     Route::prefix('portal')->group(function () {
         Route::get('/', [PortalController::class, 'index'])->name('portal.index');
         Route::get('/servicio/{service:uuid}', [PortalController::class, 'show'])->name('portal.show');
     });
-    
+
     // Ausencias (ver y solicitar las propias)
     Route::get('absences', [EmployeeAbsenceController::class, 'index'])->name('absences.index');
     Route::get('absences/create', [EmployeeAbsenceController::class, 'create'])->name('absences.create');
@@ -61,13 +61,17 @@ Route::middleware(['auth'])->group(function () {
 // OPERATIVOS (Admin + Encargado)
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
-    
+
     // Los clientes no se eliminan (auditoría): solo se activan/desactivan
     Route::post('clients/{client}/toggle-active', [ClientController::class, 'toggleActive'])->name('clients.toggle-active');
     Route::resource('clients', ClientController::class)->except(['destroy']);
-    // Inventario: Hub, catálogo por categoría y CRUD.
-    // OJO con el orden: las rutas específicas van ANTES del resource, si no
-    // 'inventory/ataud' o 'inventory/create/urna' serían capturadas como {inventory}.
+
+    // ─────────────────────────────────────────────────────────
+    // INVENTARIO
+    // OJO con el orden: las rutas específicas van ANTES del resource,
+    // si no 'inventory/ataud' o 'inventory/create/urna' serían capturadas
+    // como {inventory}.
+    // ─────────────────────────────────────────────────────────
     Route::get('inventory', [InventoryController::class, 'hub'])->name('inventory.hub');
     Route::get('inventory/create/{category}', [InventoryController::class, 'create'])
         ->whereIn('category', ['ataud', 'urna'])
@@ -75,14 +79,20 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('inventory/{category}', [InventoryController::class, 'index'])
         ->whereIn('category', ['ataud', 'urna'])
         ->name('inventory.index');
+
+    // Cambio rápido de condición física desde el detalle/listado.
+    // Debe ir ANTES del resource para no chocar con inventory.update.
+    Route::patch('inventory/{inventory}/condition', [InventoryController::class, 'updateCondition'])
+        ->name('inventory.condition');
+
     Route::resource('inventory', InventoryController::class)->except(['index', 'create']);
-    // Cambio rápido de condición física desde el listado
-    Route::patch('inventory/{inventory}/condition', [InventoryController::class, 'updateCondition'])->name('inventory.condition');
+
     Route::resource('vehicles', VehicleController::class);
+
     // Los registros de fallecidos no se eliminan (auditoría): solo se activan/desactivan
     Route::post('deceased/{deceased}/toggle-active', [DeceasedController::class, 'toggleActive'])->name('deceased.toggle-active');
     Route::resource('deceased', DeceasedController::class)->except(['destroy']);
-    
+
     // Servicios
     Route::get('services/wizard', function () {
         return \Inertia\Inertia::render('Services/Wizard', [
@@ -97,9 +107,19 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
                 'value' => $t->value,
                 'label' => $t->label(),
             ]),
-            'availableItems' => \App\Models\InventoryItem::active()
-                ->where('stock', '>', 0)
-                ->get(['id', 'code', 'name', 'category', 'stock', 'price']),
+            // Cada fila es una unidad física: se ofrecen las asignables (no reservadas/dañadas).
+            // Se mapea a arrays para no disparar los $appends (available_stock, is_low_stock).
+            'availableItems' => \App\Models\InventoryItem::assignable()
+                ->orderBy('category')
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'category', 'price'])
+                ->map(fn ($i) => [
+                    'id' => $i->id,
+                    'code' => $i->code,
+                    'name' => $i->name,
+                    'category' => $i->category,
+                    'price' => $i->price,
+                ]),
             // Clientes existentes
             'existingClients' => \App\Models\Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
 
@@ -123,10 +143,10 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
                 ->get(['id', 'name']),
         ]);
     })->name('services.wizard');
-    
+
     Route::post('services/quick-store', [ServiceController::class, 'quickStore'])->name('services.quick-store');
     Route::resource('services', ServiceController::class);
-    
+
     // Asignaciones
     Route::post('services/{service}/assign-item', [ServiceController::class, 'assignInventoryItem'])->name('services.assign-item');
     Route::delete('services/{service}/items/{item}', [ServiceController::class, 'removeInventoryItem'])->name('services.remove-item');
@@ -134,25 +154,25 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::delete('services/{service}/vehicles/{vehicle}', [ServiceController::class, 'removeVehicle'])->name('services.remove-vehicle');
     Route::post('services/{service}/assign-employee', [ServiceController::class, 'assignEmployee'])->name('services.assign-employee');
     Route::delete('services/{service}/assignments/{assignment}', [ServiceController::class, 'removeEmployee'])->name('services.remove-employee');
-    
+
     // Aprobación/Rechazo
     Route::post('services/{service}/approve', [ServiceController::class, 'approve'])->name('services.approve');
     Route::post('services/{service}/reject', [ServiceController::class, 'reject'])->name('services.reject');
-    
+
     // PDFs
     Route::get('services/{service}/contract', [ServiceController::class, 'downloadContract'])->name('services.contract');
     Route::get('services/{service}/paz-y-salvo', [ServiceController::class, 'downloadPazYSalvo'])->name('services.paz-y-salvo');
-    
+
     // Aprobación de ausencias
     Route::post('absences/{absence}/approve', [EmployeeAbsenceController::class, 'approve'])->name('absences.approve');
     Route::post('absences/{absence}/reject', [EmployeeAbsenceController::class, 'reject'])->name('absences.reject');
-    
+
     // Reportes (operativos)
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/services/pdf', [ReportController::class, 'servicesPdf'])->name('reports.services.pdf');
     Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
     Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
-    
+
     // Sucursales (solo ver el listado; el CRUD está en el bloque de Administrador)
     Route::get('branches', [BranchController::class, 'index'])->name('branches.index');
 });
@@ -161,16 +181,16 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
 // SOLO ADMINISTRADOR: Finanzas, Personal, Sucursales (CRUD)
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:Administrador'])->group(function () {
-    
+
     // Pagos
     Route::post('services/{service}/payments', [PaymentController::class, 'store'])->name('payments.store');
     Route::get('payments/{payment}/pdf', [PaymentController::class, 'downloadPdf'])->name('payments.pdf');
     Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
-    
+
     // Reportes financieros
     Route::get('reports/payments/pdf', [ReportController::class, 'paymentsPdf'])->name('reports.payments.pdf');
     Route::get('reports/payments/excel', [ReportController::class, 'paymentsExcel'])->name('reports.payments.excel');
-    
+
     // ─────────────────────────────────────────────────────────
     // GESTIÓN DE PERSONAL (solo Administrador)
     // ─────────────────────────────────────────────────────────
@@ -184,7 +204,7 @@ Route::middleware(['auth', 'role:Administrador'])->group(function () {
         Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
         Route::post('staff/{user}/unlock', [StaffController::class, 'unlock'])->name('staff.unlock');
     });
-    
+
     // ─────────────────────────────────────────────────────────
     // SUCURSALES (CRUD) - Solo Administrador
     // ─────────────────────────────────────────────────────────

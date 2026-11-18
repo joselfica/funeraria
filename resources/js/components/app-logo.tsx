@@ -1,15 +1,13 @@
-import { Link } from '@inertiajs/react';
 import { dashboard } from '@/routes';
 
 export function AppLogo() {
     return (
-        <Link href={dashboard()} prefetch className="flex items-center gap-2 overflow-hidden">
+        <div className="flex items-center gap-2 overflow-hidden">
             <img
                 src="/images/logo-square.png"
                 alt="Funeraria Cristo Rey"
                 className="h-9 w-9 rounded-full object-cover shrink-0"
                 onError={(e) => {
-                    // Fallback si no carga la imagen
                     e.currentTarget.style.display = 'none';
                 }}
             />
@@ -21,7 +19,7 @@ export function AppLogo() {
                     Cristo Rey
                 </span>
             </div>
-        </Link>
+        </div>
     );
 }
 

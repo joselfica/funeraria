@@ -1,7 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Box, FlaskConical, Truck, AlertTriangle, Plus, Eye, Pencil, Trash2, MoreVertical, ChevronDown, ArrowLeft } from 'lucide-react';
+import {
+    Package,
+    Box,
+    FlaskConical,
+    Truck,
+    Plus,
+    Eye,
+    Pencil,
+    Trash2,
+    MoreVertical,
+    ArrowLeft,
+    CheckCircle2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +25,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface Item {
     id: number;
@@ -29,60 +35,33 @@ interface Item {
     material: string | null;
     procedencia: string | null;
     price: string | number;
-    stock: number;
-    stock_minimum: number;
     is_active: boolean;
-    needs_restock: boolean;
-    category_description: string;
-    condition: string;
-    condition_label: string;
+    category_label: string;
+    condition: string | null;
+    condition_label: string | null;
     condition_color: string | null;
-    reserved_until: string | null;
-    is_reserved: boolean;
 }
 
 interface ConditionOption {
     value: string;
     label: string;
-    color: string; // ej. 'bg-emerald-500'
-}
-
-interface Counts {
-    all: number;
-    ataud: number;
-    urna: number;
-    low_stock: number;
+    color: string;
 }
 
 interface Props {
     items: {
         data: Item[];
-        current_page: number;
-        last_page: number;
         total: number;
-        links: Array<{ url: string | null; label: string; active: boolean }>;
     };
     category: 'ataud' | 'urna';
     filters: {
         search: string;
-        condition: string;
         category?: string;
         procedencia: string;
         low_stock: boolean;
     };
-    counts?: Counts;
     conditions: ConditionOption[];
 }
-
-/** Colores por condición física del item. */
-const conditionColors: Record<string, string> = {
-    nuevo: 'border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-100',
-    bueno: 'border-blue-200 bg-blue-100 text-blue-800 hover:bg-blue-100',
-    con_detalles: 'border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100',
-    danado: 'border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-100',
-    para_reparar: 'border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100',
-    reservado: 'border-purple-200 bg-purple-100 text-purple-800 hover:bg-purple-100',
-};
 
 function RowMenu({ item, onDelete, large = false }: { item: Item; onDelete: () => void; large?: boolean }) {
     const [open, setOpen] = useState(false);
@@ -113,7 +92,8 @@ function RowMenu({ item, onDelete, large = false }: { item: Item; onDelete: () =
         };
     }, [open]);
 
-    const itemClass = 'flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800';
+    const itemClass =
+        'flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800';
 
     return (
         <>
@@ -161,24 +141,21 @@ function RowMenu({ item, onDelete, large = false }: { item: Item; onDelete: () =
     );
 }
 
-export default function InventoryIndex({ items, category, filters, counts, conditions }: Props) {
+export default function InventoryIndex({ items, category, filters, conditions }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [procedencia, setProcedencia] = useState(filters.procedencia || '');
-    const [condition, setCondition] = useState(filters.condition || '');
+    const [savingId, setSavingId] = useState<number | null>(null);
 
-    const lowStock = !!filters.low_stock;
     const isAtaud = category === 'ataud';
     const categoryTitle = isAtaud ? 'Catálogo de Ataúdes' : 'Catálogo de Urnas';
     const baseUrl = `/inventory/${category}`;
 
-    const go = (params: Partial<{ search: string; condition: string; procedencia: string; low_stock: boolean }>) => {
+    const go = (params: Partial<{ search: string; procedencia: string }>) => {
         router.get(
             baseUrl,
             {
                 search: params.search ?? filters.search,
-                condition: params.condition ?? filters.condition,
                 procedencia: params.procedencia ?? filters.procedencia,
-                low_stock: params.low_stock ?? lowStock,
             },
             { preserveState: true, preserveScroll: true },
         );
@@ -186,7 +163,7 @@ export default function InventoryIndex({ items, category, filters, counts, condi
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        go({ search, condition, procedencia });
+        go({ search, procedencia });
     };
 
     const handleDelete = (item: Item) => {
@@ -195,91 +172,47 @@ export default function InventoryIndex({ items, category, filters, counts, condi
         }
     };
 
-    const handleConditionChange = (itemId: number, newCondition: string) => {
-        let reservedUntil: string | null = null;
-
-        // Si el usuario elige "Reservado", pedir fecha límite con prompt.
-        // Si cancela, no se envía el cambio.
-        if (newCondition === 'reservado') {
-            const input = prompt(
-                '¿Hasta cuándo reservar? (formato: YYYY-MM-DD HH:mm)\nEjemplo: 2026-11-20 18:00',
-                '',
-            );
-            if (!input) return; // el usuario canceló
-
-            // Convertir "YYYY-MM-DD HH:mm" a ISO local para el backend
-            const parsed = new Date(input.replace(' ', 'T'));
-            if (isNaN(parsed.getTime())) {
-                alert('Fecha inválida. Usa el formato YYYY-MM-DD HH:mm');
-                return;
-            }
-            reservedUntil = parsed.toISOString().slice(0, 19).replace('T', ' ');
-        }
-
+    const changeCondition = (item: Item, value: string) => {
+        if (value === item.condition) return;
+        setSavingId(item.id);
         router.patch(
-            `/inventory/${itemId}/condition`,
-            { condition: newCondition, reserved_until: reservedUntil },
-            { preserveScroll: true },
+            `/inventory/${item.id}/condition`,
+            { condition: value },
+            {
+                preserveScroll: true,
+                onFinish: () => setSavingId(null),
+            },
         );
     };
 
     const formatPrice = (price: string | number) => {
-        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(Number(price));
+        return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(
+            Number(price),
+        );
     };
 
     const getCategoryIcon = (category: string) => {
         switch (category) {
-            case 'ataud': return <Box className="h-3.5 w-3.5" />;
-            case 'urna': return <FlaskConical className="h-3.5 w-3.5" />;
-            default: return <Package className="h-3.5 w-3.5" />;
+            case 'ataud':
+                return <Box className="h-3.5 w-3.5" />;
+            case 'urna':
+                return <FlaskConical className="h-3.5 w-3.5" />;
+            default:
+                return <Package className="h-3.5 w-3.5" />;
         }
     };
 
     const renderCategory = (item: Item) => (
-        <Badge className={`flex w-fit items-center gap-1.5 ${item.category === 'ataud' ? 'bg-rose-800 text-white hover:bg-rose-900' : 'bg-slate-700 text-white hover:bg-slate-800'}`}>
+        <Badge
+            className={`flex w-fit items-center gap-1.5 ${
+                item.category === 'ataud'
+                    ? 'bg-rose-800 text-white hover:bg-rose-900'
+                    : 'bg-slate-700 text-white hover:bg-slate-800'
+            }`}
+        >
             {getCategoryIcon(item.category)}
             <span>{item.category === 'ataud' ? 'Ataúd' : 'Urna'}</span>
         </Badge>
-    );
-
-    /** Selector de condición con DropdownMenu, cambia al instante. */
-    const renderConditionSelector = (item: Item) => (
-        <div className="flex flex-col gap-1">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <button
-                        className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 ${
-                            conditionColors[item.condition] ?? 'border-slate-200 bg-slate-100 text-slate-700'
-                        }`}
-                    >
-                        {item.condition_label}
-                        <ChevronDown className="h-3 w-3" />
-                    </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-44">
-                    {conditions.map((c) => (
-                        <DropdownMenuItem
-                            key={c.value}
-                            onClick={() => handleConditionChange(item.id, c.value)}
-                            className="cursor-pointer"
-                        >
-                            <span className={`mr-2 h-2 w-2 rounded-full ${c.color}`} />
-                            {c.label}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            {item.condition === 'reservado' && item.reserved_until && (
-                <span className="text-[10px] font-medium text-purple-700 dark:text-purple-300">
-                    Hasta {new Date(item.reserved_until).toLocaleDateString('es-CL', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                    })}
-                </span>
-            )}
-        </div>
     );
 
     const renderOrigin = (item: Item) =>
@@ -299,25 +232,52 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                 <span className="rounded-md border bg-slate-50 px-1.5 py-0.5 font-mono text-xs tracking-wide text-muted-foreground dark:bg-slate-900">
                     {item.code}
                 </span>
-                {!item.is_active && <Badge variant="secondary" className="text-[10px]">Inactivo</Badge>}
+                {!item.is_active && (
+                    <Badge variant="secondary" className="text-[10px]">
+                        Inactivo
+                    </Badge>
+                )}
             </div>
             <p className="mt-1.5 font-semibold text-slate-800 dark:text-slate-100">{item.name}</p>
         </div>
     );
 
-    const renderStock = (item: Item) => (
-        <div className="space-y-1">
-            <p className={`flex items-baseline gap-1 ${item.needs_restock ? 'font-bold text-red-600' : 'font-semibold text-slate-800 dark:text-slate-100'}`}>
-                <span className="text-lg leading-none">{item.stock}</span>
-                <span className="text-xs font-normal text-muted-foreground">mín. {item.stock_minimum}</span>
-            </p>
-            {item.needs_restock && (
-                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-                    <AlertTriangle className="h-3 w-3" /> Reponer
-                </span>
-            )}
-        </div>
-    );
+    const renderConditionSelect = (item: Item) => {
+        const currentCondition = conditions.find((c) => c.value === item.condition);
+        const defaultColor = 'bg-slate-100 text-slate-700 border-slate-300';
+        const colorClass = currentCondition?.color ?? defaultColor;
+
+        return (
+            <div className="flex items-center gap-2">
+                <div className="relative inline-block w-full max-w-[140px]">
+                    <select
+                        aria-label={`Condición de ${item.code}`}
+                        value={item.condition ?? ''}
+                        disabled={savingId === item.id}
+                        onChange={(e) => changeCondition(item, e.target.value)}
+                        className={`h-8 w-full cursor-pointer appearance-none rounded-full border pl-3 pr-8 py-1 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-rose-800/20 disabled:opacity-60 ${colorClass} ${
+                            savingId === item.id ? 'animate-pulse' : ''
+                        }`}
+                        style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                            backgroundPosition: 'right 0.4rem center',
+                            backgroundRepeat: 'no-repeat',
+                            backgroundSize: '0.85em 0.85em',
+                        }}
+                    >
+                        {conditions.map((c) => (
+                            <option key={c.value} value={c.value} className="bg-white text-slate-800 font-normal">
+                                {c.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                {savingId === item.id && (
+                    <CheckCircle2 className="h-4 w-4 shrink-0 animate-spin text-emerald-500" />
+                )}
+            </div>
+        );
+    };
 
     return (
         <>
@@ -332,12 +292,18 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                             </Button>
                         </Link>
                         <div className="shrink-0 rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
-                            {isAtaud ? <Box className="h-6 w-6 md:h-8 md:w-8" /> : <FlaskConical className="h-6 w-6 md:h-8 md:w-8" />}
+                            {isAtaud ? (
+                                <Box className="h-6 w-6 md:h-8 md:w-8" />
+                            ) : (
+                                <FlaskConical className="h-6 w-6 md:h-8 md:w-8" />
+                            )}
                         </div>
                         <div className="min-w-0">
-                            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 md:text-3xl">{categoryTitle}</h1>
+                            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100 md:text-3xl">
+                                {categoryTitle}
+                            </h1>
                             <p className="mt-1 text-sm text-muted-foreground md:text-base">
-                                Total: {items.total} {items.total === 1 ? 'registro' : 'registros'}
+                                {items.total} {items.total === 1 ? 'modelo' : 'modelos'} registrados
                             </p>
                         </div>
                     </div>
@@ -348,28 +314,10 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                     </Link>
                 </div>
 
-                <div className="flex">
-                    <button
-                        type="button"
-                        aria-pressed={lowStock}
-                        onClick={() => go({ low_stock: !lowStock })}
-                        className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors ${
-                            lowStock
-                                ? 'border-red-600 bg-red-600 text-white shadow-sm'
-                                : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300'
-                        }`}
-                    >
-                        <AlertTriangle className="h-4 w-4" />
-                        Stock bajo
-                        {counts?.low_stock !== undefined && (
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${lowStock ? 'bg-white/20 text-white' : 'bg-white text-red-700 dark:bg-slate-800'}`}>
-                                {counts.low_stock}
-                            </span>
-                        )}
-                    </button>
-                </div>
-
-                <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-900/40 sm:flex-row sm:items-center">
+                <form
+                    onSubmit={handleSearch}
+                    className="flex flex-col gap-3 rounded-xl bg-slate-50 p-4 dark:bg-slate-900/40 sm:flex-row sm:items-center"
+                >
                     <Input
                         placeholder="Buscar por código, nombre o material..."
                         value={search}
@@ -384,16 +332,6 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                         <option value="">Todas las procedencias</option>
                         <option value="Talca">Talca</option>
                         <option value="Santiago">Santiago</option>
-                    </select>
-                    <select
-                        value={condition}
-                        onChange={(e) => setCondition(e.target.value)}
-                        className="h-10 w-full rounded-md border border-input bg-white px-3 text-sm dark:bg-slate-950 sm:w-auto"
-                    >
-                        <option value="">Todas las condiciones</option>
-                        {conditions.map((c) => (
-                            <option key={c.value} value={c.value}>{c.label}</option>
-                        ))}
                     </select>
                     <Button type="submit" variant="secondary" className="h-10 w-full sm:w-auto">
                         Buscar
@@ -411,7 +349,9 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                         items.data.map((item) => (
                             <div
                                 key={item.id}
-                                className={`flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm ${item.is_active ? '' : 'opacity-60'}`}
+                                className={`flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-sm ${
+                                    item.is_active ? '' : 'opacity-60'
+                                }`}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     {renderProduct(item)}
@@ -419,11 +359,10 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-2">
-                                    {renderConditionSelector(item)}
                                     {renderOrigin(item)}
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/40">
+                                <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900/40">
                                     <div className="space-y-1">
                                         <p className="text-xs text-muted-foreground">Material</p>
                                         <p className="text-sm font-medium">{item.material || '—'}</p>
@@ -432,9 +371,9 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                                         <p className="text-xs text-muted-foreground">Precio</p>
                                         <p className="text-sm font-bold">{formatPrice(item.price)}</p>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p className="text-xs text-muted-foreground">Stock</p>
-                                        {renderStock(item)}
+                                    <div className="col-span-2 space-y-1">
+                                        <p className="text-xs text-muted-foreground">Condición</p>
+                                        {renderConditionSelect(item)}
                                     </div>
                                 </div>
 
@@ -458,24 +397,30 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                             <TableRow>
                                 <TableHead className="h-12 px-5">Producto</TableHead>
                                 <TableHead className="h-12 px-5">Categoría</TableHead>
-                                <TableHead className="h-12 px-5">Condición</TableHead>
                                 <TableHead className="h-12 px-5">Material</TableHead>
                                 <TableHead className="h-12 px-5">Precio</TableHead>
-                                <TableHead className="h-12 px-5">Stock</TableHead>
+                                <TableHead className="h-12 px-5">Condición</TableHead>
                                 <TableHead className="h-12 px-5 text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {items.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
                                         <Package className="mx-auto mb-2 h-12 w-12 text-slate-300" />
                                         No hay items para mostrar
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 items.data.map((item) => (
-                                    <TableRow key={item.id} className={item.is_active ? 'hover:bg-slate-50 dark:hover:bg-slate-900/30' : 'bg-slate-50/50 opacity-60'}>
+                                    <TableRow
+                                        key={item.id}
+                                        className={
+                                            item.is_active
+                                                ? 'hover:bg-slate-50 dark:hover:bg-slate-900/30'
+                                                : 'bg-slate-50/50 opacity-60'
+                                        }
+                                    >
                                         <TableCell className="px-5 py-4">{renderProduct(item)}</TableCell>
                                         <TableCell className="px-5 py-4">
                                             <div className="flex flex-col items-start gap-2">
@@ -483,10 +428,15 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                                                 {renderOrigin(item)}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="px-5 py-4">{renderConditionSelector(item)}</TableCell>
-                                        <TableCell className="px-5 py-4 text-sm">{item.material || '—'}</TableCell>
-                                        <TableCell className="px-5 py-4 font-semibold">{formatPrice(item.price)}</TableCell>
-                                        <TableCell className="px-5 py-4">{renderStock(item)}</TableCell>
+                                        <TableCell className="px-5 py-4 text-sm">
+                                            {item.material || '—'}
+                                        </TableCell>
+                                        <TableCell className="px-5 py-4 font-semibold">
+                                            {formatPrice(item.price)}
+                                        </TableCell>
+                                        <TableCell className="px-5 py-4">
+                                            {renderConditionSelect(item)}
+                                        </TableCell>
                                         <TableCell className="whitespace-nowrap px-5 py-4">
                                             <div className="flex items-center justify-end gap-2">
                                                 <Link href={`/inventory/${item.id}`}>
@@ -503,26 +453,6 @@ export default function InventoryIndex({ items, category, filters, counts, condi
                         </TableBody>
                     </Table>
                 </div>
-
-                {items.last_page > 1 && (
-                    <div className="flex flex-wrap justify-center gap-1.5 pt-2">
-                        {items.links.map((link, i) => (
-                            <Link
-                                key={i}
-                                href={link.url || '#'}
-                                preserveScroll
-                                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                                    link.active
-                                        ? 'border-rose-800 bg-rose-800 text-white'
-                                        : link.url
-                                            ? 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                                            : 'pointer-events-none opacity-50'
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
-                        ))}
-                    </div>
-                )}
             </div>
         </>
     );

@@ -13,8 +13,7 @@ interface FormData {
     procedencia: string;
     dimensions: string;
     price: string;
-    stock: string;
-    stock_minimum: string;
+    alert_threshold: string;  // 👈 Cambiado
     is_active: boolean;
     size_cm: string;
     condition: string;
@@ -31,8 +30,7 @@ interface Item {
     procedencia: string | null;
     dimensions: string | null;
     price: string;
-    stock: number;
-    stock_minimum: number;
+    alert_threshold: number;  // 👈 Cambiado
     is_active: boolean;
     size_cm: number | null;
     condition: string;
@@ -53,8 +51,7 @@ export default function InventoryEdit({ item, conditions }: Props) {
         procedencia: item.procedencia || '',
         dimensions: item.dimensions || '',
         price: item.price,
-        stock: String(item.stock),
-        stock_minimum: String(item.stock_minimum),
+        alert_threshold: String(item.alert_threshold),
         is_active: item.is_active,
         size_cm: item.size_cm != null ? String(item.size_cm) : '',
         condition: item.condition || 'nuevo',
@@ -91,8 +88,9 @@ export default function InventoryEdit({ item, conditions }: Props) {
                                     {errors.category && <p className="text-sm text-destructive mt-1">{errors.category}</p>}
                                 </div>
                                 <div>
-                                    <Label htmlFor="code">Código (SKU) *</Label>
-                                    <Input id="code" value={data.code} onChange={(e) => setData('code', e.target.value)} className="mt-1" required />
+                                    <Label htmlFor="code">Código (SKU)</Label>
+                                    <Input id="code" value={data.code} className="mt-1 bg-muted/50" readOnly />
+                                    <p className="text-xs text-muted-foreground mt-1">Se genera automáticamente y no se puede cambiar.</p>
                                     {errors.code && <p className="text-sm text-destructive mt-1">{errors.code}</p>}
                                 </div>
                             </div>
@@ -131,9 +129,8 @@ export default function InventoryEdit({ item, conditions }: Props) {
                                 </div>
                             </div>
 
-                            {/* 👇 NUEVO: Condición física */}
                             <div>
-                                <Label htmlFor="condition">Condición física *</Label>
+                                <Label htmlFor="condition">Estado *</Label>
                                 <select
                                     id="condition"
                                     value={data.condition}
@@ -154,17 +151,22 @@ export default function InventoryEdit({ item, conditions }: Props) {
                                 {errors.price && <p className="text-sm text-destructive mt-1">{errors.price}</p>}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <Label htmlFor="stock">Stock actual *</Label>
-                                    <Input id="stock" type="number" value={data.stock} onChange={(e) => setData('stock', e.target.value)} className="mt-1" required />
-                                    {errors.stock && <p className="text-sm text-destructive mt-1">{errors.stock}</p>}
-                                </div>
-                                <div>
-                                    <Label htmlFor="stock_minimum">Stock mínimo *</Label>
-                                    <Input id="stock_minimum" type="number" value={data.stock_minimum} onChange={(e) => setData('stock_minimum', e.target.value)} className="mt-1" required />
-                                    {errors.stock_minimum && <p className="text-sm text-destructive mt-1">{errors.stock_minimum}</p>}
-                                </div>
+                            {/* 👇 NUEVO: Solo alert_threshold */}
+                            <div>
+                                <Label htmlFor="alert_threshold">Alerta de stock bajo *</Label>
+                                <Input
+                                    id="alert_threshold"
+                                    type="number"
+                                    min="1"
+                                    value={data.alert_threshold}
+                                    onChange={(e) => setData('alert_threshold', e.target.value)}
+                                    className="mt-1"
+                                    required
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Avisar cuando queden menos de {data.alert_threshold} unidades disponibles.
+                                </p>
+                                {errors.alert_threshold && <p className="text-sm text-destructive mt-1">{errors.alert_threshold}</p>}
                             </div>
 
                             <div>

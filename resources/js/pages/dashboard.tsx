@@ -44,8 +44,8 @@ interface LowStockItem {
     id: number;
     code: string;
     name: string;
-    stock: number;
-    stock_minimum: number;
+    available_stock: number; // 👈 Cambiado de 'stock'
+    alert_threshold: number;  // 👈 Cambiado de 'stock_minimum'
 }
 
 interface UpcomingService {
@@ -870,8 +870,9 @@ export default function Dashboard({
                                         <p className="font-mono text-xs text-muted-foreground">{item.code}</p>
                                     </div>
                                     <div className="ml-3 shrink-0 text-right">
-                                        <p className="text-sm font-bold text-red-600">{item.stock} un.</p>
-                                        <p className="text-xs text-muted-foreground">Mín: {item.stock_minimum}</p>
+                                        {/* 👇 Usamos available_stock y alert_threshold */}
+                                        <p className="text-sm font-bold text-red-600">{item.available_stock} un.</p>
+                                        <p className="text-xs text-muted-foreground">Alerta: {item.alert_threshold}</p>
                                     </div>
                                 </div>
                             ))}

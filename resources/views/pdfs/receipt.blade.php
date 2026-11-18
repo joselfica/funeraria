@@ -83,10 +83,10 @@
     <div class="section-title">Datos del servicio</div>
     <table class="rows">
         <tr><td class="label">Código de servicio:</td><td>{{ $service->code }}</td></tr>
-        <tr><td class="label">Tipo de servicio:</td><td>{{ $service->serviceType->name }}</td></tr>
-        <tr><td class="label">Cliente:</td><td>{{ $service->client->name }}</td></tr>
-        <tr><td class="label">RUT cliente:</td><td>{{ $service->client->rut }}</td></tr>
-        <tr><td class="label">Fallecido:</td><td>{{ $service->deceased->full_name }}</td></tr>
+        <tr><td class="label">Tipo de servicio:</td><td>{{ $service->service_type_label ?? '—' }}</td></tr>
+        <tr><td class="label">Cliente:</td><td>{{ $service->client?->name ?? '—' }}</td></tr>
+        <tr><td class="label">RUT cliente:</td><td>{{ $service->client?->rut ?? '—' }}</td></tr>
+        <tr><td class="label">Fallecido:</td><td>{{ $service->deceased?->full_name ?? '—' }}</td></tr>
     </table>
 
     {{-- ───────── Detalle de la transacción ───────── --}}

@@ -206,7 +206,7 @@ export default function DeceasedShow({ deceased }: Props) {
                                 {deceased.services && deceased.services.length > 0 ? (
                                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                                         {deceased.services.map((s) => (
-                                            <Link key={s.id} href={`/services/${s.id}`} className="flex items-center justify-between p-2.5 border rounded-lg bg-card hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                                            <Link key={s.id} href={`/services/${s.uuid}`} className="flex items-center justify-between p-2.5 border rounded-lg bg-card hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
                                                 <div>
                                                     <p className="font-mono text-xs font-bold">{s.code}</p>
                                                     <p className="text-[10px] text-muted-foreground">{formatDateTime(s.scheduled_at)}</p>

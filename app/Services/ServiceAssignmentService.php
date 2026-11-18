@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\ItemCondition;
 use App\Models\InventoryItem;
 use App\Models\Service;
 use App\Models\Vehicle;
@@ -12,12 +13,13 @@ class ServiceAssignmentService
 {
     public function assignInventoryItem(Service $service, int $itemId, int $quantity = 1, ?string $notes = null): void
     {
-        DB::transaction(function () use ($service, $itemId, $quantity, $notes) {
+        // Cada fila de inventario es una unidad física: $quantity se ignora (siempre 1).
+        DB::transaction(function () use ($service, $itemId, $notes) {
             $item = InventoryItem::lockForUpdate()->findOrFail($itemId);
 
-            if ($item->stock < $quantity) {
+            if (! $item->is_active || ! $item->condition?->isAvailable()) {
                 throw ValidationException::withMessages([
-                    'stock' => "Stock insuficiente. Disponible: {$item->stock}, solicitado: {$quantity}.",
+                    'inventory_item_id' => "La unidad {$item->code} no está disponible (condición: {$item->condition_label}).",
                 ]);
             }
 
@@ -28,37 +30,31 @@ class ServiceAssignmentService
             }
 
             $service->inventoryItems()->attach($itemId, [
-                'quantity' => $quantity,
+                'quantity' => 1,
                 'unit_price' => $item->price,
                 'notes' => $notes,
                 'assigned_by' => auth()->id(),
                 'assigned_at' => now(),
             ]);
 
-            $item->decrement('stock', $quantity);
-
-            if ($item->fresh()->needs_restock) {
-                \Log::warning("Stock bajo: {$item->name} ({$item->code}) - Stock: {$item->stock}, Mínimo: {$item->stock_minimum}");
-            }
+            // La unidad se marca como vendida al asignarse al servicio
+            $item->update(['condition' => ItemCondition::NO_DISPONIBLE]);
         });
     }
 
     public function removeInventoryItem(Service $service, int $itemId): void
     {
         DB::transaction(function () use ($service, $itemId) {
-            $pivot = $service->inventoryItems()->where('inventory_item_id', $itemId)->first();
-
-            if (! $pivot) {
+            if (! $service->inventoryItems()->where('inventory_item_id', $itemId)->exists()) {
                 throw ValidationException::withMessages([
                     'not_found' => 'Este item no está asignado al servicio.',
                 ]);
             }
 
-            $quantity = $pivot->pivot->quantity;
-
             $service->inventoryItems()->detach($itemId);
 
-            InventoryItem::where('id', $itemId)->increment('stock', $quantity);
+            // La unidad vuelve a quedar disponible
+            InventoryItem::where('id', $itemId)->update(['condition' => ItemCondition::DISPONIBLE]);
         });
     }
 

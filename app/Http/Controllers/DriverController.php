@@ -63,12 +63,30 @@ class DriverController extends Controller
             ->get()
             ->each(fn ($service) => $service->append(['service_type_label', 'status_label']));
 
-        // Items con stock bajo (para que el chofer informe)
-        $lowStockItems = InventoryItem::active()
-            ->whereColumn('stock', '<=', 'stock_minimum')
-            ->orderBy('stock')
-            ->limit(5)
-            ->get(['id', 'code', 'name', 'stock', 'stock_minimum']);
+        // Items con stock bajo calculado dinámicamente
+        $lowStockItems = InventoryItem::query()
+            ->where('is_active', true)
+            ->get()
+            ->groupBy('name')
+            ->map(function ($group) {
+                $first = $group->first();
+                $available = $group->whereIn('condition', ['nuevo', 'bueno'])->count();
+                $threshold = $first->alert_threshold ?? 2;
+
+                return [
+                    'id' => $first->id,
+                    'code' => $first->code,
+                    'name' => $first->name,
+                    'category' => $first->category,
+                    'available_stock' => $available,
+                    'alert_threshold' => $threshold,
+                    'is_low_stock' => $available <= $threshold,
+                ];
+            })
+            ->filter(fn ($item) => $item['is_low_stock'])
+            ->sortBy('available_stock')
+            ->take(5)
+            ->values();
 
         return Inertia::render('Driver/Dashboard', [
             'todayServices' => $todayServices,

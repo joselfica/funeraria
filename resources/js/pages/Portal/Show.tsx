@@ -122,7 +122,7 @@ export default function PortalShow({ service }: Props) {
                                     <p className="font-medium">Contrato de Servicio</p>
                                     <p className="text-xs text-muted-foreground">Documento legal del servicio</p>
                                 </div>
-                                <a href={`/services/${service.id}/contract`} target="_blank" rel="noopener noreferrer">
+                                <a href={`/services/${service.uuid}/contract`} target="_blank" rel="noopener noreferrer">
                                     <Button variant="outline" size="sm">
                                         <Download className="h-4 w-4 mr-2" /> Descargar
                                     </Button>
@@ -152,7 +152,7 @@ export default function PortalShow({ service }: Props) {
                                         <p className="font-medium text-emerald-600">Certificado de Paz y Salvo</p>
                                         <p className="text-xs text-emerald-600/80">Acredita que el servicio está totalmente pagado</p>
                                     </div>
-                                    <a href={`/services/${service.id}/paz-y-salvo`} target="_blank" rel="noopener noreferrer">
+                                    <a href={`/services/${service.uuid}/paz-y-salvo`} target="_blank" rel="noopener noreferrer">
                                         <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white">
                                             <Download className="h-4 w-4 mr-2" /> Descargar
                                         </Button>

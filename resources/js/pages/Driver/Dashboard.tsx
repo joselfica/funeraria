@@ -1,10 +1,10 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
     Calendar, Clock, MapPin, User, Phone, AlertTriangle, 
-    CheckCircle2, Sun, ArrowRight, Package, Users
+    CheckCircle2, Sun, ArrowRight, Package
 } from 'lucide-react';
 
 interface Service {
@@ -22,8 +22,9 @@ interface Service {
 
 interface Props {
     todayServices: Service[];
-    upcomingServices: Service[]; // Servicios de mañana y pasado mañana
-    lowStockItems: Array<{ id: number; code: string; name: string; stock: number; stock_minimum: number }>;
+    upcomingServices: Service[];
+    // 👇 CAMBIADO: available_stock y alert_threshold
+    lowStockItems: Array<{ id: number; code: string; name: string; available_stock: number; alert_threshold: number }>;
 }
 
 export default function DriverDashboard({ todayServices, upcomingServices, lowStockItems }: Props) {
@@ -132,7 +133,7 @@ export default function DriverDashboard({ todayServices, upcomingServices, lowSt
                     )}
                 </div>
 
-                {/* SECCIÓN 2: PRÓXIMOS SERVICIOS (MAÑANA Y PASADO) */}
+                {/* SECCIÓN 2: PRÓXIMOS SERVICIOS */}
                 <div>
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -201,8 +202,9 @@ export default function DriverDashboard({ todayServices, upcomingServices, lowSt
                                             <Package className="h-4 w-4 text-amber-600 shrink-0" />
                                             <span className="text-sm font-medium truncate">{item.name}</span>
                                         </div>
+                                        {/* 👇 Usamos available_stock y alert_threshold */}
                                         <span className="text-sm font-bold text-amber-700 dark:text-amber-400 shrink-0">
-                                            {item.stock} / min {item.stock_minimum}
+                                            {item.available_stock} / alerta {item.alert_threshold}
                                         </span>
                                     </CardContent>
                                 </Card>

@@ -25,7 +25,7 @@ interface User { id: number; name: string; }
 
 interface InventoryItem {
     id: number; code: string; name: string; category: string; material: string | null;
-    stock: number; price: string; pivot?: { quantity: number; unit_price: string; notes: string | null; };
+    price: string; pivot?: { quantity: number; unit_price: string; notes: string | null; };
 }
 
 interface Vehicle {
@@ -77,7 +77,6 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const [rejectionReason, setRejectionReason] = useState('');
 
     const [selectedItem, setSelectedItem] = useState('');
-    const [itemQuantity, setItemQuantity] = useState('1');
     const [itemNotes, setItemNotes] = useState('');
 
     const [selectedVehicle, setSelectedVehicle] = useState('');
@@ -102,9 +101,9 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     };
     const handleAssignItem = (e: React.FormEvent) => {
         e.preventDefault(); if (!selectedItem) return;
-        router.post(`/services/${service.uuid}/assign-item`, { inventory_item_id: selectedItem, quantity: itemQuantity, notes: itemNotes }, { onSuccess: () => { setSelectedItem(''); setItemQuantity('1'); setItemNotes(''); } });
+        router.post(`/services/${service.uuid}/assign-item`, { inventory_item_id: selectedItem, notes: itemNotes }, { onSuccess: () => { setSelectedItem(''); setItemNotes(''); } });
     };
-    const handleRemoveItem = (itemId: number, itemName: string) => { if (confirm(`¿Quitar "${itemName}" del servicio? Se devolverá el stock.`)) router.delete(`/services/${service.uuid}/items/${itemId}`); };
+    const handleRemoveItem = (itemId: number, itemName: string) => { if (confirm(`¿Quitar "${itemName}" del servicio? La unidad quedará disponible.`)) router.delete(`/services/${service.uuid}/items/${itemId}`); };
     const handleAssignVehicle = (e: React.FormEvent) => {
         e.preventDefault(); if (!selectedVehicle) return;
         router.post(`/services/${service.uuid}/assign-vehicle`, { vehicle_id: selectedVehicle, notes: vehicleNotes }, { onSuccess: () => { setSelectedVehicle(''); setVehicleNotes(''); } });
@@ -447,7 +446,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                         <div className="space-y-1.5 mb-2">
                                             {service.inventory_items.map((item) => (
                                                 <div key={item.id} className="flex items-center justify-between p-2 border rounded-md bg-slate-50 dark:bg-slate-900/50 text-xs">
-                                                    <div><p className="font-medium">{item.code}</p><p className="text-muted-foreground">{item.name} (x{item.pivot?.quantity})</p></div>
+                                                    <div><p className="font-medium">{item.code}</p><p className="text-muted-foreground">{item.name}</p></div>
                                                     <Button size="icon" variant="ghost" className="h-6 w-6 text-rose-600" onClick={() => handleRemoveItem(item.id, item.name)}><X className="h-3 w-3" /></Button>
                                                 </div>
                                             ))}
@@ -463,7 +462,6 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                                     <optgroup label="Urnas">{availableItems.filter(i => i.category === 'urna').map((item) => (<option key={item.id} value={item.id}>{item.code} - {item.name}</option>))}</optgroup>
                                                 </select>
                                             </div>
-                                            <Input type="number" min="1" value={itemQuantity} onChange={(e) => setItemQuantity(e.target.value)} className="w-12 h-8 text-xs px-1 text-center" />
                                             <Button type="submit" size="sm" className="h-8 px-2 bg-rose-800 hover:bg-rose-900 text-white disabled:opacity-50 disabled:cursor-not-allowed" disabled={!selectedItem}><Plus className="h-3 w-3" /></Button>
                                         </form>
                                     )}

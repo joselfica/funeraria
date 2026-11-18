@@ -19,11 +19,19 @@ interface ServiceTypeOption {
     duration_hours: number;
 }
 
+interface AvailableItem {
+    id: number;
+    code: string;
+    name: string;
+    category: string;
+    price: string;
+}
+
 interface Props {
     branches: Array<{ id: number; name: string }>;
     serviceTypes: ServiceTypeOption[];
     beneficiaryTypes: Array<{ value: string; label: string }>;
-    availableItems: Array<{ id: number; code: string; name: string; category: string; stock: number; price: string }>;
+    availableItems: AvailableItem[];
     existingClients: Client[];
     availableVehicles: Array<{ id: number; plate: string; type: string; brand: string | null; model: string | null }>;
     availableEmployees: Array<{ id: number; name: string }>;
@@ -74,7 +82,6 @@ export default function ServicesWizard({
         const selected = serviceTypes.find((t) => t.value === value);
         if (selected) {
             setData('base_price', String(selected.base_price));
-            // Solo actualizar la duración si no ha sido modificada manualmente
             if (data.duration_hours === '48' || data.duration_hours === '') {
                 setData('duration_hours', String(selected.duration_hours));
             }
@@ -282,7 +289,7 @@ export default function ServicesWizard({
                                         </div>
                                     </div>
 
-                                    {/* 👇 NUEVO: Duración editable */}
+                                    {/* Duración editable */}
                                     <div>
                                         <Label htmlFor="duration_hours">Duración del servicio (horas) *</Label>
                                         <Input
@@ -337,18 +344,24 @@ export default function ServicesWizard({
                                         </div>
                                         <select value={data.inventory_item_id} onChange={e => setData('inventory_item_id', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                                             <option value="">No asignar ahora</option>
-                                            <optgroup label="Ataúdes (cuerpo completo)">
+                                            <optgroup label="Ataúdes">
                                                 {availableItems.filter(i => i.category === 'ataud').map(item => (
-                                                    <option key={item.id} value={item.id}>{item.code} - {item.name} ({formatPrice(Number(item.price))}) - Stock: {item.stock}</option>
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.code} - {item.name} ({formatPrice(Number(item.price))})
+                                                    </option>
                                                 ))}
                                             </optgroup>
-                                            <optgroup label="Urnas (cenizas)">
+                                            <optgroup label="Urnas">
                                                 {availableItems.filter(i => i.category === 'urna').map(item => (
-                                                    <option key={item.id} value={item.id}>{item.code} - {item.name} ({formatPrice(Number(item.price))}) - Stock: {item.stock}</option>
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.code} - {item.name} ({formatPrice(Number(item.price))})
+                                                    </option>
                                                 ))}
                                             </optgroup>
                                         </select>
-                                        <p className="text-xs text-muted-foreground mt-1">Si selecciona un item, se descontará del stock inmediatamente.</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Al asignar, se marcará una unidad específica como "En servicio".
+                                        </p>
                                         {errors.inventory_item_id && <p className="text-sm text-rose-600 mt-1">{errors.inventory_item_id}</p>}
                                     </div>
 

@@ -3,21 +3,22 @@
 namespace App\Enums;
 
 /**
- * Condición física de un item de inventario.
+ * Condición / estado de un item de inventario.
  *
- * Define el estado en que se encuentra un ataúd, urna o cualquier
- * producto del inventario. Se usa para:
+ * Define la situación operativa en que se encuentra un ataúd, urna o
+ * cualquier producto del inventario. Se usa para:
  *
  * - Mostrar un badge con color en el listado y el detalle.
  * - Filtrar items por estado (por ejemplo, solo disponibles para asignar).
- * - Restringir la asignación a servicios: un item DAÑADO o PARA_REPARAR
+ * - Restringir la asignación a servicios: un item que no esté DISPONIBLE
  *   no debería poder asignarse a un expediente.
- * - Llevar trazabilidad del ciclo de vida del producto (nuevo → bueno →
- *   con detalles → para reparar → dañado).
+ * - Llevar trazabilidad del ciclo de vida del producto.
  *
- * El caso RESERVADO es especial: indica que el item ya está comprometido
- * para un servicio (por ejemplo, un ataúd apartado para un velorio
- * próximo) y no debe ofrecerse como disponible para otros servicios.
+ * El caso RESERVADO indica que el item está comprometido para un servicio
+ * específico y no debe ofrecerse como disponible para otros servicios.
+ *
+ * El caso NO_DISPONIBLE representa items que ya fueron vendidos y no
+ * volverán al inventario disponible.
  *
  * ⚠️ Los valores string se guardan en la columna `condition` de
  * `inventory_items`. Si renombras un caso, debes actualizar los datos
@@ -25,23 +26,17 @@ namespace App\Enums;
  */
 enum ItemCondition: string
 {
-    /** Item recién ingresado, sin uso. */
-    case NUEVO = 'nuevo';
-
-    /** Item usado pero en buen estado general. */
-    case BUENO = 'bueno';
-
-    /** Item con detalles estéticos o funcionales menores. */
-    case CON_DETALLES = 'con_detalles';
-
-    /** Item dañado, no apto para uso. */
-    case DAÑADO = 'danado';       // Sin ñ para evitar problemas de encoding
+    /** Item libre, listo para asignarse a un servicio. */
+    case DISPONIBLE = 'disponible';
 
     /** Item que requiere reparación antes de volver a usarse. */
-    case PARA_REPARAR = 'para_reparar';
+    case EN_REPARACION = 'en_reparacion';
 
     /** Item comprometido para un servicio específico. */
     case RESERVADO = 'reservado';
+
+    /** Item ya vendido; no vuelve al inventario disponible. */
+    case NO_DISPONIBLE = 'no_disponible';
 
     /**
      * Etiqueta legible para mostrar en la UI.
@@ -51,12 +46,10 @@ enum ItemCondition: string
     public function label(): string
     {
         return match ($this) {
-            self::NUEVO => 'Nuevo',
-            self::BUENO => 'Buen estado',
-            self::CON_DETALLES => 'Con detalles',
-            self::DAÑADO => 'Dañado',
-            self::PARA_REPARAR => 'Para reparar',
+            self::DISPONIBLE => 'Disponible',
+            self::EN_REPARACION => 'En reparación',
             self::RESERVADO => 'Reservado',
+            self::NO_DISPONIBLE => 'No disponible (vendido)',
         };
     }
 
@@ -67,54 +60,47 @@ enum ItemCondition: string
      * para usar en el atributo `className` de un `<Badge>` o `<span>`.
      *
      * Paleta:
-     * - Verde   → NUEVO (disponible, recién ingresado).
-     * - Azul    → BUENO (disponible, con uso previo).
-     * - Ámbar   → CON_DETALLES (disponible con reservas).
-     * - Rojo    → DAÑADO (no disponible).
-     * - Gris    → PARA_REPARAR (no disponible, pendiente de reparación).
+     * - Verde   → DISPONIBLE (libre para asignar).
+     * - Ámbar   → EN_REPARACION (no disponible, pendiente de reparación).
      * - Púrpura → RESERVADO (comprometido para un servicio).
+     * - Rojo    → NO_DISPONIBLE (vendido, fuera de inventario).
      */
     public function color(): string
     {
         return match ($this) {
-            self::NUEVO => 'bg-emerald-100 text-emerald-800 border-emerald-200',
-            self::BUENO => 'bg-blue-100 text-blue-800 border-blue-200',
-            self::CON_DETALLES => 'bg-amber-100 text-amber-800 border-amber-200',
-            self::DAÑADO => 'bg-rose-100 text-rose-800 border-rose-200',
-            self::PARA_REPARAR => 'bg-slate-100 text-slate-800 border-slate-200',
-            self::RESERVADO => 'bg-purple-100 text-purple-800 border-purple-200',
+            self::DISPONIBLE => 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300',
+            self::EN_REPARACION => 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300',
+            self::RESERVADO => 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950 dark:text-purple-300',
+            self::NO_DISPONIBLE => 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300',
         };
     }
 
     /**
      * Indica si el item está disponible para asignarse a un servicio.
      *
-     * Un item reservado, dañado o para reparar no debería asignarse
-     * a un nuevo expediente. Este helper centraliza esa regla para que
-     * el controlador y el frontend no la dupliquen.
+     * Solo DISPONIBLE puede asignarse. El resto de estados (en reparación,
+     * reservado o vendido) bloquea la asignación. Este helper centraliza
+     * la regla para que el controlador y el frontend no la dupliquen.
      */
     public function isAvailable(): bool
     {
-        return match ($this) {
-            self::NUEVO, self::BUENO, self::CON_DETALLES => true,
-            self::DAÑADO, self::PARA_REPARAR, self::RESERVADO => false,
-        };
+        return $this === self::DISPONIBLE;
     }
 
     /**
      * Estados que se ofrecen al crear/editar un item manualmente.
      *
-     * Excluye RESERVADO porque ese estado lo asigna el sistema al
-     * comprometer el item con un servicio, no el usuario desde el CRUD.
-     * Si quieres permitir reservarlo manualmente, agrega el caso aquí.
+     * Excluye RESERVADO y NO_DISPONIBLE porque no tiene sentido crear un
+     * item ya comprometido o vendido. Esos estados sí se pueden cambiar
+     * después desde el selector de estado del listado.
      *
      * @return array<int, self>
      */
     public static function manualOptions(): array
     {
-        return array_filter(
-            self::cases(),
-            fn (self $case) => $case !== self::RESERVADO
-        );
+        return [
+            self::DISPONIBLE,
+            self::EN_REPARACION,
+        ];
     }
 }
