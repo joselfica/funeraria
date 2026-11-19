@@ -4,9 +4,9 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-    AlertTriangle, ArrowRight, BarChart3, Building2, Calendar as CalendarIcon, CalendarClock,
-    CalendarDays, CheckCircle2, ClipboardList, Clock, DollarSign, Eye, FileText, Gauge, Package,
-    TrendingDown, TrendingUp, Users,
+    AlertTriangle, ArrowRight, BarChart3, Box, Building2, Calendar as CalendarIcon, CalendarClock,
+    CalendarDays, CheckCircle2, ClipboardList, Clock, DollarSign, Eye, FileText, FlaskConical, Gauge,
+    Package, TrendingDown, TrendingUp, Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -40,12 +40,9 @@ interface ChartData {
     services: number;
 }
 
-interface LowStockItem {
-    id: number;
-    code: string;
-    name: string;
-    available_stock: number; // 👈 Cambiado de 'stock'
-    alert_threshold: number;  // 👈 Cambiado de 'stock_minimum'
+interface InventoryStats {
+    ataudes: { disponibles: number; totales: number };
+    urnas: { disponibles: number; totales: number };
 }
 
 interface UpcomingService {
@@ -168,7 +165,7 @@ interface Props {
     can_see_finance: boolean;
     today_label: string;
     chart_data: ChartData[];
-    low_stock: LowStockItem[];
+    inventory_stats: InventoryStats;
     upcoming_services: UpcomingService[];
     fleet_status: FleetStatus;
     alerts: Alerts;
@@ -380,7 +377,7 @@ export default function Dashboard({
     can_see_finance,
     today_label,
     chart_data,
-    low_stock,
+    inventory_stats,
     upcoming_services,
     fleet_status,
     alerts,
@@ -527,6 +524,55 @@ export default function Dashboard({
                             <span className="text-xs text-muted-foreground">Todo al día</span>
                         )}
                     </KpiCard>
+                </div>
+
+                {/* ─────────────── STOCK GLOBAL (ATAÚDES + URNAS) ─────────────── */}
+                <div className="grid gap-4 md:grid-cols-2">
+                    {/* Tarjeta de Ataúdes */}
+                    <div className="flex items-center justify-between rounded-xl border bg-card p-6 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="rounded-full bg-rose-100 p-3 text-rose-800 dark:bg-rose-950/50 dark:text-rose-400">
+                                <Box className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Ataúdes</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Stock total: {inventory_stats.ataudes.totales} unidades
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                                {inventory_stats.ataudes.disponibles}
+                            </p>
+                            <p className="text-xs font-medium uppercase tracking-wider text-emerald-600">
+                                Disponibles
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Tarjeta de Urnas */}
+                    <div className="flex items-center justify-between rounded-xl border bg-card p-6 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="rounded-full bg-slate-200 p-3 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                <FlaskConical className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Urnas</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Stock total: {inventory_stats.urnas.totales} unidades
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                                {inventory_stats.urnas.disponibles}
+                            </p>
+                            <p className="text-xs font-medium uppercase tracking-wider text-emerald-600">
+                                Disponibles
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* ─────────────── RESUMEN + PRÓXIMOS SERVICIOS ─────────────── */}
@@ -843,41 +889,6 @@ export default function Dashboard({
                             </section>
                         )}
                     </div>
-                )}
-
-                {/* ─────────────── ALERTAS DE STOCK ─────────────── */}
-                {low_stock.length > 0 && (
-                    <section className="rounded-xl border bg-card shadow-sm">
-                        <div className="flex items-center justify-between gap-3 px-4 pt-4">
-                            <div className="flex items-center gap-2.5">
-                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/15 text-red-600">
-                                    <AlertTriangle className="h-4 w-4" />
-                                </span>
-                                <div>
-                                    <h2 className="text-sm font-semibold sm:text-base">Alertas de stock</h2>
-                                    <p className="text-xs text-muted-foreground">Productos por debajo del mínimo</p>
-                                </div>
-                            </div>
-                            <Link href="/inventory" className="inline-flex items-center gap-1 text-xs font-medium text-rose-800 hover:underline dark:text-rose-300">
-                                Ver inventario <ArrowRight className="h-3.5 w-3.5" />
-                            </Link>
-                        </div>
-                        <div className="grid grid-cols-1 gap-2 p-4 md:grid-cols-2 xl:grid-cols-3">
-                            {low_stock.map((item) => (
-                                <div key={item.id} className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50/60 px-3 py-2 dark:border-red-900/40 dark:bg-red-950/10">
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium">{item.name}</p>
-                                        <p className="font-mono text-xs text-muted-foreground">{item.code}</p>
-                                    </div>
-                                    <div className="ml-3 shrink-0 text-right">
-                                        {/* 👇 Usamos available_stock y alert_threshold */}
-                                        <p className="text-sm font-bold text-red-600">{item.available_stock} un.</p>
-                                        <p className="text-xs text-muted-foreground">Alerta: {item.alert_threshold}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
                 )}
 
                 {/* ─────────────── CALENDARIO ─────────────── */}
