@@ -65,14 +65,14 @@ export default function ServicesWizard({
         beneficiary_type: 'particular',
         scheduled_at: '',
         duration_hours: '48',
-        base_price: '0',
+        total_amount: '',
+        amount_paid: '',
         origin_location: '',
         destination_location: '',
         burial_at: '',
         inventory_item_id: '',
         vehicle_id: '',
         driver_id: '',
-        initial_payment_amount: '',
         payment_method: 'efectivo',
         payment_reference: '',
     });
@@ -81,7 +81,6 @@ export default function ServicesWizard({
         setData('service_type', value);
         const selected = serviceTypes.find((t) => t.value === value);
         if (selected) {
-            setData('base_price', String(selected.base_price));
             if (data.duration_hours === '48' || data.duration_hours === '') {
                 setData('duration_hours', String(selected.duration_hours));
             }
@@ -98,6 +97,18 @@ export default function ServicesWizard({
 
     const formatPrice = (value: number) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
+
+    // El total y el abono los ingresa el cajero manualmente.
+    // El 50% se muestra solo como ayuda visual, no bloquea el ingreso.
+    const totalAmount = Number(data.total_amount) || 0;
+    const amountPaid = Number(data.amount_paid) || 0;
+    const suggestedDeposit = Math.round(totalAmount * 0.5);
+    const balance = Math.max(totalAmount - amountPaid, 0);
+
+    // Deja solo dígitos (quita puntos, comas, signos, etc.)
+    const handleNumberChange = (field: 'total_amount' | 'amount_paid', value: string) => {
+        setData(field, value.replace(/\D/g, ''));
+    };
 
     return (
         <>
@@ -252,16 +263,14 @@ export default function ServicesWizard({
                                             {errors.branch_id && <p className="text-sm text-rose-600 mt-1">{errors.branch_id}</p>}
                                         </div>
                                         <div>
-                                            <Label>Tipo de Beneficiario *</Label>
+                                            <Label>Previsión / Beneficio *</Label>
                                             <select value={data.beneficiary_type} onChange={e => setData('beneficiary_type', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm mt-1">
                                                 {beneficiaryTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                             </select>
-                                            {['afp', 'ips', 'dipreca', 'capredena'].includes(data.beneficiary_type) && (
-                                                <p className="text-xs text-emerald-600 mt-1 flex items-start gap-1">
-                                                    <Info className="h-3 w-3 mt-0.5 shrink-0" /> Esta institución cubre hasta $600.000 de la cuota mortuoria. La familia paga la diferencia.
-                                                </p>
-                                            )}
-                                            {data.beneficiary_type === 'municipal' && (
+                                            <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                                                <Info className="h-3 w-3 mt-0.5 shrink-0" /> Solo informativo. No altera el valor del servicio.
+                                            </p>
+                                            {data.beneficiary_type === 'municipalidad' && (
                                                 <p className="text-xs text-amber-600 mt-1 flex items-start gap-1">
                                                     <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" /> La municipalidad evalúa con asistente social (demora ~3 meses).
                                                 </p>
@@ -401,11 +410,39 @@ export default function ServicesWizard({
                                             <DollarSign className="w-4 h-4 text-emerald-600" />
                                             <Label className="text-emerald-700 dark:text-emerald-400 font-bold">Registrar Abono Inicial</Label>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <Label className="text-xs">Monto</Label>
-                                                <Input type="number" value={data.initial_payment_amount} onChange={e => setData('initial_payment_amount', e.target.value)} placeholder="0" className="mt-1 bg-white dark:bg-slate-950" />
+                                                <Label className="text-xs">Total del servicio *</Label>
+                                                <Input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={data.total_amount}
+                                                    onChange={e => handleNumberChange('total_amount', e.target.value)}
+                                                    placeholder="Ej: 1200000"
+                                                    className="mt-1 bg-white dark:bg-slate-950"
+                                                />
+                                                <p className="text-xs text-muted-foreground mt-1">Monto total acordado con el cliente.</p>
+                                                {errors.total_amount && <p className="text-sm text-rose-600 mt-1">{errors.total_amount}</p>}
                                             </div>
+                                            <div>
+                                                <Label className="text-xs">Abono inicial *</Label>
+                                                <Input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={data.amount_paid}
+                                                    onChange={e => handleNumberChange('amount_paid', e.target.value)}
+                                                    placeholder="Ej: 600000"
+                                                    className="mt-1 bg-white dark:bg-slate-950"
+                                                />
+                                                {totalAmount > 0 && (
+                                                    <p className={`text-xs mt-1 font-medium ${amountPaid >= suggestedDeposit ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                        Mínimo requerido (50%): {formatPrice(suggestedDeposit)}
+                                                    </p>
+                                                )}
+                                                {errors.amount_paid && <p className="text-sm text-rose-600 mt-1">{errors.amount_paid}</p>}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                             <div>
                                                 <Label className="text-xs">Medio</Label>
                                                 <select value={data.payment_method} onChange={e => setData('payment_method', e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-white dark:bg-slate-950 px-3 text-sm mt-1">
@@ -420,9 +457,25 @@ export default function ServicesWizard({
                                                 <Input value={data.payment_reference} onChange={e => setData('payment_reference', e.target.value)} placeholder="Opcional" className="mt-1 bg-white dark:bg-slate-950" />
                                             </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground mt-2">
-                                            Total a pagar: <strong>{formatPrice(Number(data.base_price))}</strong>
-                                        </p>
+                                        <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-lg border mt-4">
+                                            <p className="font-medium text-slate-700 dark:text-slate-200">Resumen de Pago</p>
+                                            <div className="flex justify-between mt-2 text-sm">
+                                                <span>Total Servicio:</span>
+                                                <span className="font-bold">{formatPrice(totalAmount)}</span>
+                                            </div>
+                                            <div className="flex justify-between mt-1 text-sm">
+                                                <span>Abono ingresado:</span>
+                                                <span className="font-bold">{formatPrice(amountPaid)}</span>
+                                            </div>
+                                            <div className="flex justify-between mt-1 text-sm text-rose-700 dark:text-rose-400">
+                                                <span>Abono sugerido (50%):</span>
+                                                <span className="font-bold">{formatPrice(suggestedDeposit)}</span>
+                                            </div>
+                                            <div className="flex justify-between mt-1 text-sm border-t pt-1">
+                                                <span>Saldo pendiente:</span>
+                                                <span className="font-bold">{formatPrice(balance)}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </>
                             )}

@@ -156,9 +156,7 @@ class ServiceController extends Controller
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
         $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
-        $validated['afp_amount'] = $beneficiaryType->defaultAmount();
         $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
-        $validated['family_amount'] = $validated['total_price'] - $validated['afp_amount'] - $validated['municipal_amount'];
 
         if ($beneficiaryType === BeneficiaryType::Municipal) {
             $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
@@ -281,9 +279,7 @@ class ServiceController extends Controller
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
         $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
-        $validated['afp_amount'] = $beneficiaryType->defaultAmount();
         $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
-        $validated['family_amount'] = $validated['total_price'] - $validated['afp_amount'] - $validated['municipal_amount'];
 
         if ($beneficiaryType === BeneficiaryType::Municipal) {
             $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
@@ -528,14 +524,14 @@ class ServiceController extends Controller
             'beneficiary_type' => 'required|string',
             'scheduled_at' => 'required|date', // 👈 Sin 'after:now' para permitir fechas pasadas
             'duration_hours' => 'required|integer|min:1',
-            'base_price' => 'nullable|numeric|min:0', // 👈 Opcional, se calcula por Enum
+            'total_amount' => 'required|numeric|min:0', // 👈 Monto total ingresado manualmente
             'origin_location' => 'nullable|string|max:200',
             'destination_location' => 'nullable|string|max:200',
             'burial_at' => 'nullable|date',
 
             // Inventario y pago inicial (opcionales)
             'inventory_item_id' => 'nullable|exists:inventory_items,id',
-            'initial_payment_amount' => 'nullable|numeric|min:0',
+            'amount_paid' => 'required|numeric|min:0|lte:total_amount', // 👈 Abono entregado
             'payment_method' => 'nullable|string',
             'payment_reference' => 'nullable|string',
 
@@ -549,16 +545,27 @@ class ServiceController extends Controller
         ]);
 
         // ─────────────────────────────────────────────────────────────
-        // 2. CASTEO DE TIPOS + CÁLCULO DESDE EL ENUM
+        // 2. CASTEO DE TIPOS + MONTOS MANUALES (total y abono)
         // ─────────────────────────────────────────────────────────────
         $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['branch_id'] = (int) $validated['branch_id'];
 
         $serviceType = ServiceTypeEnum::from($validated['service_type']);
 
-        // 👇 El precio base y la duración se toman del Enum
-        $validated['base_price'] = (float) $serviceType->basePrice();
+        // 👇 Solo la duración se toma del Enum. Los montos los ingresa el usuario.
         $validated['duration_hours'] = (int) $serviceType->durationHours();
+
+        $totalAmount = (float) $validated['total_amount'];
+        $amountPaid = (float) $validated['amount_paid'];
+
+        // El abono inicial debe ser al menos el 50% del total ingresado
+        $requiredDeposit = $totalAmount * 0.50;
+
+        if ($amountPaid + 0.01 < $requiredDeposit) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'amount_paid' => 'El abono inicial debe ser de al menos el 50% del total ($' . number_format($requiredDeposit, 0, ',', '.') . ').',
+            ]);
+        }
 
         $validated['seremi_extension_granted'] = !empty($validated['seremi_resolution_number']);
 
@@ -599,7 +606,6 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             // 5. SERVICIO (con branch_id garantizado como entero)
             // ─────────────────────────────────────────────────────────
-            $beneficiaryType = \App\Enums\BeneficiaryType::from($validated['beneficiary_type']);
             $endsAt = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
 
             $service = \App\Models\Service::create([
@@ -611,10 +617,10 @@ class ServiceController extends Controller
                 'scheduled_at' => $validated['scheduled_at'],
                 'duration_hours' => $validated['duration_hours'],
                 'ends_at' => $endsAt,
-                'base_price' => $validated['base_price'],
-                'total_price' => $validated['base_price'],
-                'afp_amount' => $beneficiaryType->defaultAmount(),
-                'family_amount' => $validated['base_price'] - $beneficiaryType->defaultAmount(),
+                // 👇 Monto manual directo
+                'base_price' => $totalAmount,
+                'total_price' => $totalAmount,
+
                 'status' => 'accepted',
                 'created_by' => auth()->id(),
                 'approved_by' => auth()->id(),
@@ -678,12 +684,12 @@ class ServiceController extends Controller
             }
 
             // ─────────────────────────────────────────────────────────
-            // 7. REGISTRAR PAGO INICIAL (si lo hay)
+            // 7. REGISTRAR ABONO (monto ingresado en el formulario)
             // ─────────────────────────────────────────────────────────
-            if (!empty($validated['initial_payment_amount']) && $validated['initial_payment_amount'] > 0) {
+            if ($amountPaid > 0) {
                 $payment = \App\Models\Payment::create([
                     'service_id' => $service->id,
-                    'amount' => $validated['initial_payment_amount'],
+                    'amount' => $amountPaid,
                     'payment_method' => $validated['payment_method'] ?? 'efectivo',
                     'reference' => $validated['payment_reference'] ?? null,
                     'payment_date' => now(),
@@ -698,7 +704,7 @@ class ServiceController extends Controller
             return redirect()->route('services.show', $service->uuid)
                 ->with('toast', [
                     'type' => 'success',
-                    'message' => 'Expediente completo creado correctamente.',
+                    'message' => 'Expediente creado y abono registrado.',
                 ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {

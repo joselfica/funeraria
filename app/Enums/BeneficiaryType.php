@@ -3,77 +3,54 @@
 namespace App\Enums;
 
 /**
- * Tipos de beneficiario para el pago de servicios funerarios.
- * 
- * Instituciones previsionales chilenas que pagan cuota mortuoria:
- * - AFP (Administradoras de Fondos de Pensiones)
- * - IPS (Instituto de Previsión Social)
- * - Dipreca (Dirección de Previsión de Carabineros)
- * - Capredena (Caja de Previsión de la Defensa Nacional)
- * 
- * Otras opciones:
- * - Municipal: ayuda municipal (~3 meses de demora)
- * - Particular: paga 100% de su bolsillo
+ * Tipo de beneficiario que financia un servicio funerario.
+ *
+ * Indica quién paga (o aporta) el costo del servicio:
+ * - Instituciones previsionales chilenas que entregan cuota mortuoria
+ *   (AFP, IPS, Dipreca, Capredena).
+ * - Municipalidad, mediante ayuda social.
+ * - Particular, que paga directamente.
+ *
+ * Este enum solo identifica y rotula al beneficiario. No contiene precios,
+ * montos ni descuentos: esa lógica debe vivir en otra capa del sistema.
+ *
+ * El valor de cada caso (string) es el que se persiste en la base de datos,
+ * por lo que cambiarlo requiere migrar los registros existentes.
  */
 enum BeneficiaryType: string
 {
+    /** Administradoras de Fondos de Pensiones (cuota mortuoria). */
     case AFP = 'afp';
-    case IPS = 'ips';
-    case Dipreca = 'dipreca';
-    case Capredena = 'capredena';
-    case Municipal = 'municipal';
-    case Particular = 'particular';
 
+    /** Instituto de Previsión Social (cuota mortuoria). */
+    case IPS = 'ips';
+
+    /** Dirección de Previsión de Carabineros de Chile (cuota mortuoria). */
+    case DIPRECA = 'dipreca';
+
+    /** Caja de Previsión de la Defensa Nacional (cuota mortuoria). */
+    case CAPREDENA = 'capredena';
+
+    /** Ayuda social entregada por la municipalidad. */
+    case MUNICIPALIDAD = 'municipalidad';
+
+    /** Pago directo por parte de la familia o el solicitante. */
+    case PARTICULAR = 'particular';
+
+    /**
+     * Etiqueta legible para mostrar en formularios, tablas y reportes.
+     *
+     * @return string Texto en español, listo para la interfaz.
+     */
     public function label(): string
     {
-        return match ($this) {
+        return match($this) {
             self::AFP => 'AFP (cuota mortuoria)',
             self::IPS => 'IPS (cuota mortuoria)',
-            self::Dipreca => 'Dipreca (cuota mortuoria)',
-            self::Capredena => 'Capredena (cuota mortuoria)',
-            self::Municipal => 'Municipalidad (ayuda)',
-            self::Particular => 'Particular (pago directo)',
-        };
-    }
-
-    /**
-     * Indica si este tipo requiere factura a la institución.
-     */
-    public function requiresInvoice(): bool
-    {
-        return in_array($this, [
-            self::AFP, self::IPS, self::Dipreca, self::Capredena,
-        ]);
-    }
-
-    /**
-     * Monto esperado de la institución (cuota mortuoria).
-     * El valor real varía según la institución y el año.
-     */
-    public function defaultAmount(): float
-    {
-        return match ($this) {
-            self::AFP => 600000,
-            self::IPS => 600000,
-            self::Dipreca => 600000,
-            self::Capredena => 600000,
-            self::Municipal => 0,
-            self::Particular => 0,
-        };
-    }
-
-    /**
-     * Etiqueta corta para tablas y badges.
-     */
-    public function shortLabel(): string
-    {
-        return match ($this) {
-            self::AFP => 'AFP',
-            self::IPS => 'IPS',
-            self::Dipreca => 'Dipreca',
-            self::Capredena => 'Capredena',
-            self::Municipal => 'Municipal',
-            self::Particular => 'Particular',
+            self::DIPRECA => 'Dipreca (cuota mortuoria)',
+            self::CAPREDENA => 'Capredena (cuota mortuoria)',
+            self::MUNICIPALIDAD => 'Municipalidad (ayuda)',
+            self::PARTICULAR => 'Particular (pago directo)',
         };
     }
 }
