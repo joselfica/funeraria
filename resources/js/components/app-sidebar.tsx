@@ -134,7 +134,8 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...(isAdmin
+        // Personal: visible para Administrador y Encargado
+        ...((isAdmin || isEncargado)
             ? [
                   {
                       title: 'Personal',

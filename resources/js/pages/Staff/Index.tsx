@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Badge } from '@/components/ui/badge';
@@ -126,6 +126,12 @@ function RowMenu({ items, large = false }: { items: MenuItem[]; large?: boolean 
 }
 
 export default function StaffIndex({ staff }: Props) {
+    const { auth } = usePage<{ auth?: { user?: { roles?: string[] } } }>().props;
+    const isAdmin = auth?.user?.roles?.includes('Administrador') ?? false;
+    // Puede gestionar si es Admin, o si es Encargado puede gestionar a quien no sea Admin
+    const canManage = (emp: Employee) =>
+        isAdmin || (auth?.user?.roles?.includes('Encargado') && !emp.roles.includes('Administrador'));
+
     const [filter, setFilter] = useState<Filter>('all');
     const [search, setSearch] = useState('');
 
@@ -307,25 +313,40 @@ export default function StaffIndex({ staff }: Props) {
             },
     ];
 
-    const renderActions = (emp: Employee, full = false) => (
-        <div className={`flex items-center gap-2 ${full ? '' : 'justify-end'}`}>
-            {emp.is_locked && (
-                <Button
-                    variant="outline"
-                    className={`h-9 border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:hover:bg-amber-950/30 ${full ? 'h-10 flex-1' : ''}`}
-                    onClick={() => handleUnlock(emp.id, emp.name)}
-                >
-                    <LockOpen className="mr-1 h-4 w-4" /> Desbloquear
-                </Button>
-            )}
-            <Link href={`/staff/${emp.id}`} className={full ? 'flex-1' : ''}>
-                <Button variant="outline" className={`${full ? 'h-10 w-full' : 'h-9'}`}>
-                    Gestionar
-                </Button>
-            </Link>
-            <RowMenu items={menuItems(emp)} large={full} />
-        </div>
-    );
+    const renderActions = (emp: Employee, full = false) => {
+        // Si no puede gestionar a este empleado, solo mostramos "Ver ficha"
+        if (!canManage(emp)) {
+            return (
+                <div className={`flex items-center gap-2 ${full ? '' : 'justify-end'}`}>
+                    <Link href={`/staff/${emp.id}`} className={full ? 'flex-1' : ''}>
+                        <Button variant="outline" className={`${full ? 'h-10 w-full' : 'h-9'}`}>
+                            Ver ficha
+                        </Button>
+                    </Link>
+                </div>
+            );
+        }
+
+        return (
+            <div className={`flex items-center gap-2 ${full ? '' : 'justify-end'}`}>
+                {emp.is_locked && (
+                    <Button
+                        variant="outline"
+                        className={`h-9 border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:hover:bg-amber-950/30 ${full ? 'h-10 flex-1' : ''}`}
+                        onClick={() => handleUnlock(emp.id, emp.name)}
+                    >
+                        <LockOpen className="mr-1 h-4 w-4" /> Desbloquear
+                    </Button>
+                )}
+                <Link href={`/staff/${emp.id}`} className={full ? 'flex-1' : ''}>
+                    <Button variant="outline" className={`${full ? 'h-10 w-full' : 'h-9'}`}>
+                        Gestionar
+                    </Button>
+                </Link>
+                <RowMenu items={menuItems(emp)} large={full} />
+            </div>
+        );
+    };
 
     return (
         <>
@@ -347,11 +368,13 @@ export default function StaffIndex({ staff }: Props) {
                             </p>
                         </div>
                     </div>
-                    <Link href="/staff/create" className="w-full sm:w-auto">
-                        <Button className="h-10 w-full bg-rose-800 text-white shadow-md hover:bg-rose-900 sm:w-auto">
-                            <Plus className="mr-1 h-4 w-4" /> Nuevo Usuario
-                        </Button>
-                    </Link>
+                    {isAdmin && (
+                        <Link href="/staff/create" className="w-full sm:w-auto">
+                            <Button className="h-10 w-full bg-rose-800 text-white shadow-md hover:bg-rose-900 sm:w-auto">
+                                <Plus className="mr-1 h-4 w-4" /> Nuevo Usuario
+                            </Button>
+                        </Link>
+                    )}
                 </div>
 
                 {/* Chips de estado + resumen */}

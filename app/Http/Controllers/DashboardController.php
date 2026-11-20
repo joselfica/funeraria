@@ -16,26 +16,26 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Controlador del Dashboard principal.
- * 
+ *
  * Agrupa los KPIs (Key Performance Indicators) más importantes del negocio
- * para mostrarlos en una vista única al administrador.
+ * para mostrarlos en una vista única al administrador y al encargado.
  */
 class DashboardController extends Controller
 {
     public function index()
     {
-        // Las finanzas (ingresos, cobros, pagos) son solo para el Administrador
-        $canSeeFinance = auth()->user()->hasRole('Administrador');
+        // Las finanzas (ingresos, cobros, pagos) son visibles para Administrador y Encargado
+        $canSeeFinance = auth()->user()->hasAnyRole(['Administrador', 'Encargado']);
         $activeStatuses = ['accepted', 'in_progress', 'completed'];
 
         // 1. KPIs Principales
         $totalClients = Client::active()->count();
         $totalDeceased = Deceased::count();
-        
+
         // Servicios activos = aceptados o en progreso
         $activeServices = Service::whereIn('status', ['accepted', 'in_progress'])->count();
-        
-        // Ingresos del mes actual y del anterior (suma de pagos) — solo Administrador
+
+        // Ingresos del mes actual y del anterior (suma de pagos) — Admin y Encargado
         $monthlyRevenue = 0.0;
         $revenueChangePct = null;
         if ($canSeeFinance) {
@@ -357,7 +357,7 @@ class DashboardController extends Controller
             'alerts' => $alerts,
             'services' => $services,
             'today_services' => $todayServices,
-            // Datos financieros: solo se envían al Administrador
+            // Datos financieros: Admin y Encargado
             'receivables' => $canSeeFinance ? [
                 'total_pending' => (float) $totalPending,
                 'unpaid_count' => $unpaidCount,

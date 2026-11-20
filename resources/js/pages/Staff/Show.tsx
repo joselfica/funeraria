@@ -44,6 +44,11 @@ interface Props {
 export default function StaffShow({ employee, all_roles, absencesStats }: Props) {
     const { auth } = usePage<{ auth?: { user?: { roles?: string[] } } }>().props;
     const isAdmin = auth?.user?.roles?.includes('Administrador') ?? false;
+    const isEncargado = auth?.user?.roles?.includes('Encargado') ?? false;
+
+    const targetIsAdmin = employee.roles.some((r) => r.name === 'Administrador');
+    // El Encargado no puede editar a un Administrador (coherente con authorizeUserManagement)
+    const canEdit = isAdmin || (isEncargado && !targetIsAdmin);
 
     const { data, setData, post, processing } = useForm({
         roles: employee.roles.map(r => r.name),
@@ -59,7 +64,7 @@ export default function StaffShow({ employee, all_roles, absencesStats }: Props)
 
     const handleSaveRoles = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isAdmin) return;
+        if (!canEdit) return;
         post(`/staff/${employee.id}/roles`);
     };
 
@@ -92,7 +97,9 @@ export default function StaffShow({ employee, all_roles, absencesStats }: Props)
                                     <ShieldCheck className="h-5 w-5" /> Roles del Sistema
                                 </CardTitle>
                                 <CardDescription>
-                                    {isAdmin ? 'Definen a qué módulos puede acceder' : 'Solo el Administrador puede modificar esto'}
+                                    {canEdit
+                                        ? 'Definen a qué módulos puede acceder'
+                                        : 'Solo el Administrador puede modificar esto'}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -103,15 +110,14 @@ export default function StaffShow({ employee, all_roles, absencesStats }: Props)
                                                 id={`role-${role.id}`} 
                                                 checked={data.roles.includes(role.name)}
                                                 onCheckedChange={() => handleRoleToggle(role.name)}
-                                                disabled={!isAdmin}
+                                                disabled={!canEdit}
                                             />
                                             <Label htmlFor={`role-${role.id}`} className="cursor-pointer">
                                                 {role.name}
                                             </Label>
                                         </div>
                                     ))}
-                                    {/* Solo mostramos el botón de guardar si es Admin */}
-                                    {isAdmin && (
+                                    {canEdit && (
                                         <Button type="submit" disabled={processing} size="sm" className="w-full mt-2">
                                             Guardar Roles
                                         </Button>
@@ -244,13 +250,15 @@ export default function StaffShow({ employee, all_roles, absencesStats }: Props)
                                     </div>
                                 )}
 
-                                <div className="mt-6 pt-4 border-t">
-                                    <Link href="/absences/create">
-                                        <Button variant="outline" className="w-full">
-                                            + Registrar Nueva Ausencia para {employee.name.split(' ')[0]}
-                                        </Button>
-                                    </Link>
-                                </div>
+                                {canEdit && (
+                                    <div className="mt-6 pt-4 border-t">
+                                        <Link href="/absences/create">
+                                            <Button variant="outline" className="w-full">
+                                                + Registrar Nueva Ausencia para {employee.name.split(' ')[0]}
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

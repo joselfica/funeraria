@@ -6,16 +6,40 @@ use App\Models\EmployeeAbsence;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 
 /**
  * Controlador para la gestión del Personal (Modo Renato).
- * 
+ *
  * Muestra a todos los empleados, su estado actual (disponible/ausente),
  * sus roles y permite asignarles ausencias rápidamente.
  */
 class StaffController extends Controller
 {
+    /**
+     * Verifica si el usuario actual tiene permiso sobre el usuario objetivo.
+     *
+     * - Administrador: puede gestionar a cualquiera.
+     * - Encargado: puede gestionar a Choferes y a otros Encargados,
+     *   pero NO a Administradores.
+     */
+    private function authorizeUserManagement(User $targetUser): void
+    {
+        $currentUser = auth()->user();
+
+        // Si el usuario actual es Administrador, puede hacer todo.
+        if ($currentUser->hasRole('Administrador')) {
+            return;
+        }
+
+        // Si el usuario actual es Encargado y quiere modificar a un Administrador, lo bloqueamos.
+        if ($currentUser->hasRole('Encargado') && $targetUser->hasRole('Administrador')) {
+            abort(403, 'No tienes permisos para modificar a un Administrador.');
+        }
+    }
+
     /**
      * Listado de todo el personal.
      */
@@ -39,7 +63,7 @@ class StaffController extends Controller
         ->map(function ($user) {
             // Verificar si está ausente hoy
             $currentAbsence = $user->absences->first();
-            
+
             return [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -70,6 +94,8 @@ class StaffController extends Controller
      */
     public function show(User $user)
     {
+        $this->authorizeUserManagement($user);
+
         $user->load(['roles', 'absences' => function ($q) {
             $q->orderByDesc('starts_at');
         }]);
@@ -95,18 +121,27 @@ class StaffController extends Controller
     }
 
     /**
-     * Actualiza los roles del empleado (Solo Admin).
+     * Actualiza los roles del empleado.
+     * Admin y Encargado pueden; Encargado nunca sobre un Administrador
+     * ni puede asignar el rol de Administrador.
      */
     public function updateRoles(Request $request, User $user)
     {
-        if (! auth()->user()->hasRole('Administrador')) {
-            abort(403, 'Solo el Administrador puede cambiar roles.');
+        $this->authorizeUserManagement($user);
+
+        if (! auth()->user()->hasAnyRole(['Administrador', 'Encargado'])) {
+            abort(403, 'No tienes permiso para cambiar roles.');
         }
 
         $validated = $request->validate([
             'roles' => 'array',
             'roles.*' => 'exists:roles,name',
         ]);
+
+        // Un Encargado no puede asignar el rol de Administrador a nadie.
+        if (auth()->user()->hasRole('Encargado') && in_array('Administrador', $validated['roles'] ?? [], true)) {
+            abort(403, 'No tienes permisos para asignar el rol de Administrador.');
+        }
 
         $user->syncRoles($validated['roles'] ?? []);
 
@@ -121,8 +156,15 @@ class StaffController extends Controller
      */
     public function create()
     {
+        $roles = \Spatie\Permission\Models\Role::query()
+            ->when(
+                auth()->user()->hasRole('Encargado'),
+                fn ($q) => $q->where('name', '!=', 'Administrador')
+            )
+            ->get(['id', 'name']);
+
         return Inertia::render('Staff/Create', [
-            'roles' => \Spatie\Permission\Models\Role::all(['id', 'name']),
+            'roles' => $roles,
         ]);
     }
 
@@ -148,6 +190,11 @@ class StaffController extends Controller
             'vehicle_model' => 'nullable|string|max:50',
             'vehicle_color' => 'nullable|string|max:30',
         ]);
+
+        // 👇 VALIDACIÓN: Si soy Encargado, no puedo crear un Administrador
+        if (auth()->user()->hasRole('Encargado') && $validated['role'] === 'Administrador') {
+            abort(403, 'No tienes permisos para crear Administradores.');
+        }
 
         $user = \App\Models\User::create([
             'name' => $validated['name'],
@@ -188,20 +235,29 @@ class StaffController extends Controller
     }
 
     /**
-     * Cambiar contraseña de un usuario (solo Admin).
+     * Cambiar contraseña de un usuario.
+     *
+     * - Administrador: puede cambiar la contraseña a cualquiera.
+     * - Encargado: puede cambiar la contraseña a cualquiera EXCEPTO a un Administrador.
      */
-    public function updatePassword(Request $request, \App\Models\User $user)
+    public function updatePassword(Request $request, User $user)
     {
-        if (! auth()->user()->hasRole('Administrador')) {
-            abort(403, 'Solo el Administrador puede cambiar contraseñas.');
+        // 1. Bloqueo fino: Encargado no puede tocar a un Administrador.
+        $this->authorizeUserManagement($user);
+
+        // 2. Solo Admin y Encargado pueden cambiar contraseñas.
+        if (! auth()->user()->hasAnyRole(['Administrador', 'Encargado'])) {
+            abort(403, 'No tienes permiso para cambiar contraseñas.');
         }
 
+        // 3. Validamos la nueva contraseña.
         $validated = $request->validate([
-            'password' => 'required|string|min:8|confirmed',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        // 4. Actualizamos.
         $user->update([
-            'password' => bcrypt($validated['password']),
+            'password' => Hash::make($validated['password']),
         ]);
 
         return back()->with('toast', [
@@ -213,45 +269,22 @@ class StaffController extends Controller
     /**
      * Eliminar (soft delete) un usuario.
      */
-    public function destroy(\App\Models\User $user)
+    public function destroy(User $user)
     {
         // Protección: nunca eliminar usuarios desde la UI
         abort(403, 'Por razones de auditoría, los usuarios no se pueden eliminar. Solo desactivar.');
-
-        if (! auth()->user()->hasRole('Administrador')) {
-            abort(403, 'Solo el Administrador puede eliminar usuarios.');
-        }
-
-        // No permitir que el admin se elimine a sí mismo
-        if ($user->id === auth()->id()) {
-            return back()->with('toast', [
-                'type' => 'error',
-                'message' => 'No puedes eliminar tu propio usuario.',
-            ]);
-        }
-
-        // Si es chofer, eliminar también el registro de driver
-        if ($user->hasRole('Chofer') && $user->driver) {
-            $user->driver->delete();
-        }
-
-        $user->delete();
-
-        return redirect()->route('staff.index')
-            ->with('toast', [
-                'type' => 'success',
-                'message' => 'Usuario eliminado correctamente.',
-            ]);
     }
 
     /**
      * Desbloquea la cuenta de un empleado (resetea los intentos fallidos).
-     * Solo el Administrador puede desbloquear.
+     * Admin y Encargado pueden; Encargado nunca sobre un Administrador.
      */
     public function unlock(User $user)
     {
-        if (! auth()->user()->hasRole('Administrador')) {
-            abort(403, 'Solo el Administrador puede desbloquear cuentas.');
+        $this->authorizeUserManagement($user);
+
+        if (! auth()->user()->hasAnyRole(['Administrador', 'Encargado'])) {
+            abort(403, 'No tienes permiso para desbloquear cuentas.');
         }
 
         $user->update([
@@ -267,18 +300,20 @@ class StaffController extends Controller
 
     /**
      * Activar o desactivar un usuario.
-     * Al desactivar, las sesiones activas se invalidan automáticamente.
+     * Admin y Encargado pueden; Encargado nunca sobre un Administrador.
      */
     public function toggleActive(User $user)
     {
+        $this->authorizeUserManagement($user);
+
         $currentUser = auth()->user();
 
-        // Solo el Admin puede activar/desactivar usuarios
-        if (! $currentUser->hasRole('Administrador')) {
-            abort(403, 'Solo el Administrador puede activar o desactivar usuarios.');
+        // Admin y Encargado pueden activar/desactivar.
+        if (! $currentUser->hasAnyRole(['Administrador', 'Encargado'])) {
+            abort(403, 'No tienes permiso para activar o desactivar usuarios.');
         }
 
-        // No permitir que el admin se desactive a sí mismo
+        // Nadie puede desactivarse a sí mismo.
         if ($user->id === $currentUser->id) {
             return back()->with('toast', [
                 'type' => 'error',

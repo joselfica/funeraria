@@ -68,9 +68,6 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
 
     // ─────────────────────────────────────────────────────────
     // INVENTARIO
-    // OJO con el orden: las rutas específicas van ANTES del resource,
-    // si no 'inventory/ataud' o 'inventory/create/urna' serían capturadas
-    // como {inventory}.
     // ─────────────────────────────────────────────────────────
     Route::get('inventory', [InventoryController::class, 'hub'])->name('inventory.hub');
     Route::get('inventory/create/{category}', [InventoryController::class, 'create'])
@@ -80,8 +77,6 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
         ->whereIn('category', ['ataud', 'urna'])
         ->name('inventory.index');
 
-    // Cambio rápido de condición física desde el detalle/listado.
-    // Debe ir ANTES del resource para no chocar con inventory.update.
     Route::patch('inventory/{inventory}/condition', [InventoryController::class, 'updateCondition'])
         ->name('inventory.condition');
 
@@ -107,8 +102,6 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
                 'value' => $t->value,
                 'label' => $t->label(),
             ]),
-            // Cada fila es una unidad física: se ofrecen las asignables (no reservadas/dañadas).
-            // Se mapea a arrays para no disparar los $appends (available_stock, is_low_stock).
             'availableItems' => \App\Models\InventoryItem::assignable()
                 ->orderBy('category')
                 ->orderBy('name')
@@ -120,16 +113,11 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
                     'category' => $i->category,
                     'price' => $i->price,
                 ]),
-            // Clientes existentes
             'existingClients' => \App\Models\Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
-
-            // Vehículos disponibles y choferes activos para asignar en el expediente
             'availableVehicles' => \App\Models\Vehicle::available()
                 ->orderBy('type')
                 ->orderBy('plate')
                 ->get(['id', 'plate', 'type', 'brand', 'model'])
-                // Se mapea a arrays simples para no disparar los $appends del modelo
-                // (status_label, needs_maintenance), que dependen de columnas no cargadas.
                 ->map(fn ($v) => [
                     'id' => $v->id,
                     'plate' => $v->plate,
@@ -163,6 +151,13 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('services/{service}/contract', [ServiceController::class, 'downloadContract'])->name('services.contract');
     Route::get('services/{service}/paz-y-salvo', [ServiceController::class, 'downloadPazYSalvo'])->name('services.paz-y-salvo');
 
+    // ─────────────────────────────────────────────────────────
+    // PAGOS (Admin + Encargado)
+    // ─────────────────────────────────────────────────────────
+    Route::post('services/{service}/payments', [PaymentController::class, 'store'])->name('payments.store');
+    Route::get('payments/{payment}/pdf', [PaymentController::class, 'downloadPdf'])->name('payments.pdf');
+    Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
+
     // Aprobación de ausencias
     Route::post('absences/{absence}/approve', [EmployeeAbsenceController::class, 'approve'])->name('absences.approve');
     Route::post('absences/{absence}/reject', [EmployeeAbsenceController::class, 'reject'])->name('absences.reject');
@@ -173,37 +168,41 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
     Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
 
-    // Sucursales (solo ver el listado; el CRUD está en el bloque de Administrador)
+    // ─────────────────────────────────────────────────────────
+    // SUCURSALES (Admin + Encargado)
+    // Ver el listado y activar/desactivar; el CRUD queda solo Admin.
+    // ─────────────────────────────────────────────────────────
     Route::get('branches', [BranchController::class, 'index'])->name('branches.index');
+    Route::patch('branches/{branch}/toggle-active', [BranchController::class, 'toggleActive'])->name('branches.toggle-active');
+
+    // ─────────────────────────────────────────────────────────
+    // PERSONAL (Admin + Encargado)
+    // El bloqueo fino (Encargado → Administrador) lo hace
+    // StaffController::authorizeUserManagement().
+    // ─────────────────────────────────────────────────────────
+    Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+    Route::get('staff/create', [StaffController::class, 'create'])->name('staff.create');
+    Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
+
+    // Restringimos {user} a numérico para que "create" no sea capturado por show.
+    Route::get('staff/{user}', [StaffController::class, 'show'])
+        ->whereNumber('user')
+        ->name('staff.show');
+
+    Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
+    Route::post('staff/{user}/password', [StaffController::class, 'updatePassword'])->name('staff.update-password');
+    Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
+    Route::post('staff/{user}/unlock', [StaffController::class, 'unlock'])->name('staff.unlock');
 });
 
 // ─────────────────────────────────────────────────────────────
-// SOLO ADMINISTRADOR: Finanzas, Personal, Sucursales (CRUD)
+// SOLO ADMINISTRADOR: Finanzas, Sucursales (CRUD)
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'role:Administrador'])->group(function () {
-
-    // Pagos
-    Route::post('services/{service}/payments', [PaymentController::class, 'store'])->name('payments.store');
-    Route::get('payments/{payment}/pdf', [PaymentController::class, 'downloadPdf'])->name('payments.pdf');
-    Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
 
     // Reportes financieros
     Route::get('reports/payments/pdf', [ReportController::class, 'paymentsPdf'])->name('reports.payments.pdf');
     Route::get('reports/payments/excel', [ReportController::class, 'paymentsExcel'])->name('reports.payments.excel');
-
-    // ─────────────────────────────────────────────────────────
-    // GESTIÓN DE PERSONAL (solo Administrador)
-    // ─────────────────────────────────────────────────────────
-    Route::middleware('role:Administrador')->group(function () {
-        Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
-        Route::get('staff/create', [StaffController::class, 'create'])->name('staff.create');
-        Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
-        Route::get('staff/{user}', [StaffController::class, 'show'])->name('staff.show');
-        Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
-        Route::post('staff/{user}/password', [StaffController::class, 'updatePassword'])->name('staff.update-password');
-        Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
-        Route::post('staff/{user}/unlock', [StaffController::class, 'unlock'])->name('staff.unlock');
-    });
 
     // ─────────────────────────────────────────────────────────
     // SUCURSALES (CRUD) - Solo Administrador
@@ -212,9 +211,6 @@ Route::middleware(['auth', 'role:Administrador'])->group(function () {
     Route::post('branches', [BranchController::class, 'store'])->name('branches.store');
     Route::get('branches/{branch}/edit', [BranchController::class, 'edit'])->name('branches.edit');
     Route::put('branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
-
-    // Las sucursales no se eliminan: solo se activan o desactivan
-    Route::patch('branches/{branch}/toggle-active', [BranchController::class, 'toggleActive'])->name('branches.toggle-active');
 });
 
 // ─────────────────────────────────────────────────────────────
