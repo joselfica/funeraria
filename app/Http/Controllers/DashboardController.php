@@ -213,21 +213,24 @@ class DashboardController extends Controller
                 : 0,
         ];
 
-        // Servicios del mes actual (para el calendario)
+        // Servicios del mes actual (para el calendario) - se muestran los sepelios
         $services = Service::with(['client:id,name', 'deceased:id,full_name', 'branch:id,name'])
-            ->whereBetween('scheduled_at', [
+            ->whereNotNull('burial_at') // 👈 Solo los que tienen fecha de entierro
+            ->whereIn('status', ['accepted', 'in_progress', 'completed']) // 👈 Solo los aprobados
+            ->whereBetween('burial_at', [
                 Carbon::now()->startOfMonth()->subMonth(),
                 Carbon::now()->endOfMonth()->addMonth(),
             ])
-            ->orderBy('scheduled_at')
+            ->orderBy('burial_at')
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
                 'uuid' => $s->uuid,
                 'code' => $s->code,
-                'title' => "{$s->code} — {$s->deceased?->full_name}",
-                'start' => $s->scheduled_at->toIso8601String(),
-                'end' => $s->ends_at?->toIso8601String(),
+                // Título que aparecerá en el recuadro del calendario
+                'title' => "Sepelio: {$s->deceased?->full_name}",
+                'start' => $s->burial_at->toIso8601String(), // 👈 Usamos burial_at
+                'end' => null, // El entierro no tiene duración en horas, es un evento puntual
                 'status' => $s->status,
                 'status_label' => $s->status_label,
                 'client' => $s->client?->name,

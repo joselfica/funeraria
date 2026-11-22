@@ -3,6 +3,8 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { router } from '@inertiajs/react';
 
+type DateStatus = 'past' | 'today' | 'future';
+
 interface CalendarService {
     id: number;
     uuid: string;
@@ -10,6 +12,7 @@ interface CalendarService {
     title: string;
     start: string;
     end: string | null;
+    date_status: DateStatus;
     status: string;
     status_label: string;
     client: string | null;
@@ -30,9 +33,12 @@ export default function ServicesCalendar({ services }: Props) {
         start: service.start,      // Solo la fecha de inicio
         // end: service.end,       // ← COMENTADO: No pasar el fin en vista mensual
         allDay: false,
-        backgroundColor: getEventColor(service.status),
-        borderColor: getEventColor(service.status),
+        // El color depende de si el sepelio es pasado, de hoy o futuro
+        backgroundColor: DATE_STATUS_COLORS[service.date_status].bg,
+        borderColor: DATE_STATUS_COLORS[service.date_status].border,
+        textColor: DATE_STATUS_COLORS[service.date_status].text,
         extendedProps: {
+            date_status: service.date_status,
             uuid: service.uuid,
             status: service.status,
             status_label: service.status_label,
@@ -68,8 +74,7 @@ export default function ServicesCalendar({ services }: Props) {
                 height="auto"
                 eventDisplay="block"
                 displayEventTime={false}
-                dayMaxEvents={3}
-                eventTimeFormat={{
+                dayMaxEvents={3}                eventTimeFormat={{
                     hour: '2-digit',
                     minute: '2-digit',
                     hour12: false,
@@ -88,14 +93,13 @@ export default function ServicesCalendar({ services }: Props) {
     );
 }
 
-function getEventColor(status: string): string {
-    switch (status) {
-        case 'accepted': return '#10b981';      // Verde
-        case 'in_progress': return '#3b82f6';   // Azul
-        case 'pending': return '#f59e0b';       // Amarillo
-        case 'completed': return '#8b5cf6';     // Violeta
-        case 'cancelled': return '#ef4444';     // Rojo
-        case 'rejected': return '#6b7280';      // Gris
-        default: return '#64748b';              // Slate
-    }
-}
+/**
+ * Colores de los eventos según la fecha.
+ * Para cambiarlos, basta con editar estos tres valores
+ * (conviene mantenerlos iguales a la leyenda del dashboard).
+ */
+const DATE_STATUS_COLORS: Record<DateStatus, { bg: string; border: string; text: string }> = {
+    past: { bg: '#94a3b8', border: '#94a3b8', text: '#ffffff' },    // Gris (pasado)
+    today: { bg: '#f59e0b', border: '#d97706', text: '#ffffff' },   // Ámbar (hoy)
+    future: { bg: '#0ea5e9', border: '#0ea5e9', text: '#ffffff' },  // Celeste (próximos)
+};

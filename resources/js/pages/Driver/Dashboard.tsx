@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-    Calendar, Clock, MapPin, User, Phone, AlertTriangle, 
-    CheckCircle2, Sun, ArrowRight, Package
+    Calendar, Clock, MapPin, User, Phone, 
+    CheckCircle2, Sun, ArrowRight
 } from 'lucide-react';
 
 interface Service {
@@ -23,11 +23,9 @@ interface Service {
 interface Props {
     todayServices: Service[];
     upcomingServices: Service[];
-    // 👇 CAMBIADO: available_stock y alert_threshold
-    lowStockItems: Array<{ id: number; code: string; name: string; available_stock: number; alert_threshold: number }>;
 }
 
-export default function DriverDashboard({ todayServices, upcomingServices, lowStockItems }: Props) {
+export default function DriverDashboard({ todayServices, upcomingServices }: Props) {
     const { auth } = usePage<{ auth: { user: { name: string } } }>().props;
     const userName = auth.user?.name || 'Chofer';
     
@@ -176,38 +174,6 @@ export default function DriverDashboard({ todayServices, upcomingServices, lowSt
                                         </CardContent>
                                     </Card>
                                 </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* SECCIÓN 3: ALERTAS DE STOCK */}
-                <div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2 mb-3">
-                        <AlertTriangle className="h-5 w-5 text-amber-500" /> Alertas de Bodega
-                    </h2>
-                    {lowStockItems.length === 0 ? (
-                        <Card className="bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200">
-                            <CardContent className="p-4 flex items-center gap-3">
-                                <CheckCircle2 className="h-6 w-6 text-emerald-500 shrink-0" />
-                                <p className="text-sm text-emerald-800 dark:text-emerald-300">Todo el inventario está en orden. No hay insumos críticos.</p>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {lowStockItems.map((item) => (
-                                <Card key={item.id} className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-                                    <CardContent className="p-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <Package className="h-4 w-4 text-amber-600 shrink-0" />
-                                            <span className="text-sm font-medium truncate">{item.name}</span>
-                                        </div>
-                                        {/* 👇 Usamos available_stock y alert_threshold */}
-                                        <span className="text-sm font-bold text-amber-700 dark:text-amber-400 shrink-0">
-                                            {item.available_stock} / alerta {item.alert_threshold}
-                                        </span>
-                                    </CardContent>
-                                </Card>
                             ))}
                         </div>
                     )}

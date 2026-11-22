@@ -441,6 +441,29 @@ export default function Dashboard({
 
     const pill = 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors';
 
+    // ──────────────────────────────────────────────────────────
+    // CALENDARIO: enriquecemos cada evento con date_status
+    // para que el componente lo pinte según pasado/hoy/futuro.
+    // ──────────────────────────────────────────────────────────
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const servicesWithDateStatus = services.map((s) => {
+        const eventDate = new Date(s.start);
+        eventDate.setHours(0, 0, 0, 0);
+
+        let dateStatus: 'past' | 'today' | 'future';
+        if (eventDate.getTime() < today.getTime()) {
+            dateStatus = 'past';
+        } else if (eventDate.getTime() === today.getTime()) {
+            dateStatus = 'today';
+        } else {
+            dateStatus = 'future';
+        }
+
+        return { ...s, date_status: dateStatus };
+    });
+
     return (
         <>
             <Head title="Dashboard" />
@@ -769,7 +792,7 @@ export default function Dashboard({
                     </Section>
                 </div>
 
-                {/* ─────────────── FINANZAS (solo Administrador) ─────────────── */}
+                {/* ─────────────── FINANZAS (Admin y Encargado) ─────────────── */}
                 {can_see_finance && receivables && (
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                         {/* Monto por cobrar */}
@@ -891,14 +914,27 @@ export default function Dashboard({
                     </div>
                 )}
 
-                {/* ─────────────── CALENDARIO ─────────────── */}
+                {/* ─────────────── CALENDARIO DE SERVICIOS ─────────────── */}
                 <Section
                     icon={CalendarIcon}
                     accent="rose"
-                    title="Calendario de servicios"
-                    subtitle="Haz clic en un servicio para ver el detalle"
+                    title="Calendario de Servicios"
+                    subtitle="Servicios agendados · pasado, hoy y próximos"
+                    right={
+                        <div className="ml-auto flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded-full bg-slate-400" /> Pasado
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Hoy
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> Próximo
+                            </span>
+                        </div>
+                    }
                 >
-                    <ServicesCalendar services={services} />
+                    <ServicesCalendar services={servicesWithDateStatus} />
                 </Section>
             </div>
         </>

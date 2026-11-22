@@ -83,7 +83,7 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...((isAdmin || isEncargado || isChofer)
+        ...((isAdmin || isEncargado)
             ? [
                   {
                       title: 'Inventario',
