@@ -7,6 +7,7 @@ import {
     Cross,
     DollarSign,
     FileText,
+    HandHeart,
     LayoutGrid,
     MapPin,
     Package,
@@ -141,6 +142,16 @@ export function AppSidebar() {
                       title: 'Personal',
                       href: '/staff',
                       icon: Briefcase,
+                  },
+              ]
+            : []),
+        // Donaciones: visible para Administrador y Encargado
+        ...((isAdmin || isEncargado)
+            ? [
+                  {
+                      title: 'Donaciones',
+                      href: '/donations',
+                      icon: HandHeart,
                   },
               ]
             : []),

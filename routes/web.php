@@ -4,6 +4,7 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeceasedController;
+use App\Http\Controllers\DonationController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\EmployeeAbsenceController;
 use App\Http\Controllers\InventoryController;
@@ -170,21 +171,17 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
 
     // ─────────────────────────────────────────────────────────
     // SUCURSALES (Admin + Encargado)
-    // Ver el listado y activar/desactivar; el CRUD queda solo Admin.
     // ─────────────────────────────────────────────────────────
     Route::get('branches', [BranchController::class, 'index'])->name('branches.index');
     Route::patch('branches/{branch}/toggle-active', [BranchController::class, 'toggleActive'])->name('branches.toggle-active');
 
     // ─────────────────────────────────────────────────────────
     // PERSONAL (Admin + Encargado)
-    // El bloqueo fino (Encargado → Administrador) lo hace
-    // StaffController::authorizeUserManagement().
     // ─────────────────────────────────────────────────────────
     Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
     Route::get('staff/create', [StaffController::class, 'create'])->name('staff.create');
     Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
 
-    // Restringimos {user} a numérico para que "create" no sea capturado por show.
     Route::get('staff/{user}', [StaffController::class, 'show'])
         ->whereNumber('user')
         ->name('staff.show');
@@ -192,7 +189,18 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::post('staff/{user}/roles', [StaffController::class, 'updateRoles'])->name('staff.update-roles');
     Route::post('staff/{user}/password', [StaffController::class, 'updatePassword'])->name('staff.update-password');
     Route::post('staff/{user}/toggle-active', [StaffController::class, 'toggleActive'])->name('staff.toggle-active');
-    Route::post('staff/{user}/unlock', [StaffController::class, 'unlock'])->name('staff.unlock');
+    Route::post('staff/{user}/unlock', [StaffController::class, 'unlock']);
+
+    // ─────────────────────────────────────────────────────────
+    // DONACIONES (Admin + Encargado)
+    // Listado, registro, detalle, edición, eliminación y comprobante.
+    // ─────────────────────────────────────────────────────────
+    Route::get('donations', [DonationController::class, 'index'])->name('donations.index');
+    Route::post('donations', [DonationController::class, 'store'])->name('donations.store');
+    Route::get('donations/{donation}', [DonationController::class, 'show'])->name('donations.show');
+    Route::put('donations/{donation}', [DonationController::class, 'update'])->name('donations.update');
+    Route::delete('donations/{donation}', [DonationController::class, 'destroy'])->name('donations.destroy');
+    Route::get('donations/{donation}/receipt', [DonationController::class, 'downloadReceipt'])->name('donations.receipt');
 });
 
 // ─────────────────────────────────────────────────────────────
