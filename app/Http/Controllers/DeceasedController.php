@@ -88,8 +88,20 @@ class DeceasedController extends Controller
 
     public function edit(Deceased $deceased, Request $request)
     {
+        // Solo en la edición se exponen los campos ocultos del modelo (causa de
+        // muerte y N° de certificado); en el resto de la app siguen en $hidden.
+        $deceased->makeVisible(['cause_of_death', 'death_certificate_number']);
+
+        // Se envía un arreglo (no el modelo) con las fechas como "YYYY-MM-DD".
+        // Asignarlas al modelo no sirve: el cast 'date' las vuelve a serializar
+        // como ISO con hora y zona, y los <input type="date"> las ven vacías.
+        $data = $deceased->toArray();
+        $data['death_date'] = $deceased->death_date?->format('Y-m-d');
+        $data['birth_date'] = $deceased->birth_date?->format('Y-m-d');
+        $data['death_certificate_date'] = $deceased->death_certificate_date?->format('Y-m-d');
+
         return Inertia::render('Deceased/Edit', [
-            'deceased' => $deceased,
+            'deceased' => $data,
             'redirect_to' => $request->input('from'),
         ]);
     }

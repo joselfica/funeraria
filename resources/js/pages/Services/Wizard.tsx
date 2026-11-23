@@ -59,6 +59,9 @@ export default function ServicesWizard({
         deceased_full_name: '',
         deceased_rut: '',
         deceased_death_date: '',
+        deceased_death_time: '',
+        deceased_death_location: '',
+        deceased_cause_of_death: '',
         deceased_death_certificate: '',
         branch_id: '',
         service_type: '',
@@ -226,26 +229,40 @@ export default function ServicesWizard({
                                         </div>
                                         <div>
                                             <Label>RUT del Fallecido *</Label>
-                                            <Input
-                                                value={data.deceased_rut}
-                                                onChange={(e) => setData('deceased_rut', e.target.value)}
-                                                placeholder="12.345.678-9"
-                                                className="mt-1"
-                                                required
-                                            />
+                                            <Input value={data.deceased_rut} onChange={(e) => setData('deceased_rut', e.target.value)} placeholder="12.345.678-9" className="mt-1" required />
                                             {errors.deceased_rut && <p className="text-sm text-rose-600 mt-1">{errors.deceased_rut}</p>}
                                         </div>
                                     </div>
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <Label>Fecha de Fallecimiento *</Label>
-                                            <Input type="date" value={data.deceased_death_date} onChange={(e) => setData('deceased_death_date', e.target.value)} className="mt-1" />
+                                            <Input type="date" value={data.deceased_death_date} onChange={(e) => setData('deceased_death_date', e.target.value)} className="mt-1" required />
                                             {errors.deceased_death_date && <p className="text-sm text-rose-600 mt-1">{errors.deceased_death_date}</p>}
                                         </div>
                                         <div>
-                                            <Label>N° Certificado de Defunción</Label>
-                                            <Input value={data.deceased_death_certificate} onChange={(e) => setData('deceased_death_certificate', e.target.value)} placeholder="CERT-2026-001" className="mt-1" />
+                                            <Label>Hora de Fallecimiento</Label>
+                                            <Input type="time" value={data.deceased_death_time} onChange={(e) => setData('deceased_death_time', e.target.value)} className="mt-1" />
+                                            {errors.deceased_death_time && <p className="text-sm text-rose-600 mt-1">{errors.deceased_death_time}</p>}
                                         </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label>Lugar del Fallecimiento</Label>
+                                            <Input value={data.deceased_death_location} onChange={(e) => setData('deceased_death_location', e.target.value)} placeholder="Hospital, domicilio, etc." className="mt-1" />
+                                            {errors.deceased_death_location && <p className="text-sm text-rose-600 mt-1">{errors.deceased_death_location}</p>}
+                                        </div>
+                                        <div>
+                                            <Label>Causa del Fallecimiento</Label>
+                                            <Input value={data.deceased_cause_of_death} onChange={(e) => setData('deceased_cause_of_death', e.target.value)} placeholder="Ej: Paro cardíaco" className="mt-1" />
+                                            {errors.deceased_cause_of_death && <p className="text-sm text-rose-600 mt-1">{errors.deceased_cause_of_death}</p>}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label>N° Certificado de Defunción</Label>
+                                        <Input value={data.deceased_death_certificate} onChange={(e) => setData('deceased_death_certificate', e.target.value)} placeholder="CERT-2026-001" className="mt-1" />
                                     </div>
                                 </>
                             )}

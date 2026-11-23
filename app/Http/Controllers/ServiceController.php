@@ -516,6 +516,9 @@ class ServiceController extends Controller
             'deceased_full_name' => 'required|string|max:200',
             'deceased_rut' => 'required|string|max:12|unique:deceased,rut',
             'deceased_death_date' => 'required|date',
+            'deceased_death_time' => 'nullable|date_format:H:i',
+            'deceased_death_location' => 'nullable|string|max:200',
+            'deceased_cause_of_death' => 'nullable|string|max:255',
             'deceased_death_certificate' => 'nullable|string|max:50',
 
             // Servicio
@@ -593,14 +596,18 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             $deceased = \App\Models\Deceased::create([
                 'full_name' => $validated['deceased_full_name'],
-                'rut' => $validated['deceased_rut'] ?? null,
-                'death_date' => $validated['deceased_death_date'],
-                'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
-                'current_location' => 'Funeraria Cristo Rey',
+                'rut' => $validated['deceased_rut'],
 
-                // 👇 NUEVO: Sincronizar ubicación con el servicio
-                'death_location' => $validated['origin_location'] ?? null,       // De dónde se retira el cuerpo
-                'cemetery' => $validated['destination_location'] ?? null,        // A dónde se lleva (cementerio/crematorio)
+                // Nombres del wizard (deceased_*) → columnas reales de la tabla
+                'death_date' => $validated['deceased_death_date'],
+                'death_time' => $validated['deceased_death_time'] ?? null,
+                'death_location' => $validated['deceased_death_location'] ?? null,
+                'cause_of_death' => $validated['deceased_cause_of_death'] ?? null, // El modelo lo encripta
+                'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
+
+                // Se mantienen del código anterior (no estaban en el cambio pedido)
+                'current_location' => 'Funeraria Cristo Rey',
+                'cemetery' => $validated['destination_location'] ?? null, // A dónde se lleva (cementerio/crematorio)
             ]);
 
             // ─────────────────────────────────────────────────────────
