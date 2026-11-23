@@ -1,10 +1,10 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { 
-    CheckCircle2, Box, FlaskConical, Package, AlertTriangle, Info, 
-    ArrowLeft, Pencil, FileText, Receipt, DollarSign, Calendar, 
-    User, Users, Truck, Plus, X
+import {
+    CheckCircle2, Box, FlaskConical, Package, AlertTriangle, Info,
+    ArrowLeft, Pencil, FileText, Receipt, DollarSign, Calendar,
+    User, Users, Truck, Plus, X, ShieldCheck, CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,8 +53,8 @@ interface Service {
     seremi_resolution_date: string | null; origin_location: string | null;
     destination_location: string | null; burial_at: string | null; base_price: string;
     additional_charges: string; discount: string; total_price: string;
-    beneficiary_type: string; beneficiary_label: string; afp_amount: string;
-    family_amount: string; client_notes: string | null; internal_notes: string | null;
+    beneficiary_type: string; beneficiary_label: string;
+    client_notes: string | null; internal_notes: string | null;
     rejection_reason: string | null; approved_at: string | null;
     client: Client | null; deceased: Deceased | null; service_type: string; service_type_label: string;
     branch: { name: string; address?: string | null } | null;
@@ -151,12 +151,19 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     const paid = financials.total_paid || 0;
     const percentage = total > 0 ? Math.min((paid / total) * 100, 100) : 0;
 
+    // ───────── Datos para la tarjeta económica ─────────
+    const precioBase = parseFloat(service.base_price) || 0;
+    const cargosAdicionales = parseFloat(service.additional_charges) || 0;
+    const descuento = parseFloat(service.discount) || 0;
+    const totalPagar = total;
+    const saldoPendiente = financials.balance;
+
     return (
         <>
             <Head title={service.code} />
 
             <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-                
+
                 {/* HEADER */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border shadow-sm">
                     <div className="flex items-start gap-3">
@@ -169,7 +176,6 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                 </Badge>
                                 {financials.is_fully_paid && <Badge className="bg-emerald-500 text-white"><CheckCircle2 className="h-3 w-3 mr-1"/> Pagado</Badge>}
                             </h1>
-                            {/* UUID + fecha de creación + creador */}
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                                 <span className="font-mono">{service.uuid}</span>
                                 <span>•</span>
@@ -219,10 +225,10 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                 )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    
+
                     {/* COLUMNA IZQUIERDA */}
                     <div className="lg:col-span-2 space-y-6">
-                        
+
                         {/* CONTRATANTE Y FALLECIDO */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <Card className="shadow-sm">
@@ -271,30 +277,78 @@ export default function ServicesShow({ service, availableItems, availableVehicle
 
                         {/* INFORMACIÓN ECONÓMICA */}
                         <Card className="shadow-sm">
-                            <CardHeader className="pb-3 bg-slate-50 dark:bg-slate-900/40">
-                                <CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-5 w-5 text-rose-800" /> Información Económica</CardTitle>
+                            <CardHeader className="bg-slate-50/50 dark:bg-slate-900/20 pb-4">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <DollarSign className="h-5 w-5 text-emerald-600" /> Información Económica
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-4">
-                                <dl className="space-y-3 text-sm">
-                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Precio base</dt><dd className="font-medium">{formatPrice(service.base_price)}</dd></div>
-                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Tipo de Beneficiario</dt><dd><Badge variant="secondary">{service.beneficiary_label}</Badge></dd></div>
-                                    
-                                    {['afp', 'ips', 'dipreca', 'capredena'].includes(service.beneficiary_type) && (
-                                        <div className="flex justify-between items-center bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-md border border-emerald-100 dark:border-emerald-900">
-                                            <dt className="text-emerald-700 dark:text-emerald-400 font-medium text-xs">Cubierto por institución</dt>
-                                            <dd className="text-emerald-700 dark:text-emerald-400 font-bold">- {formatPrice(service.afp_amount)}</dd>
-                                        </div>
-                                    )}
-                                    
-                                    <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-950/20 p-2 rounded-md border border-blue-100 dark:border-blue-900">
-                                        <dt className="text-blue-700 dark:text-blue-400 font-medium text-xs">Pagado por la familia</dt>
-                                        <dd className="text-blue-700 dark:text-blue-400 font-bold">{formatPrice(service.family_amount)}</dd>
+                            <CardContent className="space-y-4 pt-6">
+
+                                {/* Desglose */}
+                                <div className="space-y-1.5 pb-4 border-b text-sm">
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" /> Servicio Base</span>
+                                        <span>{formatPrice(precioBase)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span className="flex items-center gap-1.5"><Box className="h-4 w-4" /> Cargos adicionales</span>
+                                        <span>{formatPrice(cargosAdicionales)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Beneficiario */}
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Tipo de Beneficiario</span>
+                                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                        {service.beneficiary_label}
+                                    </Badge>
+                                </div>
+
+                                {/* Descuento */}
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground">Descuento</span>
+                                    <span className={descuento > 0 ? 'text-emerald-600' : 'text-slate-400'}>
+                                        -{formatPrice(descuento)}
+                                    </span>
+                                </div>
+
+                                <div className="border-t pt-4 space-y-3">
+                                    {/* Total */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-bold text-lg text-slate-800 dark:text-slate-200">Total a pagar</span>
+                                        <span className="font-bold text-xl text-rose-800 dark:text-rose-400">
+                                            {formatPrice(totalPagar)}
+                                        </span>
                                     </div>
 
-                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Cargos adicionales</dt><dd className="font-medium">{formatPrice(service.additional_charges)}</dd></div>
-                                    <div className="flex justify-between items-center"><dt className="text-muted-foreground">Descuento</dt><dd className="font-medium text-emerald-600">- {formatPrice(service.discount)}</dd></div>
-                                    <div className="flex justify-between items-center pt-3 border-t mt-2"><dt className="font-bold text-base">Total a pagar</dt><dd className="font-bold text-xl text-rose-800 dark:text-rose-500">{formatPrice(service.total_price)}</dd></div>
-                                </dl>
+                                    {/* Pagos y saldo */}
+                                    <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 space-y-2 border">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                                                <CreditCard className="h-4 w-4" /> Pagos / Abonos realizados
+                                            </span>
+                                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                                {formatPrice(paid)}
+                                            </span>
+                                        </div>
+
+                                        {saldoPendiente > 0 ? (
+                                            <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-200 dark:border-slate-700">
+                                                <span className="font-bold text-rose-600">Saldo pendiente</span>
+                                                <span className="font-bold text-rose-600">
+                                                    {formatPrice(saldoPendiente)}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-200 dark:border-slate-700">
+                                                <span className="font-bold text-emerald-600 flex items-center gap-1">
+                                                    <ShieldCheck className="h-4 w-4" /> Pagado en su totalidad
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
                             </CardContent>
                         </Card>
 
@@ -333,7 +387,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
 
                     {/* COLUMNA DERECHA */}
                     <div className="space-y-6">
-                        
+
                         {/* PAGOS Y SALDOS */}
                         <Card className="shadow-sm border-t-4 border-t-rose-800">
                             <CardHeader className="pb-3 flex flex-row items-center justify-between bg-slate-50 dark:bg-slate-900/40">
@@ -379,7 +433,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                         <p className="font-bold text-sm text-emerald-700 dark:text-emerald-400">Servicio Pagado al 100%</p>
                                     </div>
                                 )}
-                                
+
                                 <div>
                                     <div className="flex justify-between text-xs mb-1.5">
                                         <span className="font-medium">Progreso de pago</span>
@@ -410,11 +464,9 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <span className="font-bold text-xs">{formatPrice(p.amount)}</span>
-                                                    
-                                                    {/* Botón de PDF mejorado */}
-                                                    <a 
-                                                        href={`/payments/${p.id}/pdf`} 
-                                                        target="_blank" 
+                                                    <a
+                                                        href={`/payments/${p.id}/pdf`}
+                                                        target="_blank"
                                                         rel="noopener noreferrer"
                                                         title="Descargar comprobante en PDF"
                                                         className="flex items-center gap-1.5 px-2 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors text-[10px] font-semibold"
@@ -438,7 +490,7 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                 <CardTitle className="text-base flex items-center gap-2"><Package className="h-5 w-5 text-rose-800" /> Recursos Asignados</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-5">
-                                
+
                                 {/* Items */}
                                 <div>
                                     <h4 className="text-sm font-bold mb-2 flex items-center gap-1.5"><Box className="h-4 w-4 text-rose-800" /> Ataúdes y Urnas</h4>
