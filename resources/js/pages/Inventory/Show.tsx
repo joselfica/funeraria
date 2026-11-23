@@ -121,7 +121,19 @@ export default function InventoryShow({ item, conditions }: Props) {
     };
 
     const release = () => {
-        router.patch(conditionUrl(item.id), { condition: 'nuevo' }, { preserveScroll: true });
+        // El servidor limpia reserved_until/reserved_note al salir de "reservado",
+        // así que solo hace falta enviar una condición válida del enum.
+        router.patch(
+            conditionUrl(item.id),
+            { condition: 'disponible' },
+            {
+                preserveScroll: true,
+                onStart: () => setBusy(true),
+                onFinish: () => setBusy(false),
+                onError: (errors) =>
+                    window.alert(errors.condition || 'No se pudo liberar el item.'),
+            },
+        );
     };
 
     return (
