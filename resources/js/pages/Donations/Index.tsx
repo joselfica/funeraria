@@ -234,7 +234,7 @@ export default function DonationsIndex({ donations }: Props) {
 
                                 {d.receipt_path && (
                                     <a
-                                        href={`/storage/${d.receipt_path}`}
+                                        href={`/donations/${d.id}/receipt`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex w-fit items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"
@@ -308,7 +308,7 @@ export default function DonationsIndex({ donations }: Props) {
                                         <TableCell className="px-5 py-4 text-right">
                                             {d.receipt_path ? (
                                                 <a
-                                                    href={`/storage/${d.receipt_path}`}
+                                                    href={`/donations/${d.id}/receipt`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100"

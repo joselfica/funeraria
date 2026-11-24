@@ -38,9 +38,11 @@ export default function DonationEdit({ donation }: Props) {
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        // Enviamos con POST + _method=put para permitir subida de archivos
+
+        // Enviamos como FormData para soportar el archivo opcional
         post(`/donations/${donation.id}`, {
             forceFormData: true,
+            preserveScroll: true,
         });
     };
 
@@ -72,7 +74,7 @@ export default function DonationEdit({ donation }: Props) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                        <form onSubmit={submit} className="space-y-4">
+                        <form onSubmit={submit} className="space-y-4" encType="multipart/form-data">
                             <div>
                                 <Label htmlFor="beneficiary_name">Beneficiario *</Label>
                                 <Input
@@ -132,6 +134,9 @@ export default function DonationEdit({ donation }: Props) {
                                             required
                                             className="mt-1"
                                         />
+                                        {errors.amount && (
+                                            <p className="mt-1 text-xs text-destructive">{errors.amount}</p>
+                                        )}
                                     </div>
                                 ) : (
                                     <div>
@@ -143,6 +148,9 @@ export default function DonationEdit({ donation }: Props) {
                                             required
                                             className="mt-1"
                                         />
+                                        {errors.description && (
+                                            <p className="mt-1 text-xs text-destructive">{errors.description}</p>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -157,6 +165,9 @@ export default function DonationEdit({ donation }: Props) {
                                     required
                                     className="mt-1"
                                 />
+                                {errors.donation_date && (
+                                    <p className="mt-1 text-xs text-destructive">{errors.donation_date}</p>
+                                )}
                             </div>
 
                             <div>
@@ -166,14 +177,20 @@ export default function DonationEdit({ donation }: Props) {
                                     type="file"
                                     accept=".pdf,.jpg,.jpeg,.png"
                                     onChange={(e) =>
-                                        setData('receipt', e.target.files ? e.target.files[0] : null)
+                                        setData('receipt', e.target.files?.[0] ?? null)
                                     }
                                     className="mt-1"
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Máx. 5 MB. PDF, JPG o PNG.
+                                </p>
                                 {donation.receipt_path && (
                                     <p className="mt-1 text-xs text-muted-foreground">
-                                        Actualmente: {donation.receipt_path.split('/').pop()}. Si subes uno nuevo, el anterior será reemplazado.
+                                        Actual: {donation.receipt_path.split('/').pop()}. Si subes uno nuevo, el anterior será reemplazado.
                                     </p>
+                                )}
+                                {errors.receipt && (
+                                    <p className="mt-1 text-xs text-destructive">{errors.receipt}</p>
                                 )}
                             </div>
 

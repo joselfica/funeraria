@@ -42,10 +42,51 @@ class DonationController extends Controller
     }
 
     /**
+     * Formulario de edición de una donación.
+     *
+     * La fecha se envía como "YYYY-MM-DD" (la que espera <input type="date">).
+     * receipt_path se usa en la vista solo para mostrar el nombre del archivo actual.
+     */
+    public function edit(Donation $donation)
+    {
+        return Inertia::render('Donations/Edit', [
+            'donation' => [
+                'id' => $donation->id,
+                'beneficiary_name' => $donation->beneficiary_name,
+                'beneficiary_rut' => $donation->beneficiary_rut,
+                'contact_person' => $donation->contact_person,
+                'type' => $donation->type,
+                'amount' => $donation->amount,
+                'description' => $donation->description,
+                'donation_date' => $donation->donation_date
+                    ? \Carbon\Carbon::parse($donation->donation_date)->format('Y-m-d')
+                    : null,
+                'receipt_path' => $donation->receipt_path,
+                'notes' => $donation->notes,
+            ],
+        ]);
+    }
+
+    /**
      * Registrar una nueva donación.
      */
     public function store(Request $request)
     {
+        // TEMPORAL: diagnóstico de subida de archivos. Borrar cuando se resuelva.
+        $dbg = $request->file('receipt');
+        \Log::info('UPLOAD DEBUG store', [
+            'has_file' => $request->hasFile('receipt'),
+            'error' => $dbg?->getError(),
+            'message' => $dbg?->getErrorMessage(),
+            'size' => $dbg?->getSize(),
+            'tmp_dir' => sys_get_temp_dir(),
+            'tmp_writable' => is_writable(sys_get_temp_dir()),
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'file_uploads' => ini_get('file_uploads'),
+            'php_ini' => php_ini_loaded_file(),
+        ]);
+
         $validated = $request->validate([
             'beneficiary_name' => 'required|string|max:255',
             'beneficiary_rut' => 'nullable|string|max:20',
@@ -90,6 +131,21 @@ class DonationController extends Controller
      */
     public function update(Request $request, Donation $donation)
     {
+        // TEMPORAL: diagnóstico de subida de archivos. Borrar cuando se resuelva.
+        $dbg = $request->file('receipt');
+        \Log::info('UPLOAD DEBUG update', [
+            'has_file' => $request->hasFile('receipt'),
+            'error' => $dbg?->getError(),
+            'message' => $dbg?->getErrorMessage(),
+            'size' => $dbg?->getSize(),
+            'tmp_dir' => sys_get_temp_dir(),
+            'tmp_writable' => is_writable(sys_get_temp_dir()),
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'file_uploads' => ini_get('file_uploads'),
+            'php_ini' => php_ini_loaded_file(),
+        ]);
+
         $validated = $request->validate([
             'beneficiary_name' => 'required|string|max:255',
             'beneficiary_rut' => 'nullable|string|max:20',

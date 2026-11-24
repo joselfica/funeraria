@@ -198,6 +198,7 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('donations', [DonationController::class, 'index'])->name('donations.index');
     Route::post('donations', [DonationController::class, 'store'])->name('donations.store');
     Route::get('donations/{donation}', [DonationController::class, 'show'])->name('donations.show');
+    Route::get('donations/{donation}/edit', [DonationController::class, 'edit'])->name('donations.edit');
     Route::put('donations/{donation}', [DonationController::class, 'update'])->name('donations.update');
     Route::delete('donations/{donation}', [DonationController::class, 'destroy'])->name('donations.destroy');
     Route::get('donations/{donation}/receipt', [DonationController::class, 'downloadReceipt'])->name('donations.receipt');

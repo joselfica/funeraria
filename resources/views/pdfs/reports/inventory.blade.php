@@ -16,7 +16,12 @@
         th { background: #1e293b; color: white; padding: 6px 4px; text-align: left; }
         td { padding: 5px 4px; border-bottom: 1px solid #e2e8f0; }
         tr:nth-child(even) { background: #f8fafc; }
-        .critical { color: #dc2626; font-weight: bold; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .totals { width: 55%; margin-left: auto; margin-top: 12px; page-break-inside: avoid; }
+        .totals td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
+        .totals .grand td { border-top: 2px solid #1e293b; border-bottom: none; font-size: 12px; }
         .footer { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 8px; color: #94a3b8; }
     </style>
 </head>
@@ -38,26 +43,38 @@
                 <th>Nombre</th>
                 <th>Categoría</th>
                 <th>Condición</th>
-                <th>Disponibles</th>
-                <th>Alerta</th>
-                <th>Precio</th>
-                <th>Valor Total</th>
+                <th class="center">Cant.</th>
+                <th class="right">Precio</th>
             </tr>
         </thead>
         <tbody>
+            {{-- Cada fila de inventory_items es una unidad física --}}
             @foreach ($items as $item)
                 <tr>
                     <td>{{ $item->code }}</td>
                     <td>{{ $item->name }}</td>
                     <td>{{ $item->category_label }}</td>
                     <td>{{ $item->condition_label }}</td>
-                    <td class="{{ $item->is_low_stock ? 'critical' : '' }}">{{ $item->available_stock }}</td>
-                    <td>{{ $item->alert_threshold }}</td>
-                    <td>${{ number_format($item->price, 0, ',', '.') }}</td>
-                    <td>${{ number_format($item->available_stock * $item->price, 0, ',', '.') }}</td>
+                    <td class="center">1</td>
+                    <td class="right">${{ number_format((float) $item->price, 0, ',', '.') }}</td>
                 </tr>
             @endforeach
         </tbody>
+    </table>
+
+    <table class="totals">
+        <tr>
+            <td class="right bold">Total Ataúdes:</td>
+            <td class="right bold">${{ number_format($totalAtaudes ?? 0, 0, ',', '.') }}</td>
+        </tr>
+        <tr>
+            <td class="right bold">Total Urnas:</td>
+            <td class="right bold">${{ number_format($totalUrnas ?? 0, 0, ',', '.') }}</td>
+        </tr>
+        <tr class="grand">
+            <td class="right bold">TOTAL GENERAL:</td>
+            <td class="right bold">${{ number_format($totalValue, 0, ',', '.') }}</td>
+        </tr>
     </table>
 
     <div class="footer">

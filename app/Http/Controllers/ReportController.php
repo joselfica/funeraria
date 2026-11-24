@@ -112,15 +112,26 @@ class ReportController extends Controller
 
     /**
      * Reporte de Inventario en PDF.
+     *
+     * Cada fila de inventory_items es una unidad física (no hay columna stock),
+     * por lo que el valor del inventario es la suma de los precios de cada ítem.
      */
     public function inventoryPdf()
     {
         $items = InventoryItem::orderBy('category')->orderBy('name')->get();
-        $totalValue = $items->sum(fn ($i) => $i->stock * $i->price);
+
+        // Total valorizado del inventario
+        $totalValue = $items->sum(fn ($i) => (float) $i->price);
+
+        // Totales por categoría para el resumen del PDF
+        $totalAtaudes = $items->where('category', 'ataud')->sum(fn ($i) => (float) $i->price);
+        $totalUrnas = $items->where('category', 'urna')->sum(fn ($i) => (float) $i->price);
 
         $pdf = Pdf::loadView('pdfs.reports.inventory', [
             'items' => $items,
             'totalValue' => $totalValue,
+            'totalAtaudes' => $totalAtaudes,
+            'totalUrnas' => $totalUrnas,
             'generatedAt' => now(),
         ])
             ->setPaper('a4', 'portrait');
