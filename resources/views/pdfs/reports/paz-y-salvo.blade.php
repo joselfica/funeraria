@@ -69,7 +69,7 @@
         </div>
         <div class="info-row">
             <span class="info-label">Tipo de Servicio:</span>
-            <span class="info-value">{{ $service->serviceType->name }}</span>
+            <span class="info-value">{{ $service->service_type_label }}</span>
         </div>
         <div class="info-row">
             <span class="info-label">Fecha de Servicio:</span>

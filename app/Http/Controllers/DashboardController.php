@@ -35,21 +35,54 @@ class DashboardController extends Controller
         // Servicios activos = aceptados o en progreso
         $activeServices = Service::whereIn('status', ['accepted', 'in_progress'])->count();
 
-        // Ingresos del mes actual y del anterior (suma de pagos) — Admin y Encargado
-        $monthlyRevenue = 0.0;
+        // ─────────────────────────────────────────────────────────────
+        // INGRESOS DEL MES: CAJA vs FACTURACIÓN
+        // ─────────────────────────────────────────────────────────────
+        //
+        // Se distinguen dos métricas complementarias:
+        //
+        //   - cashRevenue   (Caja / Flujo de efectivo):
+        //     Suma de los pagos efectivamente recibidos este mes, según
+        //     la fecha del pago (payment_date). Responde a: "¿cuánta
+        //     plata entró a la caja este mes?".
+        //
+        //   - billedRevenue (Facturación / Ventas del mes):
+        //     Suma del precio total de los servicios agendados este mes,
+        //     según la fecha del servicio (scheduled_at). Responde a:
+        //     "¿cuánto vendimos este mes?".
+        //
+        // Ambas métricas suelen diferir porque los pagos pueden llegar
+        // antes o después de la fecha del servicio (abonos, cuotas,
+        // pagos municipales a 3 meses, etc.).
+        //
+        // El "revenueChangePct" se calcula sobre la caja (cashRevenue)
+        // porque es la métrica que más interesa al negocio para medir
+        // el pulso semanal/mensual.
+        // ─────────────────────────────────────────────────────────────
+        $cashRevenue = 0.0;
+        $billedRevenue = 0.0;
         $revenueChangePct = null;
+
         if ($canSeeFinance) {
-            $monthlyRevenue = (float) Payment::whereMonth('payment_date', Carbon::now()->month)
+            // 1. Ingresos por Caja (pagos recibidos este mes)
+            $cashRevenue = (float) Payment::whereMonth('payment_date', Carbon::now()->month)
                 ->whereYear('payment_date', Carbon::now()->year)
                 ->sum('amount');
 
+            // 2. Ingresos por Facturación (servicios agendados este mes)
+            $billedRevenue = (float) Service::whereIn('status', $activeStatuses)
+                ->whereMonth('scheduled_at', Carbon::now()->month)
+                ->whereYear('scheduled_at', Carbon::now()->year)
+                ->sum('total_price');
+
+            // Variación porcentual de la caja respecto al mes anterior
             $prevMonth = Carbon::now()->startOfMonth()->subMonth();
             $previousRevenue = (float) Payment::whereMonth('payment_date', $prevMonth->month)
                 ->whereYear('payment_date', $prevMonth->year)
                 ->sum('amount');
 
             $revenueChangePct = $previousRevenue > 0
-                ? (int) round((($monthlyRevenue - $previousRevenue) / $previousRevenue) * 100)
+                ? (int) round((($cashRevenue - $previousRevenue) / $previousRevenue) * 100)
                 : null;
         }
 
@@ -452,7 +485,10 @@ class DashboardController extends Controller
                 'total_clients' => $totalClients,
                 'total_deceased' => $totalDeceased,
                 'active_services' => $activeServices,
-                'monthly_revenue' => (float) $monthlyRevenue,
+                // Ingresos por Caja (pagos recibidos este mes)
+                'monthly_revenue' => (float) $cashRevenue,
+                // Ingresos por Facturación (servicios agendados este mes)
+                'billed_revenue' => (float) $billedRevenue,
                 'revenue_change_pct' => $revenueChangePct,
                 'new_clients_month' => $newClientsMonth,
             ],
