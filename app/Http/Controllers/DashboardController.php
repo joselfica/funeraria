@@ -15,9 +15,9 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Controlador del Dashboard principal.
+ * Controlador del Panel Principal (Dashboard).
  *
- * Agrupa los KPIs (Key Performance Indicators) más importantes del negocio
+ * Agrupa los Indicadores Clave de Rendimiento (KPI) más importantes del negocio
  * para mostrarlos en una vista única al administrador y al encargado.
  */
 class DashboardController extends Controller
@@ -28,7 +28,7 @@ class DashboardController extends Controller
         $canSeeFinance = auth()->user()->hasAnyRole(['Administrador', 'Encargado']);
         $activeStatuses = ['accepted', 'in_progress', 'completed'];
 
-        // 1. KPIs Principales
+        // 1. Indicadores Clave de Rendimiento Principales
         $totalClients = Client::active()->count();
         $totalDeceased = Deceased::count();
 
@@ -183,9 +183,55 @@ class DashboardController extends Controller
                 'status_label' => $s->status_label,
             ]);
 
-        // Indicadores clave (porcentajes)
-        $operativeServices = Service::whereIn('status', $activeStatuses)->count();
-        $completedServices = Service::where('status', 'completed')->count();
+        // ─────────────────────────────────────────────────────────────
+        // INDICADOR: TASA DE APROBACIÓN (Operativo)
+        // ─────────────────────────────────────────────────────────────
+        //
+        // Mide qué porcentaje de los servicios que ya fueron evaluados
+        // (es decir, que salieron del estado "pendiente") fueron aprobados
+        // en lugar de rechazados. Es un indicador de calidad de la
+        // operación comercial: qué tan seguido se cierran los servicios
+        // que se evalúan.
+        //
+        // Fórmula:
+        //   approval_rate = (aceptados / (aceptados + rechazados)) * 100
+        //
+        // Notas:
+        //   - Solo se consideran los servicios en estado 'accepted' y
+        //     'rejected' (los ya evaluados). Los 'pending' no entran
+        //     porque aún no tienen veredicto.
+        //   - Si no hay servicios evaluados, el indicador queda en 100%
+        //     (no hay rechazos, por lo tanto la tasa es perfecta).
+        //   - Este valor reemplaza al antiguo "completed_pct" en el
+        //     arreglo de indicadores que consume el frontend.
+        // ─────────────────────────────────────────────────────────────
+
+        // 1. Contar los estados
+        $totalAceptados = Service::where('status', 'accepted')->count();
+        $totalRechazados = Service::where('status', 'rejected')->count();
+
+        // 2. Calcular el porcentaje (evitando división por cero)
+        $totalEvaluados = $totalAceptados + $totalRechazados;
+        $approvalRate = $totalEvaluados > 0
+            ? (int) round(($totalAceptados / $totalEvaluados) * 100)
+            : 100; // Si no hay rechazados, es 100%
+
+        // ─────────────────────────────────────────────────────────────
+        // INDICADOR: PORCENTAJE COBRADO (Financiero)
+        // ─────────────────────────────────────────────────────────────
+        //
+        // Mide qué porcentaje del monto facturado en servicios operativos
+        // ha sido efectivamente cobrado. Solo visible para Administrador
+        // y Encargado.
+        //
+        // Se calcula como:
+        //   collected_pct = (suma cobrada / suma facturada) * 100
+        //
+        // Donde "suma cobrada" es la suma de pagos por servicio, pero
+        // limitada al precio total de cada servicio (no se cuenta de más
+        // si un cliente pagó de más). Si no hay monto facturado, el
+        // porcentaje queda en null (no aplica).
+        // ─────────────────────────────────────────────────────────────
 
         $collectedPct = null;
         if ($canSeeFinance) {
@@ -199,10 +245,35 @@ class DashboardController extends Controller
             $collectedPct = $billed > 0 ? (int) round(($collected / $billed) * 100) : null;
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // INDICADOR: INVENTARIO EN BUEN ESTADO
+        // ─────────────────────────────────────────────────────────────
+        //
+        // Mide qué porcentaje del inventario activo está en buen estado
+        // (sin problemas de stock bajo). Se calcula como:
+        //   inventory_ok_pct = ((activos - alertas_stock) / activos) * 100
+        //
+        // Si no hay ítems activos, se asume 100% (todo ok).
+        // ─────────────────────────────────────────────────────────────
+
         $activeItems = InventoryItem::active()->count();
 
+        // ─────────────────────────────────────────────────────────────
+        // INDICADOR: DISPONIBILIDAD DE FLOTA
+        // ─────────────────────────────────────────────────────────────
+        //
+        // Mide qué porcentaje de los vehículos totales están disponibles
+        // (no en servicio ni en mantenimiento). Se calcula como:
+        //   fleet_available_pct = (disponibles / total) * 100
+        //
+        // Si no hay vehículos registrados, el porcentaje es 0.
+        // ─────────────────────────────────────────────────────────────
+
+        // Arreglo final de indicadores clave (porcentajes)
+        // Nota: la clave 'completed_pct' se mantiene por compatibilidad con
+        // el frontend, pero ahora contiene la Tasa de Aprobación.
         $indicators = [
-            'completed_pct' => $operativeServices > 0 ? (int) round(($completedServices / $operativeServices) * 100) : 0,
+            'completed_pct' => $approvalRate, // 👈 Reemplazamos el valor por la Tasa de Aprobación
             'collected_pct' => $collectedPct,
             // Usa el conteo de alertas de stock por categoría
             'inventory_ok_pct' => $activeItems > 0
@@ -213,31 +284,41 @@ class DashboardController extends Controller
                 : 0,
         ];
 
-        // Servicios del mes actual (para el calendario) - se muestran los sepelios
+        // Servicios para el calendario: sepelios (burial_at) y cremaciones (scheduled_at).
+        // Ventana de 12 meses hacia atrás y 3 hacia adelante para poder navegar por meses antiguos.
+        $calStart = Carbon::now()->startOfMonth()->subMonths(12);
+        $calEnd = Carbon::now()->endOfMonth()->addMonths(3);
+
         $services = Service::with(['client:id,name', 'deceased:id,full_name', 'branch:id,name'])
-            ->whereNotNull('burial_at') // 👈 Solo los que tienen fecha de entierro
             ->whereIn('status', ['accepted', 'in_progress', 'completed']) // 👈 Solo los aprobados
-            ->whereBetween('burial_at', [
-                Carbon::now()->startOfMonth()->subMonth(),
-                Carbon::now()->endOfMonth()->addMonth(),
-            ])
-            ->orderBy('burial_at')
+            ->where(function ($q) use ($calStart, $calEnd) {
+                // Entierros: tienen fecha de sepelio
+                $q->where(fn ($e) => $e->whereNotNull('burial_at')
+                        ->whereBetween('burial_at', [$calStart, $calEnd]))
+                    // Cremaciones (urna): la fecha del evento es scheduled_at
+                    ->orWhere(fn ($c) => $c->where('service_type', 'urna')
+                        ->whereBetween('scheduled_at', [$calStart, $calEnd]));
+            })
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
                 'uuid' => $s->uuid,
                 'code' => $s->code,
                 // Título que aparecerá en el recuadro del calendario
-                'title' => "Sepelio: {$s->deceased?->full_name}",
-                'start' => $s->burial_at->toIso8601String(), // 👈 Usamos burial_at
-                'end' => null, // El entierro no tiene duración en horas, es un evento puntual
+                'title' => ($s->service_type?->value === 'urna' ? 'Cremación' : 'Sepelio').": {$s->deceased?->full_name}",
+                'event_type' => $s->service_type?->value === 'urna' ? 'cremacion' : 'sepelio',
+                // Cremación: scheduled_at. Entierro: burial_at
+                'start' => ($s->service_type?->value === 'urna' ? $s->scheduled_at : ($s->burial_at ?? $s->scheduled_at))->toIso8601String(),
+                'end' => null, // Es un evento puntual, sin duración en horas
                 'status' => $s->status,
                 'status_label' => $s->status_label,
                 'client' => $s->client?->name,
                 'deceased' => $s->deceased?->full_name,
                 'service_type' => $s->service_type_label,
                 'branch' => $s->branch?->name,
-            ]);
+            ])
+            ->sortBy('start')
+            ->values();
 
         // Servicios de HOY (que ocurren hoy o están en progreso)
         $todayServices = Service::with(['client:id,name', 'deceased:id,full_name', 'branch:id,name'])
@@ -263,6 +344,21 @@ class DashboardController extends Controller
         // ─────────────────────────────────────────────────────────────
         // MONTO POR COBRAR
         // ─────────────────────────────────────────────────────────────
+        //
+        // Lista de servicios con saldo pendiente de pago. Se excluyen los
+        // pagos municipales que tienen fecha esperada de pago, porque esos
+        // se muestran en su propia tarjeta (ver sección siguiente).
+        //
+        // Para cada servicio se calcula:
+        //   - total_price: precio total del servicio
+        //   - total_paid:  suma de pagos registrados
+        //   - balance:     saldo pendiente (total_price - total_paid)
+        //   - days_old:    días transcurridos desde la creación del servicio
+        //
+        // Se ordena de mayor a menor saldo pendiente y se toma el top 3
+        // como "mayores deudores" para mostrar en el panel.
+        // ─────────────────────────────────────────────────────────────
+
         // Se excluyen los pagos municipales con fecha esperada: ya se muestran en su propia tarjeta
         $unpaidServices = Service::with(['client:id,name', 'deceased:id,full_name'])
             ->where(function ($q) {
@@ -306,6 +402,17 @@ class DashboardController extends Controller
         // ─────────────────────────────────────────────────────────────
         // PAGOS MUNICIPALES ESPERADOS
         // ─────────────────────────────────────────────────────────────
+        //
+        // Lista de servicios municipales con saldo pendiente y fecha
+        // esperada de pago. Para cada uno se calcula:
+        //   - days_until_due: días restantes hasta la fecha esperada
+        //                     (negativo si ya venció)
+        //   - is_urgent:      vence en los próximos 7 días
+        //   - is_overdue:     ya venció (fecha esperada en el pasado)
+        //
+        // Se ordena por fecha esperada de pago (los más próximos primero).
+        // ─────────────────────────────────────────────────────────────
+
         $municipalPayments = Service::with(['client:id,name', 'deceased:id,full_name'])
             ->where('beneficiary_type', 'municipal')
             ->whereNotNull('expected_payment_date')

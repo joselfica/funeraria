@@ -121,6 +121,13 @@ interface RecentService {
 }
 
 interface Indicators {
+    /**
+     * Tasa de aprobación (0–100).
+     *
+     * Aunque la clave se llama `completed_pct` por compatibilidad con el
+     * backend, su valor representa el porcentaje de servicios aprobados
+     * sobre el total de servicios evaluados (aceptados + rechazados).
+     */
     completed_pct: number;
     collected_pct: number | null;
     inventory_ok_pct: number;
@@ -780,7 +787,7 @@ export default function Dashboard({
 
                     <Section icon={Gauge} accent="emerald" title="Indicadores clave">
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                            <Ring value={indicators.completed_pct} accent="amber" label="Servicios completados" />
+                            <Ring value={indicators.completed_pct} accent="amber" label="Tasa de aprobación" />
                             {can_see_finance && <Ring value={indicators.collected_pct} accent="emerald" label="Saldo cobrado" />}
                             <Ring value={indicators.inventory_ok_pct} accent="sky" label="Inventario disponible" />
                             <Ring value={indicators.fleet_available_pct} accent="violet" label="Flota disponible" />

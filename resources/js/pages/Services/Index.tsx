@@ -163,6 +163,15 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
         };
     };
 
+    // ─────────────────────────────────────────────────────────────
+    // Cálculo de pago por servicio
+    // ─────────────────────────────────────────────────────────────
+    // Devuelve:
+    //   - total: precio total del servicio
+    //   - paid: monto pagado hasta ahora
+    //   - percentage: porcentaje pagado (0–100)
+    //   - balance: saldo pendiente (total - paid, nunca negativo)
+    // ─────────────────────────────────────────────────────────────
     const getPayment = (service: Service) => {
         const total = parseFloat(service.total_price) || 0;
         const paid = Number(service.total_paid) || 0;
@@ -174,17 +183,15 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
     const getPaymentBar = (p: number) => {
         if (p >= 100) return 'bg-emerald-500';
         if (p >= 90) return 'bg-green-400';
-        if (p >= 50) return 'bg-yellow-400';
-        if (p >= 25) return 'bg-orange-500';
-        return 'bg-red-500';
+        if (p >= 50) return 'bg-amber-400';
+        return 'bg-rose-500';
     };
 
     const getPaymentText = (p: number) => {
         if (p >= 100) return 'text-emerald-600';
         if (p >= 90) return 'text-green-500';
-        if (p >= 50) return 'text-yellow-600';
-        if (p >= 25) return 'text-orange-500';
-        return 'text-red-500';
+        if (p >= 50) return 'text-amber-600';
+        return 'text-rose-500';
     };
 
     const renderDate = (service: Service) => {
@@ -215,31 +222,53 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
             </span>
         );
 
+    // ─────────────────────────────────────────────────────────────
+    // Render de la columna de pago (monto, total, barra y % pagado)
+    // ─────────────────────────────────────────────────────────────
     const renderPayment = (service: Service) => {
         const { total, percentage, balance } = getPayment(service);
         const paid = percentage >= 100;
         return (
-            <div className="w-full min-w-[170px] space-y-1.5">
-                <div className="flex items-baseline justify-between gap-2">
+            <div className="flex w-full min-w-[170px] flex-col gap-1.5">
+                {/* 1. Monto principal: saldo pendiente o "Pagado" */}
+                <div className="flex items-center justify-between gap-2">
                     {paid ? (
                         <span className="flex items-center gap-1 text-sm font-bold text-emerald-600">
                             <CheckCircle2 className="h-4 w-4" /> Pagado
                         </span>
                     ) : (
-                        <span className={`text-base font-bold leading-none ${getPaymentText(percentage)}`}>{formatCLP(balance)}</span>
+                        <span className={`text-base font-bold leading-none ${getPaymentText(percentage)}`}>
+                            {formatCLP(balance)}
+                        </span>
                     )}
-                    <span className="text-xs font-medium text-muted-foreground">
-                        {percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}%
-                    </span>
                 </div>
-                {!paid && <p className="text-[11px] leading-none text-muted-foreground">saldo de {formatCLP(total)}</p>}
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                    <div className={`h-full rounded-full ${getPaymentBar(percentage)}`} style={{ width: `${percentage}%` }} />
+
+                {/* 2. Texto secundario: monto total del servicio */}
+                <span className="text-xs text-muted-foreground">Total: {formatCLP(total)}</span>
+
+                {/* 3. Barra de progreso con colores dinámicos (oculta si ya está pagado) */}
+                {!paid && (
+                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                            className={`h-full rounded-full ${getPaymentBar(percentage)}`}
+                            style={{ width: `${percentage}%` }}
+                        />
+                    </div>
+                )}
+
+                {/* 4. Porcentaje pagado de forma intuitiva */}
+                <div className="flex justify-end">
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                        {percentage.toFixed(percentage % 1 === 0 ? 0 : 1)}% pagado
+                    </span>
                 </div>
             </div>
         );
     };
 
+    // ─────────────────────────────────────────────────────────────
+    // Acción principal según estado y saldo pendiente
+    // ─────────────────────────────────────────────────────────────
     const renderPrimary = (service: Service) => {
         const { balance } = getPayment(service);
 
@@ -277,6 +306,9 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
         </div>
     );
 
+    // ─────────────────────────────────────────────────────────────
+    // Badge de estado con colores según la etapa del servicio
+    // ─────────────────────────────────────────────────────────────
     const getStatusBadge = (service: Service) => {
         const variant =
             service.status === 'accepted' || service.status === 'completed'
