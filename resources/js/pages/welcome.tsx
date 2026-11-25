@@ -31,7 +31,7 @@ const DEFAULT_CATALOG: CatalogItem[] = [
         material: 'Madera de Roble Seleccionado',
         finish: 'Barniz satinado nogal oscuro con herrajes bronce',
         description: 'Diseño clásico de líneas sobrias, interior acolchado en raso marfil y terminaciones artesanales de alta durabilidad.',
-        image: 'https://http2.mlstatic.com/D_NQ_NP_994565-MLA110129227684_042026-O-urna-recipiente-cenizas-anfora-para-humanos-bronce-esmaltado.webp',
+        image: 'https://s.alicdn.com/@sc04/kf/He978584d8b78479db753b364bc33b5b9G.png',
         tag: 'Más solicitado',
         specs: [
             'Interior tapizado en raso blanco/marfil',
@@ -46,7 +46,7 @@ const DEFAULT_CATALOG: CatalogItem[] = [
         material: 'Madera Nativa de Raulí',
         finish: 'Acabado natural mate con veta visible',
         description: 'Fabricación tradicional del sur de Chile, de estética cálida y respetuosa, ideal para ceremonias íntimas y familiares.',
-        image: 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?q=80&w=1200',
+        image: 'https://funerariaalarcon.cl/wp-content/uploads/2024/05/Urna-Italiana-de-Rauli-2.390.000-scaled.jpeg',
         tag: 'Tradición Regional',
         specs: [
             'Madera noble certificada de La Araucanía',
@@ -56,12 +56,12 @@ const DEFAULT_CATALOG: CatalogItem[] = [
     },
     {
         id: 3,
-        name: 'Modelo Imperial Presidencial',
+        name: 'Modelo Cerezo Premium',
         category: 'ataud',
-        material: 'Caoba Maciza',
+        material: 'Cerezo',
         finish: 'Laca brillante profunda con detalles dorados',
         description: 'Nuestra línea superior de máxima solemnidad, con doble tapa abatible y tapicería capitoné confeccionada a mano.',
-        image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=1200',
+        image: 'https://image.made-in-china.com/365f3j00fshbEzwMYUri/Caja-s-lida-de-ata-d-de-madera-de-cerezo-de-calidad-superior-para-hogares-funerarios-Suministro.webp',
         tag: 'Línea Superior',
         specs: [
             'Doble tapa de exhibición',
@@ -76,7 +76,7 @@ const DEFAULT_CATALOG: CatalogItem[] = [
         material: 'Mármol Natural Pulido',
         finish: 'Veta gris suave con cierre roscado seguro',
         description: 'Pieza sobria y atemporal diseñada para columbario, nicho o resguardo familiar en el hogar.',
-        image: 'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?q=80&w=1200',
+        image: 'https://funerariasporsiempre.com/wp-content/uploads/2022/12/urna-crema-con-grabado.jpg',
         tag: 'Cremación',
         specs: [
             'Capacidad estándar adulto (3.5 litros)',
@@ -91,7 +91,7 @@ const DEFAULT_CATALOG: CatalogItem[] = [
         material: 'Madera de Cedro Rojo',
         finish: 'Ebanistería fina satinada',
         description: 'Cofre cinerario de madera cálida con ensambles invisibles y espacio frontal para placa conmemorativa.',
-        image: 'https://images.unsplash.com/photo-1544457070-4cd773b4d71e?q=80&w=1200',
+        image: 'https://i.etsystatic.com/31432200/r/il/235d57/3591855974/il_570xN.3591855974_7mbf.jpg',
         specs: [
             'Apertura inferior asegurada con tornillos',
             'Placa metálica personalizada incluida',
@@ -100,12 +100,12 @@ const DEFAULT_CATALOG: CatalogItem[] = [
     },
     {
         id: 6,
-        name: 'Urna Biodegradable Tierra Viva',
+        name: 'Urna Porcelana',
         category: 'urna',
-        material: 'Fibra Vegetal y Celulosa Natural',
+        material: 'Porcelana',
         finish: 'Textura orgánica arena',
         description: 'Pensada para ceremonias ecológicas en tierra o agua, reintegrándose naturalmente al entorno sin dejar residuos.',
-        image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?q=80&w=1200',
+        image: 'https://http2.mlstatic.com/D_NQ_NP_994565-MLA110129227684_042026-O-urna-recipiente-cenizas-anfora-para-humanos-bronce-esmaltado.webp',
         tag: 'Ecológica',
         specs: [
             '100% biodegradable y libre de químicos',
