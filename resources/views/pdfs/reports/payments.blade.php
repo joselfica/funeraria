@@ -7,6 +7,7 @@
         @page { margin: 20px; }
         body { font-family: Helvetica, Arial, sans-serif; font-size: 9px; color: #333; }
         .header { text-align: center; border-bottom: 3px solid #1e293b; padding-bottom: 10px; margin-bottom: 15px; }
+        .header .logo { width: 180px; margin-bottom: 4px; }
         .header h1 { font-size: 18px; margin: 0; }
         .header p { font-size: 10px; margin: 2px 0; color: #64748b; }
         .filters { background: #f1f5f9; padding: 8px; margin-bottom: 15px; font-size: 9px; border-radius: 4px; }
@@ -21,8 +22,19 @@
     </style>
 </head>
 <body>
+    @php
+        $logoPath = public_path('images/logo-pdf.png');
+        $logo = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
+    @endphp
+
     <div class="header">
-        <h1>Funeraria Cristo Rey</h1>
+        @if ($logo)
+            <img src="{{ $logo }}" class="logo" alt="Funeraria Cristo Rey">
+        @else
+            <h1>Funeraria Cristo Rey</h1>
+        @endif
         <p>Reporte de Ingresos</p>
     </div>
 
