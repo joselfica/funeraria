@@ -31,7 +31,7 @@ const DEFAULT_CATALOG: CatalogItem[] = [
         material: 'Madera de Roble Seleccionado',
         finish: 'Barniz satinado nogal oscuro con herrajes bronce',
         description: 'Diseño clásico de líneas sobrias, interior acolchado en raso marfil y terminaciones artesanales de alta durabilidad.',
-        image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=1200',
+        image: 'https://http2.mlstatic.com/D_NQ_NP_994565-MLA110129227684_042026-O-urna-recipiente-cenizas-anfora-para-humanos-bronce-esmaltado.webp',
         tag: 'Más solicitado',
         specs: [
             'Interior tapizado en raso blanco/marfil',

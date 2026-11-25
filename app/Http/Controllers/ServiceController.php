@@ -138,7 +138,21 @@ class ServiceController extends Controller
             'deceased_id' => 'required|exists:deceased,id',
             'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'branch_id' => 'required|exists:branches,id',
-            'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',
+            // ─────────────────────────────────────────────────────────────
+            // VALIDACIÓN DE BENEFICIARIO CON ENUM
+            // ─────────────────────────────────────────────────────────────
+            //
+            // Se usa Rule::enum(BeneficiaryType::class) en lugar de una
+            // regla `in:afp,ips,...` manual. De esta forma, si en el futuro
+            // se agrega, renombra o elimina un caso en el Enum
+            // App\Enums\BeneficiaryType, la validación se mantiene
+            // automáticamente sincronizada sin tocar este controlador.
+            //
+            // Además, el Enum centraliza la lógica de negocio asociada
+            // (labels, helpers como isMunicipal(), etc.), evitando
+            // valores "mágicos" dispersos por el código.
+            // ─────────────────────────────────────────────────────────────
+            'beneficiary_type' => ['required', Rule::enum(BeneficiaryType::class)],
             'scheduled_at' => 'required|date|after:now',
             'duration_hours' => 'required|integer|min:1',
             'base_price' => 'required|numeric|min:0',
@@ -155,11 +169,22 @@ class ServiceController extends Controller
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
+        // ─────────────────────────────────────────────────────────────
+        // FECHA ESPERADA DE PAGO PARA BENEFICIARIOS MUNICIPALES
+        // ─────────────────────────────────────────────────────────────
+        //
+        // $validated['beneficiary_type'] contiene el value del Enum
+        // ('municipalidad'), así que se compara contra
+        // BeneficiaryType::MUNICIPALIDAD->value.
+        // ─────────────────────────────────────────────────────────────
+        $isMunicipal = $validated['beneficiary_type'] === BeneficiaryType::MUNICIPALIDAD->value;
+
         $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
 
-        if ($beneficiaryType === BeneficiaryType::Municipal) {
+        if ($isMunicipal) {
             $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
+        } else {
+            $validated['expected_payment_date'] = null;
         }
 
         $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
@@ -258,7 +283,17 @@ class ServiceController extends Controller
             'deceased_id' => 'required|exists:deceased,id',
             'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'branch_id' => 'required|exists:branches,id',
-            'beneficiary_type' => 'required|string|in:afp,ips,dipreca,capredena,municipal,particular',
+            // ─────────────────────────────────────────────────────────────
+            // VALIDACIÓN DE BENEFICIARIO CON ENUM
+            // ─────────────────────────────────────────────────────────────
+            //
+            // Igual que en store(): se valida con Rule::enum para que la
+            // lista de valores aceptados se derive directamente del Enum
+            // App\Enums\BeneficiaryType. Así se evita el error clásico de
+            // que el formulario ofrezca un caso nuevo (agregado al Enum)
+            // y el backend lo rechace por una regla `in:` desactualizada.
+            // ─────────────────────────────────────────────────────────────
+            'beneficiary_type' => ['required', Rule::enum(BeneficiaryType::class)],
             'scheduled_at' => 'required|date',
             'duration_hours' => 'required|integer|min:1',
             'base_price' => 'required|numeric|min:0',
@@ -278,10 +313,19 @@ class ServiceController extends Controller
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        $beneficiaryType = BeneficiaryType::from($validated['beneficiary_type']);
+        // ─────────────────────────────────────────────────────────────
+        // FECHA ESPERADA DE PAGO PARA BENEFICIARIOS MUNICIPALES
+        // ─────────────────────────────────────────────────────────────
+        //
+        // $validated['beneficiary_type'] contiene el value del Enum
+        // ('municipalidad'), así que se compara contra
+        // BeneficiaryType::MUNICIPALIDAD->value.
+        // ─────────────────────────────────────────────────────────────
+        $isMunicipal = $validated['beneficiary_type'] === BeneficiaryType::MUNICIPALIDAD->value;
+
         $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
 
-        if ($beneficiaryType === BeneficiaryType::Municipal) {
+        if ($isMunicipal) {
             $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
         } else {
             $validated['expected_payment_date'] = null;
@@ -524,7 +568,7 @@ class ServiceController extends Controller
             // Servicio
             'branch_id' => 'required|exists:branches,id',
             'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)], // 👈 Enum
-            'beneficiary_type' => 'required|string',
+            'beneficiary_type' => ['required', Rule::enum(BeneficiaryType::class)],
             'scheduled_at' => 'required|date', // 👈 Sin 'after:now' para permitir fechas pasadas
             'duration_hours' => 'required|integer|min:1',
             'total_amount' => 'required|numeric|min:0', // 👈 Monto total ingresado manualmente

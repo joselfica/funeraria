@@ -484,20 +484,28 @@ export default function ServicesIndex({ services, filters, counts, total_due }: 
 
                 {services.last_page > 1 && (
                     <div className="mt-6 flex flex-wrap justify-center gap-1">
-                        {services.links.map((link, i) => (
-                            <Link
-                                key={i}
-                                href={link.url || '#'}
-                                className={`rounded-lg border px-3 py-1 text-sm ${
-                                    link.active
-                                        ? 'border-rose-800 bg-rose-800 text-white'
-                                        : link.url
-                                          ? 'hover:bg-slate-100 dark:hover:bg-slate-800'
-                                          : 'opacity-50'
-                                }`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
-                        ))}
+                        {services.links.map((link, i) => {
+                            // Traducimos las etiquetas que vienen de Laravel
+                            let label = link.label;
+                            if (label.includes('Previous')) label = '&laquo; Anterior';
+                            if (label.includes('Next')) label = 'Siguiente &raquo;';
+
+                            return (
+                                <Link
+                                    key={i}
+                                    href={link.url || '#'}
+                                    preserveScroll
+                                    className={`rounded-lg border px-3 py-1 text-sm ${
+                                        link.active
+                                            ? 'border-rose-800 bg-rose-800 text-white'
+                                            : link.url
+                                              ? 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                                              : 'cursor-not-allowed opacity-50'
+                                    }`}
+                                    dangerouslySetInnerHTML={{ __html: label }}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </div>
