@@ -4,8 +4,11 @@ import {
     CheckCircle2,
     Handshake,
     Mail,
+    Pencil,
     Phone,
     Plus,
+    Power,
+    PowerOff,
     Search,
     User,
     XCircle,
@@ -37,9 +40,10 @@ interface Agreement {
 
 export default function AgreementsIndex({ agreements }: { agreements: Agreement[] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAgreement, setEditingAgreement] = useState<Agreement | null>(null);
     const [search, setSearch] = useState('');
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         name: '',
         rut: '',
         contact_person: '',
@@ -49,28 +53,51 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
         notes: '',
     });
 
+    const openCreateModal = () => {
+        setEditingAgreement(null);
+        clearErrors();
+        reset();
+        setData('discount_percentage', '10');
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (agreement: Agreement) => {
+        setEditingAgreement(agreement);
+        clearErrors();
+        setData({
+            name: agreement.name,
+            rut: agreement.rut || '',
+            contact_person: agreement.contact_person || '',
+            phone: agreement.phone || '',
+            email: agreement.email || '',
+            discount_percentage: String(Number(agreement.discount_percentage)),
+            notes: agreement.notes || '',
+        });
+        setIsModalOpen(true);
+    };
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/agreements', {
-            onSuccess: () => {
-                setIsModalOpen(false);
-                reset();
-            },
-        });
+        if (editingAgreement) {
+            put(`/agreements/${editingAgreement.id}`, {
+                preserveScroll: true,
+                onSuccess: () => setIsModalOpen(false),
+            });
+        } else {
+            post('/agreements', {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    reset();
+                },
+            });
+        }
     };
 
     const toggleStatus = (agreement: Agreement) => {
         router.patch(`/agreements/${agreement.id}/toggle-active`, {}, { preserveScroll: true });
     };
 
-    // ─────────────────────────────────────────────────────────────
-    // Búsqueda local (no afecta al backend)
-    // ─────────────────────────────────────────────────────────────
-    // Filtra por nombre, RUT o contacto. Es intencionalmente local para
-    // que la búsqueda sea instantánea sin ida y vuelta al servidor.
-    // Si en el futuro la lista crece mucho, conviene mover el filtro al
-    // backend con un query param.
-    // ─────────────────────────────────────────────────────────────
     const filteredAgreements = agreements.filter((a) => {
         const term = search.trim().toLowerCase();
         if (!term) return true;
@@ -106,7 +133,7 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                         </div>
                     </div>
                     <Button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={openCreateModal}
                         className="w-full bg-rose-800 text-white shadow-sm hover:bg-rose-900 sm:w-auto"
                     >
                         <Plus className="mr-2 h-4 w-4" /> Nuevo Convenio
@@ -163,7 +190,7 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                         filteredAgreements.map((agreement) => (
                             <div
                                 key={agreement.id}
-                                className={`space-y-3 rounded-xl border bg-card p-4 shadow-sm ${agreement.is_active ? '' : 'bg-slate-50/60 opacity-70'}`}
+                                className={`space-y-3 rounded-xl border bg-card p-4 shadow-sm ${agreement.is_active ? '' : 'bg-slate-50/60 opacity-80'}`}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
@@ -179,7 +206,7 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                                             Activo
                                         </Badge>
                                     ) : (
-                                        <Badge variant="outline" className="shrink-0 text-slate-500">
+                                        <Badge variant="outline" className="shrink-0 border-rose-200 bg-rose-50 text-rose-700">
                                             Inactivo
                                         </Badge>
                                     )}
@@ -212,14 +239,35 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                                     </div>
                                 )}
 
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => toggleStatus(agreement)}
-                                    className={`w-full ${agreement.is_active ? 'text-rose-600 hover:text-rose-700' : 'text-emerald-600 hover:text-emerald-700'}`}
-                                >
-                                    {agreement.is_active ? 'Desactivar convenio' : 'Activar convenio'}
-                                </Button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => openEditModal(agreement)}
+                                        className="w-full"
+                                    >
+                                        <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        onClick={() => toggleStatus(agreement)}
+                                        className={`w-full text-white shadow-sm ${
+                                            agreement.is_active
+                                                ? 'bg-rose-600 hover:bg-rose-700'
+                                                : 'bg-emerald-600 hover:bg-emerald-700'
+                                        }`}
+                                    >
+                                        {agreement.is_active ? (
+                                            <>
+                                                <PowerOff className="mr-1.5 h-3.5 w-3.5" /> Desactivar
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Power className="mr-1.5 h-3.5 w-3.5" /> Activar
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                         ))
                     )}
@@ -252,7 +300,7 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                                         className={
                                             agreement.is_active
                                                 ? 'hover:bg-slate-50 dark:hover:bg-slate-900/30'
-                                                : 'bg-slate-50/50 opacity-70'
+                                                : 'bg-slate-50/50 opacity-80'
                                         }
                                     >
                                         <TableCell>
@@ -290,28 +338,44 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {agreement.is_active ? (
-                                                <Badge className="mx-auto flex w-fit items-center justify-center gap-1 border-blue-200 bg-blue-100 text-blue-800">
+                                                <Badge className="mx-auto flex w-fit items-center justify-center gap-1 border-emerald-200 bg-emerald-100 text-emerald-800">
                                                     <CheckCircle2 className="h-3 w-3" /> Activo
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="outline" className="mx-auto flex w-fit items-center justify-center gap-1 text-slate-500">
+                                                <Badge variant="outline" className="mx-auto flex w-fit items-center justify-center gap-1 border-rose-200 bg-rose-50 text-rose-700">
                                                     <XCircle className="h-3 w-3" /> Inactivo
                                                 </Badge>
                                             )}
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => toggleStatus(agreement)}
-                                                className={
-                                                    agreement.is_active
-                                                        ? 'text-rose-600 hover:text-rose-700'
-                                                        : 'text-emerald-600 hover:text-emerald-700'
-                                                }
-                                            >
-                                                {agreement.is_active ? 'Desactivar' : 'Activar'}
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => openEditModal(agreement)}
+                                                >
+                                                    <Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => toggleStatus(agreement)}
+                                                    className={`text-white shadow-sm ${
+                                                        agreement.is_active
+                                                            ? 'bg-rose-600 hover:bg-rose-700'
+                                                            : 'bg-emerald-600 hover:bg-emerald-700'
+                                                    }`}
+                                                >
+                                                    {agreement.is_active ? (
+                                                        <>
+                                                            <PowerOff className="mr-1.5 h-3.5 w-3.5" /> Desactivar
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Power className="mr-1.5 h-3.5 w-3.5" /> Activar
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -321,21 +385,23 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                 </div>
             </div>
 
-            {/* ─────────────── MODAL DE REGISTRO ─────────────── */}
+            {/* ─────────────── MODAL DE REGISTRO / EDICIÓN ─────────────── */}
             {isModalOpen && (
                 <div
                     className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
                     onClick={() => setIsModalOpen(false)}
                 >
                     <div
-                        className="w-full max-w-lg overflow-y-auto rounded-t-2xl border bg-card p-5 shadow-xl sm:rounded-xl sm:p-6 max-h-[90vh]"
+                        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border bg-card p-5 shadow-xl sm:rounded-xl sm:p-6"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="mb-4 flex items-center gap-2">
                             <div className="rounded-lg bg-rose-100 p-2 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300">
                                 <Handshake className="h-5 w-5" />
                             </div>
-                            <h2 className="text-lg font-bold">Registrar Nuevo Convenio</h2>
+                            <h2 className="text-lg font-bold">
+                                {editingAgreement ? 'Editar Convenio' : 'Registrar Nuevo Convenio'}
+                            </h2>
                         </div>
 
                         <form onSubmit={submit} className="space-y-4">
@@ -434,9 +500,13 @@ export default function AgreementsIndex({ agreements }: { agreements: Agreement[
                                 <Button
                                     type="submit"
                                     disabled={processing}
-                                    className="w-full bg-rose-800 text-white sm:w-auto"
+                                    className="w-full bg-rose-800 text-white hover:bg-rose-900 sm:w-auto"
                                 >
-                                    {processing ? 'Guardando...' : 'Guardar Convenio'}
+                                    {processing
+                                        ? 'Guardando...'
+                                        : editingAgreement
+                                          ? 'Guardar Cambios'
+                                          : 'Guardar Convenio'}
                                 </Button>
                             </div>
                         </form>

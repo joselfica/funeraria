@@ -70,13 +70,14 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
 
     // ─────────────────────────────────────────────────────────
     // CONVENIOS (Agreements)
-    // Listado, registro y activación/desactivación.
+    // Listado, registro, edición y activación/desactivación.
     // No hay destroy: los convenios se "desactivan" con toggleActive
     // para preservar la trazabilidad histórica de los servicios que
     // los usaron.
     // ─────────────────────────────────────────────────────────
     Route::get('agreements', [AgreementController::class, 'index'])->name('agreements.index');
     Route::post('agreements', [AgreementController::class, 'store'])->name('agreements.store');
+    Route::put('agreements/{agreement}', [AgreementController::class, 'update'])->name('agreements.update');
     Route::patch('agreements/{agreement}/toggle-active', [AgreementController::class, 'toggleActive'])->name('agreements.toggle-active');
 
     // ─────────────────────────────────────────────────────────

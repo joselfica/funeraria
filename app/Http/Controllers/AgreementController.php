@@ -79,6 +79,49 @@ class AgreementController extends Controller
     }
 
     /**
+     * Actualiza los datos de un convenio existente.
+     *
+     * ─────────────────────────────────────────────────────────────
+     * REGLA `unique` CON EXCEPCIÓN DEL PROPIO ID
+     * ─────────────────────────────────────────────────────────────
+     * La regla `unique:agreements,rut` ignora el ID actual del convenio
+     * (`$agreement->id`). Sin esta excepción, guardar el mismo RUT que ya
+     * tenía el convenio fallaría con "El RUT ya está en uso", porque la
+     * regla `unique` no distingue entre "el RUT de otro convenio" y "mi
+     * propio RUT sin cambios".
+     *
+     * Notas:
+     *   - `rut` sigue siendo opcional (`nullable`): si se envía vacío, se
+     *     guarda como `null`. Si otro convenio ya tiene un RUT y aquí se
+     *     intenta usar el mismo, la regla `unique` lo bloquea.
+     *   - `is_active` NO se toca aquí: para activar/desactivar se usa el
+     *     endpoint `toggleActive`. Así se evita que una edición de datos
+     *     cambie sin querer el estado del convenio.
+     *   - `discount_percentage` se valida entre 0 y 100 igual que en
+     *     `store()`, para mantener consistencia.
+     */
+    public function update(Request $request, Agreement $agreement)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            // La regla unique ignora el ID actual para permitir guardar el mismo RUT sin error
+            'rut' => 'nullable|string|max:20|unique:agreements,rut,' . $agreement->id,
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'discount_percentage' => 'required|numeric|min:0|max:100',
+            'notes' => 'nullable|string',
+        ]);
+
+        $agreement->update($validated);
+
+        return back()->with('toast', [
+            'type' => 'success',
+            'message' => 'Convenio actualizado correctamente.',
+        ]);
+    }
+
+    /**
      * Activa o desactiva un convenio (toggle).
      *
      * No elimina el convenio: solo invierte `is_active`. Esto preserva la
