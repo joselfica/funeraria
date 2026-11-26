@@ -22,6 +22,18 @@ use Illuminate\Support\Facades\DB;
  */
 class DashboardController extends Controller
 {
+    /**
+     * Momento del hito de un servicio: cremación (urna) = scheduled_at;
+     * sepelio (ataúd) = burial_at. Un ataúd sin burial_at da NULL y no
+     * aparece en hoy/próximos hasta que se le asigne fecha.
+     */
+    private const EVENT_AT = "CASE WHEN services.service_type = 'urna' THEN services.scheduled_at ELSE services.burial_at END";
+
+    private static function eventAt(Service $s): \Carbon\CarbonInterface
+    {
+        return $s->service_type?->value === 'urna' ? $s->scheduled_at : $s->burial_at;
+    }
+
     public function index()
     {
         // Las finanzas (ingresos, cobros, pagos) son visibles para Administrador y Encargado
@@ -157,20 +169,21 @@ class DashboardController extends Controller
         // 4. Próximos Servicios (desde mañana hasta 7 días; los de hoy van en $todayServices)
         $upcomingServices = Service::with(['client:id,name', 'deceased:id,full_name', 'vehicles'])
             ->whereIn('status', ['accepted', 'in_progress'])
-            ->where('scheduled_at', '>=', Carbon::tomorrow())
-            ->where('scheduled_at', '<=', now()->addDays(7))
-            ->orderBy('scheduled_at', 'asc')
+            ->whereRaw('('.self::EVENT_AT.') >= ?', [Carbon::tomorrow()->toDateTimeString()])
+            ->whereRaw('('.self::EVENT_AT.') <= ?', [now()->addDays(7)->toDateTimeString()])
+            ->orderByRaw(self::EVENT_AT.' asc')
             ->limit(10)
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
                 'uuid' => $s->uuid,
                 'code' => $s->code,
-                'scheduled_at' => $s->scheduled_at->toIso8601String(),
-                'scheduled_date' => $s->scheduled_at->translatedFormat('D d M'),
-                'scheduled_time' => $s->scheduled_at->format('H:i'),
-                'day' => $s->scheduled_at->format('j'),
-                'month' => ucfirst(rtrim($s->scheduled_at->translatedFormat('M'), '.')),
+                'scheduled_at' => self::eventAt($s)->toIso8601String(),
+                'event_type' => $s->service_type?->value === 'urna' ? 'cremacion' : 'sepelio',
+                'scheduled_date' => self::eventAt($s)->translatedFormat('D d M'),
+                'scheduled_time' => self::eventAt($s)->format('H:i'),
+                'day' => self::eventAt($s)->format('j'),
+                'month' => ucfirst(rtrim(self::eventAt($s)->translatedFormat('M'), '.')),
                 'status' => $s->status,
                 'status_label' => $s->status_label,
                 'deceased' => $s->deceased?->full_name,
@@ -354,18 +367,24 @@ class DashboardController extends Controller
             ->values();
 
         // Servicios de HOY (que ocurren hoy o están en progreso)
+        // El hito del día es el sepelio (burial_at) en ataúd, o la cremación (scheduled_at) en urna.
         $todayServices = Service::with(['client:id,name', 'deceased:id,full_name', 'branch:id,name'])
-            ->whereDate('scheduled_at', Carbon::today())
-            ->orderBy('scheduled_at')
+            ->whereIn('status', ['accepted', 'in_progress', 'completed'])
+            ->whereRaw('('.self::EVENT_AT.') BETWEEN ? AND ?', [
+                Carbon::today()->startOfDay()->toDateTimeString(),
+                Carbon::today()->endOfDay()->toDateTimeString(),
+            ])
+            ->orderByRaw(self::EVENT_AT.' asc')
             ->get()
             ->map(fn ($s) => [
                 'id' => $s->id,
                 'uuid' => $s->uuid,
                 'code' => $s->code,
-                'scheduled_at' => $s->scheduled_at->toIso8601String(),
-                'time' => $s->scheduled_at->format('H:i'),
-                'day' => $s->scheduled_at->format('j'),
-                'month' => ucfirst(rtrim($s->scheduled_at->translatedFormat('M'), '.')),
+                'scheduled_at' => self::eventAt($s)->toIso8601String(),
+                'event_type' => $s->service_type?->value === 'urna' ? 'cremacion' : 'sepelio',
+                'time' => self::eventAt($s)->format('H:i'),
+                'day' => self::eventAt($s)->format('j'),
+                'month' => ucfirst(rtrim(self::eventAt($s)->translatedFormat('M'), '.')),
                 'status' => $s->status,
                 'status_label' => $s->status_label,
                 'client' => $s->client?->name,
