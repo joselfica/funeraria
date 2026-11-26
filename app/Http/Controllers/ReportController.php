@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DonationsExport;
 use App\Exports\PaymentsExport;
 use App\Exports\ServicesExport;
 use App\Models\Client;
+use App\Models\Donation;
 use App\Models\InventoryItem;
 use App\Models\Payment;
 use App\Models\Service;
@@ -137,5 +139,72 @@ class ReportController extends Controller
             ->setPaper('a4', 'portrait');
 
         return $pdf->download('reporte-inventario-' . now()->format('Y-m-d') . '.pdf');
+    }
+
+    /**
+     * Exportar Donaciones a Excel
+     */
+    public function donationsExcel(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        return Excel::download(
+            new DonationsExport($startDate, $endDate),
+            'Reporte_Donaciones_' . now()->format('d-m-Y') . '.xlsx'
+        );
+    }
+
+    /**
+     * Exportar Donaciones a PDF
+     *
+     * Acepta filtros opcionales por fecha (start_date / end_date):
+     *   - Ambos presentes: rango entre ambas fechas (inclusivo).
+     *   - Solo start_date: desde esa fecha en adelante.
+     *   - Solo end_date:   hasta esa fecha.
+     *   - Ninguno:         histórico completo.
+     *
+     * Los totales se calculan solo sobre las donaciones cuyo `type` es
+     * 'dinero' (comparación insensible a mayúsculas y espacios), para no
+     * sumar aportes en especie (que no tienen monto monetario).
+     *
+     * La vista `pdfs.reports.donations` recibe:
+     *   - $donations: colección de donaciones filtradas.
+     *   - $totalDinero: suma de montos en dinero.
+     *   - $startDate: fecha inicial del filtro (o null).
+     *   - $endDate: fecha final del filtro (o null).
+     */
+    public function donationsPdf(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = Donation::with('creator:id,name');
+
+        // ─────────────────────────────────────────────────────────────
+        // Filtro de fechas: soporta rango, solo inicio o solo fin.
+        // Antes solo se filtraba si AMBOS estaban presentes, lo que
+        // ignoraba filtros parciales (p. ej. "desde enero" sin fecha fin).
+        // ─────────────────────────────────────────────────────────────
+        if ($startDate && $endDate) {
+            $query->whereBetween('donation_date', [$startDate, $endDate]);
+        } elseif ($startDate) {
+            $query->where('donation_date', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('donation_date', '<=', $endDate);
+        }
+
+        $donations = $query->orderBy('donation_date', 'desc')->get();
+
+        // Total de dinero: solo donaciones de tipo 'dinero'
+        // (trim + strtolower para tolerar variaciones de mayúsculas/espacios).
+        $totalDinero = $donations
+            ->filter(fn ($d) => strtolower(trim((string) $d->type)) === 'dinero')
+            ->sum(fn ($d) => (float) $d->amount);
+
+        // 👇 Se pasan $startDate y $endDate explícitamente a la vista
+        $pdf = Pdf::loadView('pdfs.reports.donations', compact('donations', 'totalDinero', 'startDate', 'endDate'));
+
+        return $pdf->download('Reporte_Donaciones_' . now()->format('d-m-Y') . '.pdf');
     }
 }

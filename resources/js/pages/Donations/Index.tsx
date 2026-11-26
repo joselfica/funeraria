@@ -2,7 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import {
     HandHeart, Plus, Calendar, DollarSign, Package,
-    FileText, Search, X, User, Phone, Pencil, Eye,
+    FileText, FileSpreadsheet, Search, X, User, Phone, Pencil, Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +49,33 @@ const formatDate = (date: string) =>
 export default function DonationsIndex({ donations }: Props) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [search, setSearch] = useState('');
+
+    // Rango de fechas para los reportes (Excel / PDF)
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    /** URL del reporte con los filtros de fecha que estén completados. */
+    const getReportUrl = (type: 'excel' | 'pdf') => {
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        const query = params.toString();
+        return `/reports/donations/${type}${query ? `?${query}` : ''}`;
+    };
+
+    /** Abre el calendario nativo al hacer clic en cualquier parte del campo (no solo en el ícono). */
+    const openPicker = (e: React.MouseEvent<HTMLInputElement>) => {
+        try {
+            e.currentTarget.showPicker?.();
+        } catch {
+            /* el navegador no permite abrirlo: queda el ícono nativo */
+        }
+    };
+
+    const hasDateFilter = startDate !== '' || endDate !== '';
+    const rangeHint = hasDateFilter
+        ? 'Se descargará solo el rango seleccionado'
+        : 'Sin fechas: se descargan todas las donaciones';
 
     const { data, setData, post, processing, errors, reset } = useForm({
         beneficiary_name: '',
@@ -131,10 +158,81 @@ export default function DonationsIndex({ donations }: Props) {
                     </div>
                     <Button
                         onClick={() => setIsModalOpen(true)}
+                        title="Registrar una nueva donación"
                         className="h-10 w-full bg-rose-800 text-white shadow-md hover:bg-rose-900 sm:w-auto"
                     >
                         <Plus className="mr-1 h-4 w-4" /> Nueva Donación
                     </Button>
+                </div>
+
+                {/* ─────────────── DESCARGAR REPORTE ─────────────── */}
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        {/* Rango de fechas */}
+                        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:flex sm:items-end">
+                            <div className="min-w-0 sm:w-44">
+                                <Label htmlFor="report_start" className="text-xs text-muted-foreground">
+                                    Desde
+                                </Label>
+                                <Input
+                                    id="report_start"
+                                    type="date"
+                                    value={startDate}
+                                    max={endDate || undefined}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    onClick={openPicker}
+                                    className="mt-1 h-10 cursor-pointer"
+                                />
+                            </div>
+                            <div className="min-w-0 sm:w-44">
+                                <Label htmlFor="report_end" className="text-xs text-muted-foreground">
+                                    Hasta
+                                </Label>
+                                <Input
+                                    id="report_end"
+                                    type="date"
+                                    value={endDate}
+                                    min={startDate || undefined}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    onClick={openPicker}
+                                    className="mt-1 h-10 cursor-pointer"
+                                />
+                            </div>
+                            {hasDateFilter && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setStartDate('');
+                                        setEndDate('');
+                                    }}
+                                    title="Quitar filtro de fechas"
+                                    className="h-10 text-muted-foreground min-[420px]:col-span-2 sm:col-span-1"
+                                >
+                                    <X className="mr-1 h-4 w-4" /> Limpiar
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Descargas */}
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <p className="text-xs text-muted-foreground sm:mr-2 sm:max-w-[14rem] sm:text-right">
+                                {rangeHint}
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <a href={getReportUrl('excel')} title="Descargar reporte en Excel" className="block">
+                                    <Button className="h-10 w-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700">
+                                        <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel
+                                    </Button>
+                                </a>
+                                <a href={getReportUrl('pdf')} title="Descargar reporte en PDF" className="block">
+                                    <Button className="h-10 w-full bg-red-600 text-white shadow-sm hover:bg-red-700">
+                                        <FileText className="mr-2 h-4 w-4" /> PDF
+                                    </Button>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* ─────────────── RESUMEN RÁPIDO ─────────────── */}

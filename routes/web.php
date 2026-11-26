@@ -168,6 +168,8 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::get('reports/services/pdf', [ReportController::class, 'servicesPdf'])->name('reports.services.pdf');
     Route::get('reports/services/excel', [ReportController::class, 'servicesExcel'])->name('reports.services.excel');
     Route::get('reports/inventory/pdf', [ReportController::class, 'inventoryPdf'])->name('reports.inventory.pdf');
+    Route::get('reports/donations/excel', [ReportController::class, 'donationsExcel'])->name('reports.donations.excel');
+    Route::get('reports/donations/pdf', [ReportController::class, 'donationsPdf'])->name('reports.donations.pdf');
 
     // ─────────────────────────────────────────────────────────
     // SUCURSALES (Admin + Encargado)
