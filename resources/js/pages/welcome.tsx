@@ -330,7 +330,7 @@ export default function Welcome({ catalogItems = DEFAULT_CATALOG }: WelcomeProps
                 <section className="relative bg-neutral-950 text-white overflow-hidden">
                     <div className="absolute inset-0">
                         <img 
-                            src="https://images.unsplash.com/photo-1519817650390-64a93db51149?q=80&w=2070" 
+                            src="https://s3.us-east-1.amazonaws.com/website-anf/header/_1600x900_crop_center-center_100_none/ANF-Heaven-Hope-of-Our-Souls-1600x900.jpg" 
                             alt="Luz y serenidad"
                             className="w-full h-full object-cover opacity-30 scale-105"
                         />
