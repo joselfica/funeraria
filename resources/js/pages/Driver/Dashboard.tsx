@@ -1,154 +1,185 @@
-<?php
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { 
+    Calendar, Clock, MapPin, User, Phone, 
+    CheckCircle2, Sun, ArrowRight
+} from 'lucide-react';
 
-namespace App\Http\Controllers;
+interface Service {
+    id: number;
+    uuid: string;
+    code: string;
+    scheduled_at: string;
+    status: string;
+    status_label: string;
+    client: { name: string; phone: string | null };
+    deceased: { full_name: string };
+    branch: { name: string; address: string | null } | null;
+    service_type_label: string;
+}
 
-use App\Models\Service;
-use Carbon\Carbon;
-use Inertia\Inertia;
+interface Props {
+    todayServices: Service[];
+    upcomingServices: Service[];
+}
 
-/**
- * Controlador del Panel Principal para Choferes.
- *
- * Este controlador gestiona la vista del chofer autenticado. A diferencia del
- * DashboardController (que muestra métricas globales del negocio), aquí solo
- * se exponen los servicios que le fueron asignados al chofer logueado.
- *
- * Reglas de negocio clave:
- *   - Un chofer solo ve los servicios donde figura como asignado en la tabla
- *     de asignaciones (relación `assignments` del modelo Service).
- *   - El alcance de cada sección (hoy / próximos / detalle) siempre se filtra
- *     por ese `user_id`, para evitar que un chofer vea servicios de otro.
- *   - Solo se consideran servicios en estados operativos ('accepted',
- *     'in_progress'); los 'pending' o 'rejected' no son relevantes para el
- *     chofer porque aún no están aprobados o ya fueron descartados.
- */
-class DriverController extends Controller
-{
-    /**
-     * Fecha del hito que le importa al chofer, según el tipo de servicio:
-     *   - Urna (cremación): scheduled_at (el momento real de la cremación).
-     *   - Ataúd (entierro): burial_at (la fecha del sepelio).
-     * Si un entierro aún no tiene burial_at, la expresión es NULL y el servicio
-     * no aparece en ninguna lista hasta que se le asigne fecha.
-     */
-    private const EVENT_AT = "CASE WHEN services.service_type = 'urna' THEN services.scheduled_at ELSE services.burial_at END";
+export default function DriverDashboard({ todayServices, upcomingServices }: Props) {
+    const { auth } = usePage<{ auth: { user: { name: string } } }>().props;
+    const userName = auth.user?.name || 'Chofer';
+    
+    const formatDate = (date: string) =>
+        new Date(date).toLocaleDateString('es-CL', { weekday: 'long', day: '2-digit', month: 'long' });
+    
+    const formatTime = (date: string) =>
+        new Date(date).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
-    /**
-     * Panel principal del chofer.
-     *
-     * Devuelve dos bloques de datos a la vista:
-     *   1. todayServices:    el sepelio/cremación que ocurre exactamente HOY
-     *                        (sin anticipación: nada de días anteriores ni posteriores).
-     *   2. upcomingServices: los próximos sepelios/cremaciones (desde mañana en
-     *                        adelante), limitados a 10.
-     *
-     * Cada bloque se formatea con `formatService()` para mantener un contrato
-     * estable y liviano hacia el frontend (solo los campos que la vista usa).
-     */
-    public function index()
-    {
-        $user = auth()->user();
+    const today = new Date().toLocaleDateString('es-CL', { 
+        weekday: 'long', day: 'numeric', month: 'long' 
+    });
 
-        // Límites del día en hora de Chile, convertidos a la zona de la app para
-        // compararlos correctamente con lo guardado en la base de datos.
-        $appTz = config('app.timezone');
-        $startOfDay = Carbon::now('America/Santiago')->startOfDay()->setTimezone($appTz)->toDateTimeString();
-        $endOfDay = Carbon::now('America/Santiago')->endOfDay()->setTimezone($appTz)->toDateTimeString();
+    return (
+        <>
+            <Head title="Mi Itinerario - Chofer" />
 
-        // La consulta base: Solo los servicios donde este chofer está asignado
-        // (Ajusta 'assignments' o 'driver_id' según cómo manejes la relación en tu modelo Service)
-        $baseQuery = Service::with(['client:id,name,phone', 'deceased:id,full_name', 'branch:id,name,address'])
-            ->whereHas('assignments', function ($q) use ($user) {
-                $q->where('user_id', $user->id);
-            })
-            ->whereIn('status', ['accepted', 'in_progress']); // Solo servicios activos
+            <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+                
+                {/* HERO / BIENVENIDA */}
+                <div className="flex items-start gap-4 bg-gradient-to-r from-rose-50 to-rose-100 dark:from-rose-950/40 dark:to-rose-900/20 p-6 rounded-2xl border border-rose-200 dark:border-rose-900">
+                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl text-rose-800 shadow-sm shrink-0">
+                        <Sun className="h-8 w-8" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">
+                            Hola, {userName.split(' ')[0]}
+                        </h1>
+                        <p className="text-muted-foreground mt-1 text-sm md:text-base capitalize">
+                            {today}
+                        </p>
+                    </div>
+                </div>
 
-        // 1. SERVICIOS DE HOY: solo el sepelio/cremación que ocurre hoy, sin anticipación
-        $todayServices = (clone $baseQuery)
-            ->whereRaw('('.self::EVENT_AT.') BETWEEN ? AND ?', [$startOfDay, $endOfDay])
-            ->orderByRaw(self::EVENT_AT.' asc')
-            ->get();
+                {/* SECCIÓN 1: SERVICIOS DE HOY */}
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <Clock className="h-5 w-5 text-rose-800" /> Servicios de Hoy
+                        </h2>
+                        <Badge variant={todayServices.length > 0 ? 'default' : 'secondary'}>
+                            {todayServices.length} servicio(s)
+                        </Badge>
+                    </div>
 
-        // 2. PRÓXIMOS SERVICIOS: los siguientes sepelios/cremaciones (desde mañana en adelante)
-        $upcomingServices = (clone $baseQuery)
-            ->whereRaw('('.self::EVENT_AT.') > ?', [$endOfDay])
-            ->orderByRaw(self::EVENT_AT.' asc')
-            ->limit(10) // Límite para no saturar
-            ->get();
+                    {todayServices.length === 0 ? (
+                        <Card className="bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900">
+                            <CardContent className="p-6 text-center">
+                                <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
+                                <p className="text-lg font-medium text-emerald-800 dark:text-emerald-300">¡Todo tranquilo por hoy!</p>
+                                <p className="text-sm text-emerald-600 dark:text-emerald-400">No tienes servicios asignados para el día de hoy.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-3">
+                            {todayServices.map((service) => (
+                                <Card key={service.id} className="shadow-sm border-l-4 border-l-rose-800 hover:shadow-md transition-shadow">
+                                    <CardContent className="p-4">
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            {/* Info del servicio */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-mono text-xs text-muted-foreground">{service.code}</span>
+                                                    <Badge className="bg-rose-800 text-white text-[10px]">{service.status_label}</Badge>
+                                                </div>
+                                                <p className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">
+                                                    {service.deceased.full_name}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">{service.service_type_label}</p>
+                                                
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-xs">
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <User className="h-3 w-3" /> <span>Cliente: {service.client.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <MapPin className="h-3 w-3" /> <span>{service.branch?.name || 'Sin sucursal'}</span>
+                                                    </div>
+                                                    {service.client.phone && (
+                                                        <a href={`tel:${service.client.phone}`} className="flex items-center gap-2 text-emerald-600 hover:underline">
+                                                            <Phone className="h-3 w-3" /> Llamar: {service.client.phone}
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
 
-        // Formateamos para React
-        return Inertia::render('Driver/Dashboard', [
-            'todayServices' => $todayServices->map(fn ($s) => $this->formatService($s)),
-            'upcomingServices' => $upcomingServices->map(fn ($s) => $this->formatService($s)),
-        ]);
-    }
+                                            {/* Hora + Acción */}
+                                            <div className="flex items-center gap-4 md:flex-col md:items-end justify-between border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-4">
+                                                <div className="text-right">
+                                                    <p className="text-2xl font-bold text-rose-800 dark:text-rose-500">{formatTime(service.scheduled_at)}</p>
+                                                    <p className="text-xs text-muted-foreground">Inicio</p>
+                                                </div>
+                                                <Link href={`/driver/services/${service.uuid}`}>
+                                                    <Button size="sm" className="bg-rose-800 hover:bg-rose-900 text-white">
+                                                        Ver Detalle <ArrowRight className="h-4 w-4 ml-1" />
+                                                    </Button>
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
-    // Helper para no repetir el mapeo
-    private function formatService($s)
-    {
-        return [
-            'id' => $s->id,
-            'uuid' => $s->uuid,
-            'code' => $s->code,
-            'scheduled_at' => $s->scheduled_at->toIso8601String(),
-            // Momento del sepelio (ataúd) o de la cremación (urna): es el que define en qué lista aparece
-            'event_at' => ($s->service_type?->value === 'urna' ? $s->scheduled_at : $s->burial_at)?->toIso8601String(),
-            'event_type' => $s->service_type?->value === 'urna' ? 'cremacion' : 'sepelio',
-            'status' => $s->status,
-            'status_label' => $s->status_label,
-            'service_type_label' => $s->service_type_label,
-            'client' => [
-                'name' => $s->client?->name ?? 'Sin cliente',
-                'phone' => $s->client?->phone,
-            ],
-            'deceased' => [
-                'full_name' => $s->deceased?->full_name ?? 'Sin fallecido',
-            ],
-            'branch' => $s->branch ? [
-                'name' => $s->branch->name,
-                'address' => $s->branch->address,
-            ] : null,
-        ];
-    }
+                {/* SECCIÓN 2: PRÓXIMOS SERVICIOS */}
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-rose-800" /> Próximos Servicios
+                        </h2>
+                        <Badge variant="outline">
+                            {upcomingServices.length} programado(s)
+                        </Badge>
+                    </div>
 
-    /**
-     * Detalle de un servicio asignado al chofer.
-     *
-     * Reglas de acceso:
-     *   - El servicio debe estar asignado al chofer logueado como 'driver'.
-     *     Si no, se responde 403 (Forbidden).
-     *
-     * Se cargan las relaciones `client`, `deceased` y `branch` porque la
-     * vista de detalle del chofer las necesita (direcciones, contactos,
-     * datos del fallecido, etc.). Los atributos calculados `service_type_label`,
-     * `status_label` y `beneficiary_label` se anexan al JSON vía $appends
-     * del modelo para no tener que calcularlos en el frontend.
-     */
-    public function showService(Service $service)
-    {
-        $user = auth()->user();
+                    {upcomingServices.length === 0 ? (
+                        <Card className="bg-slate-50 dark:bg-slate-900/40 border-dashed">
+                            <CardContent className="p-6 text-center text-muted-foreground">
+                                <Calendar className="h-10 w-10 mx-auto mb-2 text-slate-300" />
+                                <p className="text-sm">No tienes servicios programados para los próximos días.</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {upcomingServices.map((service) => (
+                                <Link key={service.id} href={`/driver/services/${service.uuid}`}>
+                                    <Card className="shadow-sm hover:shadow-md hover:border-rose-300 transition-all h-full">
+                                        <CardContent className="p-4 space-y-2">
+                                            <div className="flex justify-between items-start">
+                                                <span className="font-mono text-[10px] text-muted-foreground">{service.code}</span>
+                                                <Badge variant="outline" className="text-[10px] capitalize">
+                                                    {formatDate(service.scheduled_at)}
+                                                </Badge>
+                                            </div>
+                                            <p className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                                                {service.deceased.full_name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground truncate">
+                                                {service.client.name} · {service.service_type_label}
+                                            </p>
+                                            <div className="flex items-center justify-between pt-2 border-t mt-2">
+                                                <span className="text-xs text-muted-foreground">Hora: <strong>{formatTime(service.scheduled_at)}</strong></span>
+                                                <ArrowRight className="h-4 w-4 text-rose-800" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
-        // Verificar que el servicio esté asignado al chofer logueado.
-        // Se filtra también por role_in_service='driver' para que un
-        // coordinador o asistente asignado no pueda entrar por esta ruta.
-        $isAssigned = $service->assignments()
-            ->where('user_id', $user->id)
-            ->where('role_in_service', 'driver')
-            ->exists();
-
-        if (! $isAssigned) {
-            abort(403, 'No tienes permiso para ver este servicio.');
-        }
-
-        // Cargar relaciones necesarias para la vista de detalle.
-        // (No se carga serviceType porque ese enum ya no es una relación).
-        $service->load(['client', 'deceased', 'branch']);
-
-        // Anexar atributos calculados al JSON (labels legibles para el front).
-        $service->append(['service_type_label', 'status_label', 'beneficiary_label']);
-
-        return Inertia::render('Driver/ServiceShow', [
-            'service' => $service,
-        ]);
-    }
+            </div>
+        </>
+    );
 }
