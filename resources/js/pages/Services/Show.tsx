@@ -2,7 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    CheckCircle2, Box, FlaskConical, Package, AlertTriangle, Info,
+    CheckCircle2, Box, Package, AlertTriangle, Info,
     ArrowLeft, Pencil, FileText, Receipt, DollarSign, Calendar,
     User, Users, Truck, Plus, X, ShieldCheck, CreditCard
 } from 'lucide-react';
@@ -22,6 +22,12 @@ import {
 interface Client { id: number; name: string; rut: string; email: string | null; phone: string | null; }
 interface Deceased { id: number; full_name: string; rut: string | null; death_date: string; }
 interface User { id: number; name: string; }
+
+interface Agreement {
+    id: number;
+    name: string;
+    discount_percentage: number;
+}
 
 interface InventoryItem {
     id: number; code: string; name: string; category: string; material: string | null;
@@ -54,6 +60,7 @@ interface Service {
     destination_location: string | null; burial_at: string | null; base_price: string;
     additional_charges: string; discount: string; total_price: string;
     beneficiary_type: string; beneficiary_label: string;
+    agreement: Agreement | null;
     client_notes: string | null; internal_notes: string | null;
     rejection_reason: string | null; approved_at: string | null;
     client: Client | null; deceased: Deceased | null; service_type: string; service_type_label: string;
@@ -154,7 +161,10 @@ export default function ServicesShow({ service, availableItems, availableVehicle
     // ───────── Datos para la tarjeta económica ─────────
     const precioBase = parseFloat(service.base_price) || 0;
     const cargosAdicionales = parseFloat(service.additional_charges) || 0;
-    const descuento = parseFloat(service.discount) || 0;
+    const manualDiscount = parseFloat(service.discount) || 0;
+    const discountAmount = service.agreement
+        ? (total * service.agreement.discount_percentage) / 100
+        : manualDiscount;
     const totalPagar = total;
     const saldoPendiente = financials.balance;
 
@@ -304,11 +314,18 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                     </Badge>
                                 </div>
 
-                                {/* Descuento */}
+                                {/* Descuento (Condicional) */}
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Descuento</span>
-                                    <span className={descuento > 0 ? 'text-emerald-600' : 'text-slate-400'}>
-                                        -{formatPrice(descuento)}
+                                    <span className="text-muted-foreground flex items-center gap-1">
+                                        Descuento
+                                        {service.agreement && (
+                                            <span className="text-xs text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                                {service.agreement.name} ({service.agreement.discount_percentage}%)
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span className={discountAmount > 0 ? 'text-emerald-600 font-medium' : 'text-slate-400'}>
+                                        {discountAmount > 0 ? `-${formatPrice(discountAmount)}` : '-$0'}
                                     </span>
                                 </div>
 
@@ -316,8 +333,13 @@ export default function ServicesShow({ service, availableItems, availableVehicle
                                     {/* Total */}
                                     <div className="flex justify-between items-center">
                                         <span className="font-bold text-lg text-slate-800 dark:text-slate-200">Total a pagar</span>
-                                        <span className="font-bold text-xl text-rose-800 dark:text-rose-400">
+                                        <span className="font-bold text-xl text-rose-800 dark:text-rose-400 flex flex-col items-end">
                                             {formatPrice(totalPagar)}
+                                            {service.agreement && (
+                                                <span className="text-xs font-normal text-emerald-600">
+                                                    (Descuento aplicado)
+                                                </span>
+                                            )}
                                         </span>
                                     </div>
 

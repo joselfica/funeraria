@@ -4,17 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Enums\BeneficiaryType;
 use App\Enums\ServiceTypeEnum;
+use App\Models\Agreement;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Deceased;
 use App\Models\InventoryItem;
+use App\Models\Payment;
 use App\Models\Service;
+use App\Models\ServiceAssignment;
+use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\AvailabilityService;
 use App\Services\ServiceAssignmentService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class ServiceController extends Controller
@@ -112,7 +119,7 @@ class ServiceController extends Controller
             'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
             'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
 
-            // 👇 Tipos de servicio desde el Enum
+            // Tipos de servicio desde el Enum
             'serviceTypes' => collect(ServiceTypeEnum::cases())->map(fn ($type) => [
                 'value' => $type->value,
                 'label' => $type->label(),
@@ -138,20 +145,6 @@ class ServiceController extends Controller
             'deceased_id' => 'required|exists:deceased,id',
             'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'branch_id' => 'required|exists:branches,id',
-            // ─────────────────────────────────────────────────────────────
-            // VALIDACIÓN DE BENEFICIARIO CON ENUM
-            // ─────────────────────────────────────────────────────────────
-            //
-            // Se usa Rule::enum(BeneficiaryType::class) en lugar de una
-            // regla `in:afp,ips,...` manual. De esta forma, si en el futuro
-            // se agrega, renombra o elimina un caso en el Enum
-            // App\Enums\BeneficiaryType, la validación se mantiene
-            // automáticamente sincronizada sin tocar este controlador.
-            //
-            // Además, el Enum centraliza la lógica de negocio asociada
-            // (labels, helpers como isMunicipal(), etc.), evitando
-            // valores "mágicos" dispersos por el código.
-            // ─────────────────────────────────────────────────────────────
             'beneficiary_type' => ['required', Rule::enum(BeneficiaryType::class)],
             'scheduled_at' => 'required|date|after:now',
             'duration_hours' => 'required|integer|min:1',
@@ -169,25 +162,17 @@ class ServiceController extends Controller
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        // ─────────────────────────────────────────────────────────────
-        // FECHA ESPERADA DE PAGO PARA BENEFICIARIOS MUNICIPALES
-        // ─────────────────────────────────────────────────────────────
-        //
-        // $validated['beneficiary_type'] contiene el value del Enum
-        // ('municipalidad'), así que se compara contra
-        // BeneficiaryType::MUNICIPALIDAD->value.
-        // ─────────────────────────────────────────────────────────────
         $isMunicipal = $validated['beneficiary_type'] === BeneficiaryType::MUNICIPALIDAD->value;
 
         $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
 
         if ($isMunicipal) {
-            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
+            $validated['expected_payment_date'] = Carbon::parse($validated['scheduled_at'])->addMonths(3);
         } else {
             $validated['expected_payment_date'] = null;
         }
 
-        $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
+        $validated['ends_at'] = Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
         $validated['created_by'] = auth()->id();
         $validated['status'] = 'pending';
 
@@ -226,7 +211,7 @@ class ServiceController extends Controller
             ]);
         $availableVehicles = Vehicle::available()->orderBy('type')->orderBy('plate')->get(['id', 'plate', 'type', 'brand', 'model', 'status']);
 
-        $serviceDate = \Carbon\Carbon::parse($service->scheduled_at);
+        $serviceDate = Carbon::parse($service->scheduled_at);
         // Personal ya asignado a este servicio (no se ofrece de nuevo)
         $assignedUserIds = $service->assignments->pluck('user_id');
 
@@ -260,7 +245,7 @@ class ServiceController extends Controller
             'clients' => Client::active()->orderBy('name')->get(['id', 'name', 'rut']),
             'deceased' => Deceased::orderBy('full_name')->get(['id', 'full_name', 'rut']),
 
-            // 👇 Tipos de servicio desde el Enum
+            // Tipos de servicio desde el Enum
             'serviceTypes' => collect(ServiceTypeEnum::cases())->map(fn ($type) => [
                 'value' => $type->value,
                 'label' => $type->label(),
@@ -283,16 +268,6 @@ class ServiceController extends Controller
             'deceased_id' => 'required|exists:deceased,id',
             'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'branch_id' => 'required|exists:branches,id',
-            // ─────────────────────────────────────────────────────────────
-            // VALIDACIÓN DE BENEFICIARIO CON ENUM
-            // ─────────────────────────────────────────────────────────────
-            //
-            // Igual que en store(): se valida con Rule::enum para que la
-            // lista de valores aceptados se derive directamente del Enum
-            // App\Enums\BeneficiaryType. Así se evita el error clásico de
-            // que el formulario ofrezca un caso nuevo (agregado al Enum)
-            // y el backend lo rechace por una regla `in:` desactualizada.
-            // ─────────────────────────────────────────────────────────────
             'beneficiary_type' => ['required', Rule::enum(BeneficiaryType::class)],
             'scheduled_at' => 'required|date',
             'duration_hours' => 'required|integer|min:1',
@@ -313,25 +288,17 @@ class ServiceController extends Controller
         $validated['discount'] = (float) ($validated['discount'] ?? 0);
         $validated['municipal_amount'] = (float) ($validated['municipal_amount'] ?? 0);
 
-        // ─────────────────────────────────────────────────────────────
-        // FECHA ESPERADA DE PAGO PARA BENEFICIARIOS MUNICIPALES
-        // ─────────────────────────────────────────────────────────────
-        //
-        // $validated['beneficiary_type'] contiene el value del Enum
-        // ('municipalidad'), así que se compara contra
-        // BeneficiaryType::MUNICIPALIDAD->value.
-        // ─────────────────────────────────────────────────────────────
         $isMunicipal = $validated['beneficiary_type'] === BeneficiaryType::MUNICIPALIDAD->value;
 
         $validated['total_price'] = $validated['base_price'] + $validated['additional_charges'] - $validated['discount'];
 
         if ($isMunicipal) {
-            $validated['expected_payment_date'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addMonths(3);
+            $validated['expected_payment_date'] = Carbon::parse($validated['scheduled_at'])->addMonths(3);
         } else {
             $validated['expected_payment_date'] = null;
         }
 
-        $validated['ends_at'] = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
+        $validated['ends_at'] = Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
 
         $service->update($validated);
 
@@ -346,7 +313,7 @@ class ServiceController extends Controller
                 $deceasedUpdate['cemetery'] = $validated['destination_location'] ?? null;
             }
 
-            if (!empty($deceasedUpdate)) {
+            if (! empty($deceasedUpdate)) {
                 $service->deceased->update($deceasedUpdate);
             }
         }
@@ -492,7 +459,7 @@ class ServiceController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $user = \App\Models\User::findOrFail($validated['user_id']);
+        $user = User::findOrFail($validated['user_id']);
 
         try {
             $availability->validateAssignment($user, $service);
@@ -517,7 +484,7 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function removeEmployee(Service $service, \App\Models\ServiceAssignment $assignment)
+    public function removeEmployee(Service $service, ServiceAssignment $assignment)
     {
         if ($assignment->service_id !== $service->id) {
             abort(404);
@@ -535,13 +502,13 @@ class ServiceController extends Controller
     /**
      * Crea un expediente completo en una sola transacción.
      *
-     * Corregido: El campo branch_id ahora se guarda correctamente en la tabla services.
-     * La validación de Seremi se liberó (ya no es required_if) para permitir
-     * crear servicios con duración > 48h sin bloquear el flujo.
+     * Calcula el descuento del convenio (si se seleccionó `agreement_id`)
+     * sobre el monto bruto ingresado (`total_amount`) y guarda el monto final
+     * en `base_price` y `total_price`.
      */
     public function quickStore(
         Request $request,
-        \App\Services\ServiceAssignmentService $assigner,
+        ServiceAssignmentService $assigner,
         AvailabilityService $availability
     ) {
         // ─────────────────────────────────────────────────────────────
@@ -567,18 +534,21 @@ class ServiceController extends Controller
 
             // Servicio
             'branch_id' => 'required|exists:branches,id',
-            'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)], // 👈 Enum
+            'service_type' => ['required', Rule::enum(ServiceTypeEnum::class)],
             'beneficiary_type' => ['required', Rule::enum(BeneficiaryType::class)],
-            'scheduled_at' => 'required|date', // 👈 Sin 'after:now' para permitir fechas pasadas
+            'scheduled_at' => 'required|date',
             'duration_hours' => 'required|integer|min:1',
-            'total_amount' => 'required|numeric|min:0', // 👈 Monto total ingresado manualmente
+            'total_amount' => 'required|numeric|min:0',
             'origin_location' => 'nullable|string|max:200',
             'destination_location' => 'nullable|string|max:200',
             'burial_at' => 'nullable|date',
 
+            // Convenio (opcional)
+            'agreement_id' => 'nullable|exists:agreements,id',
+
             // Inventario y pago inicial (opcionales)
             'inventory_item_id' => 'nullable|exists:inventory_items,id',
-            'amount_paid' => 'required|numeric|min:0|lte:total_amount', // 👈 Abono entregado
+            'amount_paid' => 'required|numeric|min:0|lte:total_amount',
             'payment_method' => 'nullable|string',
             'payment_reference' => 'nullable|string',
 
@@ -592,29 +562,45 @@ class ServiceController extends Controller
         ]);
 
         // ─────────────────────────────────────────────────────────────
-        // 2. CASTEO DE TIPOS + MONTOS MANUALES (total y abono)
+        // 2. CASTEO DE TIPOS + CÁLCULO DE DESCUENTO POR CONVENIO Y ABONO
         // ─────────────────────────────────────────────────────────────
-        $validated['duration_hours'] = (int) $validated['duration_hours'];
         $validated['branch_id'] = (int) $validated['branch_id'];
 
         $serviceType = ServiceTypeEnum::from($validated['service_type']);
-
-        // 👇 Solo la duración se toma del Enum. Los montos los ingresa el usuario.
         $validated['duration_hours'] = (int) $serviceType->durationHours();
 
-        $totalAmount = (float) $validated['total_amount'];
+        // Calcular el total bruto
+        $bruto = (float) $validated['total_amount'];
+
+        // Calcular el descuento si hay convenio
+        $descuento = 0;
+        if (! empty($validated['agreement_id'])) {
+            $agreement = Agreement::find($validated['agreement_id']);
+            if ($agreement) {
+                $descuento = $bruto * ($agreement->discount_percentage / 100);
+            }
+        }
+
+        // Este es el monto final que se guardará en el servicio
+        $totalFinal = $bruto - $descuento;
         $amountPaid = (float) $validated['amount_paid'];
 
-        // El abono inicial debe ser al menos el 50% del total ingresado
-        $requiredDeposit = $totalAmount * 0.50;
+        // El abono inicial no puede superar el total final ni ser menor al 50%
+        if ($amountPaid > $totalFinal + 0.01) {
+            throw ValidationException::withMessages([
+                'amount_paid' => 'El abono inicial no puede ser mayor al total final ($' . number_format($totalFinal, 0, ',', '.') . ').',
+            ]);
+        }
+
+        $requiredDeposit = $totalFinal * 0.50;
 
         if ($amountPaid + 0.01 < $requiredDeposit) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'amount_paid' => 'El abono inicial debe ser de al menos el 50% del total ($' . number_format($requiredDeposit, 0, ',', '.') . ').',
             ]);
         }
 
-        $validated['seremi_extension_granted'] = !empty($validated['seremi_resolution_number']);
+        $validated['seremi_extension_granted'] = ! empty($validated['seremi_resolution_number']);
 
         try {
             DB::beginTransaction();
@@ -622,10 +608,10 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             // 3. CLIENTE: reutilizar existente o crear nuevo
             // ─────────────────────────────────────────────────────────
-            if (!empty($validated['existing_client_id'])) {
-                $client = \App\Models\Client::findOrFail($validated['existing_client_id']);
+            if (! empty($validated['existing_client_id'])) {
+                $client = Client::findOrFail($validated['existing_client_id']);
             } else {
-                $client = \App\Models\Client::create([
+                $client = Client::create([
                     'rut' => $validated['client_rut'],
                     'name' => $validated['client_name'],
                     'phone' => $validated['client_phone'] ?? null,
@@ -638,40 +624,35 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             // 4. FALLECIDO
             // ─────────────────────────────────────────────────────────
-            $deceased = \App\Models\Deceased::create([
+            $deceased = Deceased::create([
                 'full_name' => $validated['deceased_full_name'],
                 'rut' => $validated['deceased_rut'],
-
-                // Nombres del wizard (deceased_*) → columnas reales de la tabla
                 'death_date' => $validated['deceased_death_date'],
                 'death_time' => $validated['deceased_death_time'] ?? null,
                 'death_location' => $validated['deceased_death_location'] ?? null,
-                'cause_of_death' => $validated['deceased_cause_of_death'] ?? null, // El modelo lo encripta
+                'cause_of_death' => $validated['deceased_cause_of_death'] ?? null,
                 'death_certificate_number' => $validated['deceased_death_certificate'] ?? null,
-
-                // Se mantienen del código anterior (no estaban en el cambio pedido)
                 'current_location' => 'Funeraria Cristo Rey',
-                'cemetery' => $validated['destination_location'] ?? null, // A dónde se lleva (cementerio/crematorio)
+                'cemetery' => $validated['destination_location'] ?? null,
             ]);
 
             // ─────────────────────────────────────────────────────────
-            // 5. SERVICIO (con branch_id garantizado como entero)
+            // 5. SERVICIO
             // ─────────────────────────────────────────────────────────
-            $endsAt = \Carbon\Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
+            $endsAt = Carbon::parse($validated['scheduled_at'])->addHours($validated['duration_hours']);
 
-            $service = \App\Models\Service::create([
+            $service = Service::create([
                 'client_id' => $client->id,
                 'deceased_id' => $deceased->id,
-                'service_type' => $serviceType, // 👈 Enum (se castea a string en el modelo)
-                'branch_id' => $validated['branch_id'], // 👈 AHORA SÍ SE GUARDA
+                'service_type' => $serviceType,
+                'branch_id' => $validated['branch_id'],
                 'beneficiary_type' => $validated['beneficiary_type'],
+                'agreement_id' => $validated['agreement_id'] ?? null,
                 'scheduled_at' => $validated['scheduled_at'],
                 'duration_hours' => $validated['duration_hours'],
                 'ends_at' => $endsAt,
-                // 👇 Monto manual directo
-                'base_price' => $totalAmount,
-                'total_price' => $totalAmount,
-
+                'base_price' => $totalFinal,
+                'total_price' => $totalFinal,
                 'status' => 'accepted',
                 'created_by' => auth()->id(),
                 'approved_by' => auth()->id(),
@@ -687,7 +668,7 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             // 6. ASIGNAR ITEM DE INVENTARIO (si se seleccionó)
             // ─────────────────────────────────────────────────────────
-            if (!empty($validated['inventory_item_id'])) {
+            if (! empty($validated['inventory_item_id'])) {
                 $assigner->assignInventoryItem(
                     $service,
                     (int) $validated['inventory_item_id'],
@@ -699,7 +680,7 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             // 6.1 ASIGNAR VEHÍCULO (si se seleccionó)
             // ─────────────────────────────────────────────────────────
-            if (!empty($validated['vehicle_id'])) {
+            if (! empty($validated['vehicle_id'])) {
                 $assigner->assignVehicle(
                     $service,
                     (int) $validated['vehicle_id'],
@@ -712,16 +693,14 @@ class ServiceController extends Controller
             // ─────────────────────────────────────────────────────────
             // 6.2 ASIGNAR CHOFER (si se seleccionó)
             // ─────────────────────────────────────────────────────────
-            if (!empty($validated['driver_id'])) {
-                $driver = \App\Models\User::findOrFail((int) $validated['driver_id']);
+            if (! empty($validated['driver_id'])) {
+                $driver = User::findOrFail((int) $validated['driver_id']);
 
-                // Valida: usuario activo, sin ausencia aprobada y sin otro
-                // servicio en el mismo horario. Si falla, se revierte todo el
-                // expediente y el error se muestra en el campo del chofer.
                 try {
                     $availability->validateAssignment($driver, $service);
                 } catch (\Exception $e) {
                     DB::rollBack();
+
                     return back()->withErrors(['driver_id' => $e->getMessage()])->withInput();
                 }
 
@@ -738,7 +717,7 @@ class ServiceController extends Controller
             // 7. REGISTRAR ABONO (monto ingresado en el formulario)
             // ─────────────────────────────────────────────────────────
             if ($amountPaid > 0) {
-                $payment = \App\Models\Payment::create([
+                $payment = Payment::create([
                     'service_id' => $service->id,
                     'amount' => $amountPaid,
                     'payment_method' => $validated['payment_method'] ?? 'efectivo',
@@ -747,7 +726,7 @@ class ServiceController extends Controller
                     'registered_by' => auth()->id(),
                 ]);
 
-                app(\App\Http\Controllers\PaymentController::class)->generateReceiptPdf($payment);
+                app(PaymentController::class)->generateReceiptPdf($payment);
             }
 
             DB::commit();
@@ -758,12 +737,13 @@ class ServiceController extends Controller
                     'message' => 'Expediente creado y abono registrado.',
                 ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            // Errores de asignación (p. ej. unidad ya no disponible): se muestran en su campo
+        } catch (ValidationException $e) {
             DB::rollBack();
+
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
+
             return back()->withErrors(['error' => 'Error al crear el expediente: ' . $e->getMessage()])->withInput();
         }
     }
@@ -772,7 +752,7 @@ class ServiceController extends Controller
     {
         $service->load(['client', 'deceased', 'branch']);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.contract', [
+        $pdf = Pdf::loadView('pdfs.contract', [
             'service' => $service,
         ])->setPaper('a4', 'portrait');
 
@@ -790,7 +770,7 @@ class ServiceController extends Controller
 
         $service->load(['client', 'deceased', 'branch', 'payments']);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.reports.paz-y-salvo', [
+        $pdf = Pdf::loadView('pdfs.reports.paz-y-salvo', [
             'service' => $service,
         ])->setPaper('a4', 'portrait');
 

@@ -8,6 +8,7 @@ import {
     DollarSign,
     FileText,
     HandHeart,
+    Handshake,
     LayoutGrid,
     MapPin,
     Package,
@@ -108,6 +109,18 @@ export function AppSidebar() {
                       title: 'Servicios',
                       href: '/services',
                       icon: FileText,
+                  },
+              ]
+            : []),
+        // Convenios: visible para Administrador y Encargado.
+        // Se ubica junto a Sucursales porque ambos son datos maestros
+        // del negocio (convenios comerciales / sedes físicas).
+        ...((isAdmin || isEncargado)
+            ? [
+                  {
+                      title: 'Convenios',
+                      href: '/agreements',
+                      icon: Handshake,
                   },
               ]
             : []),

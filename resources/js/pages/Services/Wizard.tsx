@@ -4,7 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, ChevronLeft, ChevronRight, Package, DollarSign, AlertTriangle, Info, Truck, UserCheck } from 'lucide-react';
+import {
+    AlertTriangle,
+    Check,
+    CheckCircle2,
+    ChevronLeft,
+    ChevronRight,
+    DollarSign,
+    Handshake,
+    Info,
+    Package,
+    Truck,
+    UserCheck,
+} from 'lucide-react';
 
 interface Client {
     id: number;
@@ -27,6 +39,17 @@ interface AvailableItem {
     price: string;
 }
 
+/**
+ * Convenio institucional disponible para aplicar al servicio.
+ * `discount_percentage` llega como string ("10.00") porque el modelo
+ * Agreement lo castea como decimal:2, pero se normaliza a Number() al usar.
+ */
+interface Agreement {
+    id: number;
+    name: string;
+    discount_percentage: number | string;
+}
+
 interface Props {
     branches: Array<{ id: number; name: string }>;
     serviceTypes: ServiceTypeOption[];
@@ -35,6 +58,8 @@ interface Props {
     existingClients: Client[];
     availableVehicles: Array<{ id: number; plate: string; type: string; brand: string | null; model: string | null }>;
     availableEmployees: Array<{ id: number; name: string }>;
+    /** Convenios activos (vienen filtrados por Agreement::active() en el backend). */
+    agreements: Agreement[];
 }
 
 export default function ServicesWizard({
@@ -45,6 +70,7 @@ export default function ServicesWizard({
     existingClients,
     availableVehicles,
     availableEmployees,
+    agreements,
 }: Props) {
     const [step, setStep] = useState(1);
     const [clientMode, setClientMode] = useState<'existing' | 'new'>('new');
@@ -78,6 +104,12 @@ export default function ServicesWizard({
         driver_id: '',
         payment_method: 'efectivo',
         payment_reference: '',
+        // ─────────────────────────────────────────────────────────────
+        // CONVENIO (opcional)
+        // ─────────────────────────────────────────────────────────────
+        // Se envía vacío por defecto. Si el usuario elige uno, se manda el
+        // id. El backend lo valida con `nullable|exists:agreements,id`.
+        agreement_id: '',
     });
 
     const handleServiceTypeChange = (value: string) => {
@@ -92,7 +124,29 @@ export default function ServicesWizard({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/services/quick-store');
+
+        // ─────────────────────────────────────────────────────────────
+        // Envío: se manda el monto FINAL (con descuento aplicado) como
+        // `total_amount`, no el bruto. Así el backend no necesita
+        // recalcular el descuento: solo valida que `amount_paid` sea al
+        // menos el 50% de `total_amount` y guarda ambos valores.
+        //
+        // `agreement_id` se envía vacío (""), lo que Laravel convierte a
+        // null gracias a la regla `nullable`. El backend lo guarda como
+        // null si no hay convenio.
+        // ─────────────────────────────────────────────────────────────
+        post('/services/quick-store', {
+            preserveScroll: true,
+            transform: (payload) => ({
+                ...payload,
+                // Se sobreescribe `total_amount` con el total final
+                // (bruto - descuento) para que el backend reciba el monto
+                // que efectivamente se cobrará.
+                total_amount: String(finalTotal),
+                // Normaliza cadenas vacías a null para el backend.
+                agreement_id: payload.agreement_id === '' ? null : payload.agreement_id,
+            }),
+        });
     };
 
     const nextStep = () => setStep((s) => Math.min(s + 1, 3));
@@ -101,12 +155,32 @@ export default function ServicesWizard({
     const formatPrice = (value: number) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
 
-    // El total y el abono los ingresa el cajero manualmente.
-    // El 50% se muestra solo como ayuda visual, no bloquea el ingreso.
-    const totalAmount = Number(data.total_amount) || 0;
+    // ─────────────────────────────────────────────────────────────
+    // CÁLCULO DE MONTOS CON CONVENIO
+    // ─────────────────────────────────────────────────────────────
+    //
+    // - baseTotal: monto BRUTO ingresado por el cajero (sin descuento).
+    // - selectedAgreement: convenio elegido (o undefined si no hay).
+    // - discountPercentage: % de descuento del convenio (0 si no hay).
+    // - discountAmount: descuento en pesos (redondeado).
+    // - finalTotal: monto FINAL que se cobrará al cliente.
+    // - amountPaid: abono ingresado.
+    // - suggestedDeposit: 50% del monto FINAL (regla del backend).
+    // - balance: saldo pendiente tras el abono.
+    //
+    // Importante: el `suggestedDeposit` se calcula sobre `finalTotal`,
+    // no sobre `baseTotal`, porque el backend valida el 50% contra el
+    // `total_amount` que recibe (que es el final con descuento).
+    // ─────────────────────────────────────────────────────────────
+    const baseTotal = Number(data.total_amount) || 0;
+    const selectedAgreement = agreements.find((a) => a.id === Number(data.agreement_id));
+    const discountPercentage = selectedAgreement ? Number(selectedAgreement.discount_percentage) : 0;
+    const discountAmount = Math.round(baseTotal * (discountPercentage / 100));
+    const finalTotal = Math.max(baseTotal - discountAmount, 0);
+
     const amountPaid = Number(data.amount_paid) || 0;
-    const suggestedDeposit = Math.round(totalAmount * 0.5);
-    const balance = Math.max(totalAmount - amountPaid, 0);
+    const suggestedDeposit = Math.round(finalTotal * 0.5);
+    const balance = Math.max(finalTotal - amountPaid, 0);
 
     // Deja solo dígitos (quita puntos, comas, signos, etc.)
     const handleNumberChange = (field: 'total_amount' | 'amount_paid', value: string) => {
@@ -295,6 +369,47 @@ export default function ServicesWizard({
                                         </div>
                                     </div>
 
+                                    {/* ─────────────────────────────────────────────
+                                        CONVENIO INSTITUCIONAL (opcional)
+                                    ─────────────────────────────────────────────
+                                        Si el cliente pertenece a un convenio activo (club
+                                        deportivo, municipalidad, empresa, etc.), aquí se
+                                        selecciona para aplicar el descuento correspondiente.
+                                        El descuento se refleja en el resumen de pago más abajo,
+                                        y el `total_amount` que se envía al backend ya viene
+                                        con el descuento aplicado (ver handleSubmit).
+                                    */}
+                                    <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/40">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Handshake className="w-4 h-4 text-rose-800" />
+                                            <Label className="text-rose-800 font-bold">Convenio Institucional (Opcional)</Label>
+                                        </div>
+                                        <select
+                                            value={data.agreement_id}
+                                            onChange={e => setData('agreement_id', e.target.value)}
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                        >
+                                            <option value="">Sin convenio (Precio normal)</option>
+                                            {agreements.map(a => (
+                                                <option key={a.id} value={a.id}>
+                                                    {a.name} — {Number(a.discount_percentage)}% de descuento
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {agreements.length === 0 && (
+                                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                                <Info className="h-3 w-3" /> No hay convenios activos registrados.
+                                            </p>
+                                        )}
+                                        {selectedAgreement && (
+                                            <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1 font-medium">
+                                                <CheckCircle2 className="h-3 w-3" />
+                                                Se aplicará un descuento del {discountPercentage}% al total.
+                                            </p>
+                                        )}
+                                        {errors.agreement_id && <p className="text-sm text-rose-600 mt-1">{errors.agreement_id}</p>}
+                                    </div>
+
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="md:col-span-2">
                                             <Label>Tipo de Servicio *</Label>
@@ -429,7 +544,7 @@ export default function ServicesWizard({
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <Label className="text-xs">Total del servicio *</Label>
+                                                <Label className="text-xs">Total Bruto del servicio *</Label>
                                                 <Input
                                                     type="text"
                                                     inputMode="numeric"
@@ -438,7 +553,9 @@ export default function ServicesWizard({
                                                     placeholder="Ej: 1200000"
                                                     className="mt-1 bg-white dark:bg-slate-950"
                                                 />
-                                                <p className="text-xs text-muted-foreground mt-1">Monto total acordado con el cliente.</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Monto total acordado antes de aplicar convenio.
+                                                </p>
                                                 {errors.total_amount && <p className="text-sm text-rose-600 mt-1">{errors.total_amount}</p>}
                                             </div>
                                             <div>
@@ -451,7 +568,7 @@ export default function ServicesWizard({
                                                     placeholder="Ej: 600000"
                                                     className="mt-1 bg-white dark:bg-slate-950"
                                                 />
-                                                {totalAmount > 0 && (
+                                                {finalTotal > 0 && (
                                                     <p className={`text-xs mt-1 font-medium ${amountPaid >= suggestedDeposit ? 'text-emerald-600' : 'text-rose-600'}`}>
                                                         Mínimo requerido (50%): {formatPrice(suggestedDeposit)}
                                                     </p>
@@ -474,21 +591,42 @@ export default function ServicesWizard({
                                                 <Input value={data.payment_reference} onChange={e => setData('payment_reference', e.target.value)} placeholder="Opcional" className="mt-1 bg-white dark:bg-slate-950" />
                                             </div>
                                         </div>
-                                        <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-lg border mt-4">
-                                            <p className="font-medium text-slate-700 dark:text-slate-200">Resumen de Pago</p>
-                                            <div className="flex justify-between mt-2 text-sm">
-                                                <span>Total Servicio:</span>
-                                                <span className="font-bold">{formatPrice(totalAmount)}</span>
+
+                                        {/* ─────────────────────────────────────────────
+                                            RESUMEN DE PAGO CON DESGLOSE DE CONVENIO
+                                        ─────────────────────────────────────────────
+                                            Si hay convenio seleccionado, se muestra:
+                                              - Subtotal (bruto)
+                                              - Descuento (monto y %)
+                                              - Total a pagar (final, con descuento)
+                                              - Abono ingresado
+                                              - Saldo pendiente (sobre el total final)
+                                        */}
+                                        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border mt-4 shadow-sm">
+                                            <p className="font-medium text-slate-700 dark:text-slate-200 mb-2">Resumen de Pago</p>
+
+                                            <div className="flex justify-between text-sm">
+                                                <span>Subtotal:</span>
+                                                <span className="font-medium">{formatPrice(baseTotal)}</span>
                                             </div>
-                                            <div className="flex justify-between mt-1 text-sm">
+
+                                            {selectedAgreement && (
+                                                <div className="flex justify-between text-sm text-emerald-600 mt-1">
+                                                    <span>Descuento ({discountPercentage}% · {selectedAgreement.name}):</span>
+                                                    <span className="font-medium">-{formatPrice(discountAmount)}</span>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between text-base font-bold border-t pt-2 mt-2 text-slate-800 dark:text-slate-100">
+                                                <span>Total a Pagar:</span>
+                                                <span className="text-rose-800 dark:text-rose-400">{formatPrice(finalTotal)}</span>
+                                            </div>
+
+                                            <div className="flex justify-between text-sm text-slate-500 mt-2">
                                                 <span>Abono ingresado:</span>
-                                                <span className="font-bold">{formatPrice(amountPaid)}</span>
+                                                <span>{formatPrice(amountPaid)}</span>
                                             </div>
-                                            <div className="flex justify-between mt-1 text-sm text-rose-700 dark:text-rose-400">
-                                                <span>Abono sugerido (50%):</span>
-                                                <span className="font-bold">{formatPrice(suggestedDeposit)}</span>
-                                            </div>
-                                            <div className="flex justify-between mt-1 text-sm border-t pt-1">
+                                            <div className="flex justify-between text-sm text-slate-500 border-t pt-1 mt-1">
                                                 <span>Saldo pendiente:</span>
                                                 <span className="font-bold">{formatPrice(balance)}</span>
                                             </div>

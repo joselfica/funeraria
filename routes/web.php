@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AgreementController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
@@ -68,6 +69,17 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::resource('clients', ClientController::class)->except(['destroy']);
 
     // ─────────────────────────────────────────────────────────
+    // CONVENIOS (Agreements)
+    // Listado, registro y activación/desactivación.
+    // No hay destroy: los convenios se "desactivan" con toggleActive
+    // para preservar la trazabilidad histórica de los servicios que
+    // los usaron.
+    // ─────────────────────────────────────────────────────────
+    Route::get('agreements', [AgreementController::class, 'index'])->name('agreements.index');
+    Route::post('agreements', [AgreementController::class, 'store'])->name('agreements.store');
+    Route::patch('agreements/{agreement}/toggle-active', [AgreementController::class, 'toggleActive'])->name('agreements.toggle-active');
+
+    // ─────────────────────────────────────────────────────────
     // INVENTARIO
     // ─────────────────────────────────────────────────────────
     Route::get('inventory', [InventoryController::class, 'hub'])->name('inventory.hub');
@@ -89,7 +101,15 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
     Route::post('deceased/{deceased}/toggle-active', [DeceasedController::class, 'toggleActive'])->name('deceased.toggle-active');
     Route::resource('deceased', DeceasedController::class)->except(['destroy']);
 
-    // Servicios
+    // ─────────────────────────────────────────────────────────
+    // SERVICIOS
+    // ─────────────────────────────────────────────────────────
+
+    // Wizard de creación de expediente completo.
+    // Se cargan todos los catálogos necesarios para los pasos del wizard.
+    // Nota: este closure concentra mucho payload; si crece más, conviene
+    // moverlo a un controlador dedicado (ServiceWizardController) para
+    // mantener web.php delgado.
     Route::get('services/wizard', function () {
         return \Inertia\Inertia::render('Services/Wizard', [
             'branches' => \App\Models\Branch::active()->get(['id', 'name']),
@@ -130,6 +150,14 @@ Route::middleware(['auth', 'role:Administrador|Encargado'])->group(function () {
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            // Convenios vigentes: el wizard los usa en el paso de cliente
+            // para aplicar el descuento correspondiente al servicio.
+            // Se seleccionan solo id/name/discount_percentage (el resto del
+            // modelo no es necesario en el formulario) y se usa el scope
+            // `active()` para excluir convenios desactivados y soft-deleted.
+            'agreements' => \App\Models\Agreement::active()
+                ->orderBy('name')
+                ->get(['id', 'name', 'discount_percentage']),
         ]);
     })->name('services.wizard');
 
