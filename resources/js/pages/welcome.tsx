@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { 
     Phone, Mail, MapPin, Clock, CheckCircle2, ArrowRight, 
     ChevronRight, Menu, X, MessageCircle, FileText, Flame, 
-    Crown, Eye, ShieldCheck, Sparkles
+    Crown, Eye, ShieldCheck, ExternalLink
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -155,7 +155,8 @@ export default function Welcome({ catalogItems = DEFAULT_CATALOG }: WelcomeProps
             email: 'contacto@funerariacristorey.cl',
             badge: 'Atención 24 Horas',
             hours: 'Abierto las 24 horas, todos los días',
-            mapUrl: 'https://maps.google.com/?q=Manuel+Montt+1991,+Temuco',
+            mapUrl: 'https://www.google.com/maps/search/?api=1&query=Manuel+Montt+1991,+Temuco,+Chile',
+            embedUrl: 'https://maps.google.com/maps?q=Manuel+Montt+1991,+Temuco,+Chile&t=&z=16&ie=UTF8&iwloc=&output=embed',
         },
         {
             name: 'Sucursal — Blanco Encalada',
@@ -165,7 +166,8 @@ export default function Welcome({ catalogItems = DEFAULT_CATALOG }: WelcomeProps
             email: 'sucursal2@funerariacristorey.cl',
             badge: 'Salas de Atención',
             hours: 'Lunes a Domingo: 08:30 – 21:00 hrs',
-            mapUrl: 'https://maps.google.com/?q=Blanco+456,+Temuco',
+            mapUrl: 'https://www.google.com/maps/search/?api=1&query=Blanco+456,+Temuco,+Chile',
+            embedUrl: 'https://maps.google.com/maps?q=Blanco+456,+Temuco,+Chile&t=&z=16&ie=UTF8&iwloc=&output=embed',
         },
     ];
 
@@ -731,7 +733,7 @@ export default function Welcome({ catalogItems = DEFAULT_CATALOG }: WelcomeProps
                     </div>
                 </section>
 
-                {/* ============ SUCURSALES ============ */}
+                {/* ============ SUCURSALES CON GOOGLE MAPS EMBEBIDO ============ */}
                 <section id="sucursales" className="py-24 bg-neutral-50 border-t border-neutral-200/80">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="text-center max-w-2xl mx-auto mb-14">
@@ -749,6 +751,7 @@ export default function Welcome({ catalogItems = DEFAULT_CATALOG }: WelcomeProps
                             </p>
                         </div>
 
+                        {/* Selector móvil de sucursal */}
                         <div className="flex justify-center gap-3 mb-10 md:hidden">
                             {branches.map((b, idx) => (
                                 <button
@@ -769,50 +772,64 @@ export default function Welcome({ catalogItems = DEFAULT_CATALOG }: WelcomeProps
                             {branches.map((branch, index) => (
                                 <div 
                                     key={index}
-                                    className={`${activeBranch !== index ? 'hidden md:block' : 'block'} bg-white rounded-2xl p-8 md:p-10 border border-neutral-200 shadow-xs`}
+                                    className={`${activeBranch !== index ? 'hidden md:flex' : 'flex'} flex-col justify-between bg-white rounded-2xl overflow-hidden border border-neutral-200 shadow-xs hover:shadow-md transition-shadow`}
                                 >
-                                    <div className="flex flex-wrap items-center justify-between gap-2 mb-6 pb-6 border-b border-neutral-100">
-                                        <div>
-                                            <span className="text-xs uppercase tracking-widest text-[#9B111E] font-bold">
-                                                {branch.badge}
-                                            </span>
-                                            <h3 
-                                                className="text-2xl font-bold text-neutral-900 mt-1"
-                                                style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                                            >
-                                                {branch.name}
-                                            </h3>
-                                        </div>
-                                        <a 
-                                            href={branch.mapUrl} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="text-xs font-bold text-[#9B111E] hover:bg-red-50 flex items-center gap-1 border border-red-200 px-3 py-2 rounded-lg transition-colors"
-                                        >
-                                            <MapPin className="h-3.5 w-3.5" /> Ver en Mapa
-                                        </a>
-                                    </div>
-                                    
-                                    <div className="space-y-4 text-sm text-neutral-600">
-                                        <div className="flex items-start gap-3.5">
-                                            <MapPin className="h-5 w-5 text-[#9B111E] shrink-0 mt-0.5" />
+                                    <div className="p-8 md:p-9">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-6 pb-6 border-b border-neutral-100">
                                             <div>
-                                                <p className="font-semibold text-neutral-900">{branch.address}</p>
-                                                <p className="text-xs text-neutral-500 mt-0.5">{branch.hours}</p>
+                                                <span className="text-xs uppercase tracking-widest text-[#9B111E] font-bold">
+                                                    {branch.badge}
+                                                </span>
+                                                <h3 
+                                                    className="text-2xl font-bold text-neutral-900 mt-1"
+                                                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                                                >
+                                                    {branch.name}
+                                                </h3>
+                                            </div>
+                                            <a 
+                                                href={branch.mapUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-xs font-bold text-[#9B111E] hover:bg-red-50 flex items-center gap-1.5 border border-red-200 px-3.5 py-2 rounded-lg transition-colors"
+                                            >
+                                                <ExternalLink className="h-3.5 w-3.5" /> Abrir en Maps
+                                            </a>
+                                        </div>
+                                        
+                                        <div className="space-y-4 text-sm text-neutral-600 mb-6">
+                                            <div className="flex items-start gap-3.5">
+                                                <MapPin className="h-5 w-5 text-[#9B111E] shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="font-semibold text-neutral-900">{branch.address}</p>
+                                                    <p className="text-xs text-neutral-500 mt-0.5">{branch.hours}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3.5">
+                                                <Phone className="h-5 w-5 text-[#9B111E] shrink-0" />
+                                                <a href={`tel:${branch.rawPhone}`} className="hover:text-[#9B111E] font-bold text-neutral-900">
+                                                    {branch.phone}
+                                                </a>
+                                            </div>
+                                            <div className="flex items-center gap-3.5">
+                                                <Mail className="h-5 w-5 text-[#9B111E] shrink-0" />
+                                                <a href={`mailto:${branch.email}`} className="hover:text-[#9B111E] break-all">
+                                                    {branch.email}
+                                                </a>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3.5">
-                                            <Phone className="h-5 w-5 text-[#9B111E] shrink-0" />
-                                            <a href={`tel:${branch.rawPhone}`} className="hover:text-[#9B111E] font-bold text-neutral-900">
-                                                {branch.phone}
-                                            </a>
-                                        </div>
-                                        <div className="flex items-center gap-3.5">
-                                            <Mail className="h-5 w-5 text-[#9B111E] shrink-0" />
-                                            <a href={`mailto:${branch.email}`} className="hover:text-[#9B111E] break-all">
-                                                {branch.email}
-                                            </a>
-                                        </div>
+                                    </div>
+
+                                    {/* Mapa Interactivo Google Maps */}
+                                    <div className="w-full h-64 bg-neutral-100 border-t border-neutral-200 relative">
+                                        <iframe
+                                            title={`Mapa ${branch.name}`}
+                                            src={branch.embedUrl}
+                                            className="w-full h-full border-0"
+                                            loading="lazy"
+                                            referrerPolicy="no-referrer-when-downgrade"
+                                            allowFullScreen
+                                        />
                                     </div>
                                 </div>
                             ))}
